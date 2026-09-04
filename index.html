@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft 超清晰版網頁 v6.1</title>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+TC:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --mc-stone: #737373;
+            --mc-dark-stone: #333333;
+            --mc-button: #7f7f7f;
+            --mc-button-hover: #9e9e9e;
+            --mc-text: #ffffff;
+            --mc-yellow: #ffea00;
+            --world-bg: #112211;
+            --block-bg: #866043;
+            --block-shadow-dark: #423021;
+            --block-shadow-light: #b5845c;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--world-bg);
+            background-image: 
+                linear-gradient(45deg, rgba(0,0,0,0.5) 25%, transparent 25%), 
+                linear-gradient(-45deg, rgba(0,0,0,0.5) 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.5) 75%), 
+                linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.5) 75%);
+            background-size: 28px 28px;
+            color: var(--mc-text);
+            font-family: 'Noto Sans TC', 'ZCOOL KuaiLe', sans-serif;
+            font-weight: 900;
+            padding: 20px 20px 130px 20px;
+            line-height: 2.2;
+            overflow-x: hidden;
+            position: relative;
+            transition: background-color 0.5s ease;
+        }
+
+        .container {
+            max-width: 920px;
+            margin: 20px auto;
+            background-color: var(--mc-dark-stone);
+            border: 6px solid #000;
+            box-shadow: inset -6px -6px 0px #1a1a1a, inset 6px 6px 0px #666, 12px 12px 0px rgba(0,0,0,0.9);
+            padding: 40px;
+            position: relative;
+            z-index: 10;
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 4px dashed #666;
+            padding-bottom: 25px;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: var(--mc-yellow);
+            text-shadow: 4px 4px #000, 0 0 10px rgba(255,234,0,0.4);
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+
+        .splash-text {
+            display: inline-block;
+            font-size: 14px;
+            color: var(--mc-yellow);
+            background: rgba(0, 0, 0, 0.75);
+            padding: 8px 14px;
+            border: 3px solid var(--mc-yellow);
+            transform: rotate(-3deg);
+            animation: bounce 0.8s infinite alternate;
+            text-shadow: 2px 2px #000;
+        }
+
+        @keyframes bounce {
+            0% { transform: rotate(-3deg) scale(1); }
+            100% { transform: rotate(-3deg) scale(1.05); }
+        }
+
+        section {
+            background-color: var(--mc-stone);
+            border: 4px solid #000;
+            box-shadow: inset -4px -4px 0px #4d4d4d, inset 4px 4px 0px #b3b3b3;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            font-size: 20px;
+            color: var(--mc-yellow);
+            margin-bottom: 18px;
+            text-shadow: 3px 3px #000;
+            letter-spacing: 1px;
+        }
+
+        p {
+            font-size: 15px;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px #000;
+        }
+
+        .mc-button {
+            display: inline-block;
+            background-color: var(--mc-button);
+            color: #fff;
+            font-family: 'Noto Sans TC', sans-serif;
+            font-weight: 900;
+            font-size: 14px;
+            padding: 14px 22px;
+            border: 4px solid #000;
+            box-shadow: inset -4px -4px 0px #3f3f3f, inset 4px 4px 0px #dfdfdf;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            margin: 8px 8px 8px 0;
+            text-shadow: 2px 2px #000;
+            transition: filter 0.2s;
+        }
+
+        .mc-button:hover {
+            background-color: var(--mc-button-hover);
+            box-shadow: inset -4px -4px 0px #5f5f5f, inset 4px 4px 0px #ffffff;
+            color: var(--mc-yellow);
+        }
+
+        .mc-button:active {
+            box-shadow: inset 4px 4px 0px #3f3f3f;
+        }
+
+        .mc-button.active-dim {
+            background-color: #1d4ed8;
+            color: var(--mc-yellow);
+            border-color: #000;
+            box-shadow: inset -4px -4px 0px #1e3a8a, inset 4px 4px 0px #60a5fa;
+        }
+
+        .mine-box {
+            text-align: center;
+            background: #1f1f1f;
+            border: 4px solid #000;
+            padding: 25px;
+            margin-top: 20px;
+            box-shadow: inset 3px 3px 0px #000;
+        }
+
+        .block-target {
+            display: inline-block;
+            width: 90px;
+            height: 90px;
+            background-color: var(--block-bg);
+            border: 4px solid #000;
+            box-shadow: inset -5px -5px 0px var(--block-shadow-dark), inset 5px 5px 0px var(--block-shadow-light);
+            cursor: pointer;
+            margin: 15px;
+            transition: transform 0.05s, background-color 0.3s;
+        }
+
+        .block-target:active {
+            transform: scale(0.85);
+            filter: brightness(1.25);
+        }
+
+        .achievement-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            max-height: 320px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .ach-card {
+            background: #222222;
+            border: 4px solid #000;
+            box-shadow: inset 3px 3px 0px #444;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+
+        .ach-card.unlocked {
+            opacity: 1;
+            background: #1b381b;
+            border-color: #000;
+            box-shadow: inset 3px 3px 0px #44bb44;
+        }
+
+        .ach-card-icon {
+            font-size: 28px;
+            background: #111;
+            padding: 12px;
+            border: 3px solid #000;
+            margin-right: 18px;
+            min-width: 56px;
+            text-align: center;
+        }
+
+        .ach-card-info .ach-name {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 6px;
+            text-shadow: 1px 1px #000;
+        }
+
+        .ach-card.unlocked .ach-name {
+            color: #55ff55;
+        }
+
+        .ach-card-info .ach-desc {
+            font-size: 12px;
+            color: #888;
+            text-shadow: 1px 1px #000;
+        }
+
+        .ach-card.unlocked .ach-card-info .ach-desc {
+            color: #ffffff;
+        }
+
+        #achievement-popup {
+            position: fixed;
+            top: 25px;
+            right: -420px;
+            width: 380px;
+            background: rgba(15, 15, 15, 0.98);
+            border: 5px solid #000;
+            box-shadow: inset -4px -4px 0px #111, inset 4px 4px 0px #888, 8px 8px 25px rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            padding: 18px;
+            z-index: 2000;
+            transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #achievement-popup.show {
+            right: 25px;
+        }
+
+        .ach-popup-icon {
+            font-size: 32px;
+            margin-right: 18px;
+            background: #2a2a2a;
+            padding: 12px;
+            border: 3px solid #000;
+        }
+
+        .ach-popup-text .title {
+            font-size: 13px;
+            color: #55ff55;
+            margin-bottom: 6px;
+            text-shadow: 2px 2px #000;
+        }
+
+        .ach-popup-text .desc {
+            font-size: 12px;
+            color: #fff;
+            text-shadow: 2px 2px #000;
+        }
+
+        .hotbar-container {
+            position: fixed;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            background-color: rgba(0, 0, 0, 0.88);
+            border: 6px solid #2b2b2b;
+            padding: 8px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.9);
+            z-index: 1000;
+        }
+
+        .hotbar-slot {
+            width: 56px;
+            height: 56px;
+            background-color: #8b8b8b;
+            border: 4px solid #2b2b2b;
+            box-shadow: inset 3px 3px 0px #fff, inset -3px -3px 0px #444;
+            margin: 0 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .hotbar-slot.active {
+            border-color: #fff;
+            box-shadow: inset 0 0 0 3px #fff, inset 3px 3px 0px #fff, inset -3px -3px 0px #444;
+        }
+
+        .tooltip {
+            position: absolute;
+            bottom: 68px;
+            background: rgba(0,0,0,0.95);
+            color: #ffea00;
+            padding: 8px 12px;
+            font-size: 12px;
+            border: 3px solid #ffea00;
+            white-space: nowrap;
+            display: none;
+            pointer-events: none;
+            text-shadow: 1px 1px #000;
+        }
+
+        .hotbar-slot:hover .tooltip {
+            display: block;
+        }
+
+        footer {
+            text-align: center;
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 40px;
+            text-shadow: 2px 2px #000;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="achievement-popup">
+        <div class="ach-popup-icon" id="popup-icon">🏆</div>
+        <div class="ach-popup-text">
+            <div class="title">已解鎖成就！</div>
+            <div class="desc" id="ach-desc">取得方塊</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1 id="world-title">MINECRAFT 主世界</h1>
+            <div class="splash-text" id="splash">載入隨機標語中...</div>
+        </header>
+
+        <section>
+            <h2>> 維度切換導航</h2>
+            <p>點擊按鈕切換不同世界風格，體驗全尺寸高清晰度顯示：</p>
+            <button class="mc-button active-dim" id="btn-overworld" onclick="switchDimension('overworld')">🌲 主世界</button>
+            <button class="mc-button" id="btn-nether" onclick="switchDimension('nether')">🔥 地獄維度</button>
+            <button class="mc-button" id="btn-end" onclick="switchDimension('end')">🌌 終界維度</button>
+        </section>
+
+        <section>
+            <h2>> 採集練習場</h2>
+            <p>點擊方塊累積資源與解鎖成就：</p>
+            <div class="mine-box">
+                <div class="block-target" onclick="mineBlock()"></div>
+                <p>目前方塊：<span id="block-name" style="color: var(--mc-yellow); font-size: 18px;">泥土</span></p>
+                <p>已採集數量：<span id="score" style="color: var(--mc-yellow); font-size: 18px;">0</span> 個</p>
+            </div>
+        </section>
+
+        <section>
+            <h2>> 成就總覽清單</h2>
+            <p>清楚檢視你的冒險歷程與解鎖狀態：</p>
+            <div class="achievement-grid" id="achievement-list"></div>
+        </section>
+
+        <footer>
+            <p>© 2026 創世神超清晰升級版 v6.1. Not an official Minecraft product.</p>
+        </footer>
+    </div>
+
+    <div class="hotbar-container">
+        <div class="hotbar-slot active" onclick="selectSlot(this)">🪓<div class="tooltip">鐵斧</div></div>
+        <div class="hotbar-slot" onclick="selectSlot(this)">⛏️<div class="tooltip">鑽石鎬</div></div>
+        <div class="hotbar-slot" onclick="selectSlot(this)">🗡️<div class="tooltip">耐久 III 寶劍</div></div>
+        <div class="hotbar-slot" onclick="selectSlot(this)">🍖<div class="tooltip">熟牛排</div></div>
+        <div class="hotbar-slot" onclick="selectSlot(this)">🧱<div class="tooltip">方塊 x64</div></div>
+        <div class="hotbar-slot" onclick="selectSlot(this)">✨<div class="tooltip">不死圖騰</div></div>
+    </div>
+
+    <script>
+        const splashes = [
+            "字體超大！看得超清楚！",
+            "小心地獄幽靈發射火球！",
+            "終界龍看起來不太高興！",
+            "當心苦力怕！(Sssss...)",
+            "高清晰度完全不傷眼！",
+            "記得帶工作台出門！"
+        ];
+        document.getElementById('splash').innerText = splashes[Math.floor(Math.random() * splashes.length)];
+
+        const dimensions = {
+            overworld: { title: "MINECRAFT 主世界", bg: "#112211", blockBg: "#866043", blockDark: "#423021", blockLight: "#b5845c", name: "泥土 (Dirt)" },
+            nether: { title: "MINECRAFT 地獄維度", bg: "#331111", blockBg: "#6b2222", blockDark: "#330d0d", blockLight: "#9e3838", name: "地獄石 (Netherrack)" },
+            end: { title: "MINECRAFT 終界維度", bg: "#1a112e", blockBg: "#4a3575", blockDark: "#22153b", blockLight: "#7657b5", name: "終界石 (End Stone)" }
+        };
+
+        let currentDim = 'overworld';
+        let score = 0;
+
+        const achievementsData = [
+            { id: 'first_block', name: '初次開荒', desc: '在主世界成功採集第 1 個方塊', icon: '🪵', unlocked: false },
+            { id: 'master_miner', name: '挖礦大師', desc: '在主世界累計採集滿 10 個方塊', icon: '⛏️', unlocked: false },
+            { id: 'hot_place', name: '熱浪來襲', desc: '切換並踏入地獄維度採集地獄石', icon: '🔥', unlocked: false },
+            { id: 'gold_rush', name: '淘金熱', desc: '在地獄維度累計採集滿 5 個地獄石', icon: '🪙', unlocked: false },
+            { id: 'space_travel', name: '外太空之旅', desc: '切換並踏入神祕的終界維度', icon: '🌌', unlocked: false },
+            { id: 'dragon_slayer', name: '龍的傳人', desc: '在終界維度累計採集滿 5 個終界石', icon: '🐉', unlocked: false }
+        ];
+
+        function renderAchievements() {
+            const listContainer = document.getElementById('achievement-list');
+            listContainer.innerHTML = '';
+            achievementsData.forEach(ach => {
+                let card = document.createElement('div');
+                card.className = `ach-card ${ach.unlocked ? 'unlocked' : ''}`;
+                card.innerHTML = `
+                    <div class="ach-card-icon">${ach.unlocked ? ach.icon : '❓'}</div>
+                    <div class="ach-card-info">
+                        <div class="ach-name">${ach.unlocked ? ach.name : '？？？ (未解鎖)'}</div>
+                        <div class="ach-desc">${ach.desc}</div>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+        renderAchievements();
+
+        function unlockAchievement(id) {
+            let ach = achievementsData.find(a => a.id === id);
+            if (ach && !ach.unlocked) {
+                ach.unlocked = true;
+                renderAchievements();
+                showPopup(ach.icon, ach.name + "：" + ach.desc);
+                playAchievementSound();
+            }
+        }
+
+        function showPopup(icon, text) {
+            document.getElementById('popup-icon').innerText = icon;
+            document.getElementById('ach-desc').innerText = text;
+            let popup = document.getElementById('achievement-popup');
+            popup.classList.add('show');
+            setTimeout(() => { popup.classList.remove('show'); }, 3500);
+        }
+
+        function switchDimension(dimKey) {
+            playClickSound();
+            currentDim = dimKey;
+            const dim = dimensions[dimKey];
+
+            document.documentElement.style.setProperty('--world-bg', dim.bg);
+            document.documentElement.style.setProperty('--block-bg', dim.blockBg);
+            document.documentElement.style.setProperty('--block-shadow-dark', dim.blockDark);
+            document.documentElement.style.setProperty('--block-shadow-light', dim.blockLight);
+
+            document.getElementById('world-title').innerText = dim.title;
+            document.getElementById('block-name').innerText = dim.name;
+
+            document.querySelectorAll('.mc-button').forEach(btn => btn.classList.remove('active-dim'));
+            document.getElementById('btn-' + dimKey).classList.add('active-dim');
+
+            if (dimKey === 'nether') {
+                unlockAchievement('hot_place');
+            } else if (dimKey === 'end') {
+                unlockAchievement('space_travel');
+            }
+        }
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playHitSound() {
+            if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playClickSound() {
+            if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function playAchievementSound() {
+            if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+            osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function mineBlock() {
+            score++;
+            document.getElementById('score').innerText = score;
+            playHitSound();
+
+            if (currentDim === 'overworld') {
+                if (score >= 1) unlockAchievement('first_block');
+                if (score >= 10) unlockAchievement('master_miner');
+            } else if (currentDim === 'nether') {
+                if (score >= 5) unlockAchievement('gold_rush');
+            } else if (currentDim === 'end') {
+                if (score >= 5) unlockAchievement('dragon_slayer');
+            }
+        }
+
+        function selectSlot(element) {
+            playClickSound();
+            document.querySelectorAll('.hotbar-slot').forEach(slot => {
+                slot.classList.remove('active');
+            });
+            element.classList.add('active');
+        }
+    </script>
+</body>
+</html>
