@@ -1,0 +1,131 @@
+import React from 'react';
+import { BLOCK_TYPES } from '../data/gameData';
+import { BlockTexture } from './BlockTexture';
+import { sound } from '../utils/soundEffects';
+import { Trash2, Sparkles, RefreshCw } from 'lucide-react';
+
+interface BuildingZoneProps {
+  grid: (string | null)[];
+  inventory: Record<string, number>;
+  selectedBlockId: string;
+  onPlaceBlock: (index: number) => void;
+  onReclaimBlock: (index: number) => void;
+  onClearAll: () => void;
+  onLoadPreset: (presetName: string) => void;
+}
+
+export const BuildingZone: React.FC<BuildingZoneProps> = ({
+  grid,
+  inventory,
+  selectedBlockId,
+  onPlaceBlock,
+  onReclaimBlock,
+  onClearAll,
+  onLoadPreset
+}) => {
+  const selectedBlock = BLOCK_TYPES.find(b => b.id === selectedBlockId) || BLOCK_TYPES[0];
+  const currentCount = inventory[selectedBlockId] || 0;
+  const placedCount = grid.filter(cell => cell !== null).length;
+
+  const handleSlotClick = (index: number) => {
+    const existing = grid[index];
+    if (existing === null) {
+      if (currentCount > 0) {
+        sound.playPlaceBlockSound();
+        onPlaceBlock(index);
+      } else {
+        sound.playHitSound(2);
+      }
+    } else {
+      sound.playCrackSound();
+      onReclaimBlock(index);
+    }
+  };
+
+  return (
+    <section className="bg-[#242424] border-4 border-black p-5 shadow-[inset_-4px_-4px_0px_#111,inset_4px_4px_0px_#444] rounded-lg">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b-2 border-dashed border-zinc-700">
+        <div>
+          <h2 className="text-xl font-black text-amber-300 drop-shadow-[2px_2px_0_#000] flex items-center gap-2">
+            <span>🏗️ 100 格建築創作區</span>
+            <span className="text-xs px-2.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 font-mono">
+              {placedCount} / 100 格已放置
+            </span>
+          </h2>
+          <p className="text-xs text-zinc-400 mt-1">
+            當前選定放置：<span className="text-white font-bold">{selectedBlock.nameZh}</span>（庫存：<span className={currentCount > 0 ? "text-emerald-400 font-mono font-bold" : "text-red-400 font-mono"}>{currentCount}</span> 個）
+          </p>
+        </div>
+
+        {/* Quick controls */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative group">
+            <button
+              onClick={() => onLoadPreset('creeper')}
+              className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-amber-200 text-xs font-black border-2 border-black rounded shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#34d399] transition-transform active:scale-95 flex items-center gap-1"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              苦力怕範本
+            </button>
+          </div>
+          <button
+            onClick={() => onLoadPreset('heart')}
+            className="px-3 py-1.5 bg-red-900 hover:bg-red-800 text-amber-200 text-xs font-black border-2 border-black rounded shadow-[inset_-2px_-2px_0_#450a0a,inset_2px_2px_0_#f87171] transition-transform active:scale-95 flex items-center gap-1"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            像素愛心
+          </button>
+          <button
+            onClick={() => onLoadPreset('sword')}
+            className="px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-amber-200 text-xs font-black border-2 border-black rounded shadow-[inset_-2px_-2px_0_#1e3a8a,inset_2px_2px_0_#60a5fa] transition-transform active:scale-95 flex items-center gap-1"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            鑽石寶劍
+          </button>
+          <button
+            onClick={onClearAll}
+            className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-xs font-black border-2 border-black rounded shadow-[inset_-2px_-2px_0_#3f3f46,inset_2px_2px_0_#a1a1aa] transition-transform active:scale-95 flex items-center gap-1"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+            清空返還
+          </button>
+        </div>
+      </div>
+
+      {/* 10x10 Building Grid */}
+      <div className="flex justify-center overflow-x-auto py-2">
+        <div className="grid grid-cols-10 gap-1 p-3 bg-zinc-950 border-4 border-black rounded shadow-[inset_0_0_15px_rgba(0,0,0,0.8)]">
+          {grid.map((blockId, index) => {
+            const hasBlock = blockId !== null;
+            return (
+              <button
+                key={index}
+                id={`build-slot-${index}`}
+                onClick={() => handleSlotClick(index)}
+                title={hasBlock ? `已放置 ${BLOCK_TYPES.find(b => b.id === blockId)?.nameZh} (點擊回收)` : `空位格 #${index + 1} (點擊放置 ${selectedBlock.nameZh})`}
+                className={`w-9 h-9 sm:w-11 sm:h-11 border-2 border-black rounded flex items-center justify-center transition-all duration-75 relative group ${
+                  hasBlock
+                    ? 'hover:brightness-110 active:scale-90'
+                    : 'bg-[#181818] hover:bg-zinc-800 active:scale-95 shadow-[inset_1px_1px_0_#333,inset_-1px_-1px_0_#000]'
+                }`}
+              >
+                {hasBlock ? (
+                  <BlockTexture blockId={blockId} size={36} />
+                ) : (
+                  <span className="opacity-0 group-hover:opacity-40 text-[9px] text-zinc-500 font-mono select-none">
+                    +
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-[11px] text-zinc-400 mt-2 px-1">
+        <span>💡 提示：點擊空格放置方塊，點擊已放置方塊即可 100% 完整回收進庫存！</span>
+        <span className="font-mono text-amber-400">畫布尺寸：10 × 10</span>
+      </div>
+    </section>
+  );
+};
