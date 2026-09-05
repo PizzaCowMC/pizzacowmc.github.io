@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { BLOCK_TYPES, PICKAXE_TIERS, THEME_BACKGROUNDS, PLAYER_SKINS, STRATA_LAYERS, MARKET_INFLATION_TEMPLATES, SHOP_SUPPLIES } from './data/gameData';
+import { BLOCK_TYPES, PICKAXE_TIERS, THEME_BACKGROUNDS, PLAYER_SKINS, STRATA_LAYERS, MARKET_INFLATION_TEMPLATES, SHOP_SUPPLIES, FESTIVAL_EVENTS } from './data/gameData';
 import { INITIAL_ACHIEVEMENTS } from './data/achievementsData';
-import { BlockType, PickaxeState, ThemeBackground, PlayerSkin, Friend, Achievement, MarketInflationEvent, ShopSupplyItem } from './types';
+import { BlockType, PickaxeState, ThemeBackground, PlayerSkin, Friend, Achievement, MarketInflationEvent, ShopSupplyItem, FestivalEvent, FestivalSupplyItem } from './types';
 import { QuarryMining } from './components/QuarryMining';
 import { BuildingZone } from './components/BuildingZone';
 import { Hotbar } from './components/Hotbar';
 import { MarketModal } from './components/MarketModal';
 import { ShopModal } from './components/ShopModal';
+import { FestivalModal } from './components/FestivalModal';
 import { FriendsModal } from './components/FriendsModal';
 import { AchievementsModal } from './components/AchievementsModal';
 import { GameMenuModal } from './components/GameMenuModal';
@@ -31,7 +32,8 @@ import {
   Layers,
   CheckCircle2,
   TrendingUp,
-  Flame
+  Flame,
+  PartyPopper
 } from 'lucide-react';
 import {
   subscribeToAuth,
@@ -309,7 +311,36 @@ export default function App() {
   const [isShopOpen, setIsShopOpen] = useState<boolean>(false);
   const [isFriendsOpen, setIsFriendsOpen] = useState<boolean>(false);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
-  const [shopInitialTab, setShopInitialTab] = useState<'pickaxes' | 'themes' | 'skins' | 'supplies'>('pickaxes');
+  const [isFestivalModalOpen, setIsFestivalModalOpen] = useState<boolean>(false);
+  const [shopInitialTab, setShopInitialTab] = useState<'pickaxes' | 'themes' | 'skins' | 'supplies' | 'festivals'>('pickaxes');
+
+  // Festival & Holiday Events state
+  const [currentFestivalId, setCurrentFestivalId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_festival_id`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return 'spring_festival';
+  });
+  const [isFestivalBgActive, setIsFestivalBgActive] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_festival_bg_active`);
+      if (saved !== null) return JSON.parse(saved);
+    } catch {}
+    return true;
+  });
+
+  // Active Festival Memo
+  const activeFestival = useMemo(() => {
+    return FESTIVAL_EVENTS.find(f => f.id === currentFestivalId) || FESTIVAL_EVENTS[0];
+  }, [currentFestivalId]);
+
+  // Festival Buff Countdowns
+  const [unlimitedDurabilitySeconds, setUnlimitedDurabilitySeconds] = useState<number>(0);
+  const [fortuneMultiplierSeconds, setFortuneMultiplierSeconds] = useState<number>(0);
+  const [doubleDropSeconds, setDoubleDropSeconds] = useState<number>(0);
+  const [doubleMarketSellSeconds, setDoubleMarketSellSeconds] = useState<number>(0);
+  const [festivalAutoMinerFastSeconds, setFestivalAutoMinerFastSeconds] = useState<number>(0);
 
   // Supplies & Automations
   const [hasAutoMiner, setHasAutoMiner] = useState<boolean>(() => {
@@ -522,18 +553,31 @@ export default function App() {
     localStorage.setItem(`${STORAGE_KEY}_auto_miner`, JSON.stringify(hasAutoMiner));
   }, [hasAutoMiner]);
 
-  // Haste buff countdown
   useEffect(() => {
-    if (hasteRemainingSeconds <= 0) return;
+    localStorage.setItem(`${STORAGE_KEY}_festival_id`, JSON.stringify(currentFestivalId));
+  }, [currentFestivalId]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_festival_bg_active`, JSON.stringify(isFestivalBgActive));
+  }, [isFestivalBgActive]);
+
+  // Haste & Festival buffs countdown
+  useEffect(() => {
     const timer = setInterval(() => {
       setHasteRemainingSeconds(prev => (prev <= 1 ? 0 : prev - 1));
+      setUnlimitedDurabilitySeconds(prev => (prev <= 1 ? 0 : prev - 1));
+      setFortuneMultiplierSeconds(prev => (prev <= 1 ? 0 : prev - 1));
+      setDoubleDropSeconds(prev => (prev <= 1 ? 0 : prev - 1));
+      setDoubleMarketSellSeconds(prev => (prev <= 1 ? 0 : prev - 1));
+      setFestivalAutoMinerFastSeconds(prev => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
     return () => clearInterval(timer);
-  }, [hasteRemainingSeconds]);
+  }, []);
 
-  // Steam Auto-Miner Robot loop: mines 1 block every 3 seconds
+  // Steam Auto-Miner Robot loop: mines 1 block every 3 seconds (or every 1 second when fast blizzard core active)
   useEffect(() => {
-    if (!hasAutoMiner) return;
+    if (!hasAutoMiner && festivalAutoMinerFastSeconds <= 0) return;
+    const intervalMs = festivalAutoMinerFastSeconds > 0 ? 1000 : 3000;
     const interval = setInterval(() => {
       const targetLayer = STRATA_LAYERS.find(l => l.id === selectedLayerId) || STRATA_LAYERS[0];
       const layerBlocks = BLOCK_TYPES.filter(b => targetLayer.blockIds.includes(b.id));
@@ -556,9 +600,9 @@ export default function App() {
           [randomBlock.id]: (prev.blockTypeMinedCounts[randomBlock.id] || 0) + 1
         }
       }));
-    }, 3000);
+    }, intervalMs);
     return () => clearInterval(interval);
-  }, [hasAutoMiner, selectedLayerId]);
+  }, [hasAutoMiner, selectedLayerId, festivalAutoMinerFastSeconds]);
 
   // Periodic timer for random market inflation
   useEffect(() => {
@@ -705,23 +749,37 @@ export default function App() {
 
   // --- Handlers: Mining ---
   const handleMineSuccess = useCallback((minedBlock: BlockType, amount: number, layerId?: string) => {
+    let effectiveAmount = amount;
+    if (doubleDropSeconds > 0) {
+      effectiveAmount *= 2;
+    }
+    if (fortuneMultiplierSeconds > 0 && Math.random() < 0.65) {
+      effectiveAmount += 2;
+    }
+
     setInventory(prev => ({
       ...prev,
-      [minedBlock.id]: (prev[minedBlock.id] || 0) + amount
+      [minedBlock.id]: (prev[minedBlock.id] || 0) + effectiveAmount
     }));
+
+    // Festival coin bonus upon mining
+    const festCoinBonus = Math.round(minedBlock.sellPrice * (activeFestival.coinMultiplier - 1));
+    if (festCoinBonus > 0) {
+      setCoins(c => c + festCoinBonus);
+    }
 
     if (layerId) {
       setLayerMinedCounts(prev => {
         const current = prev[layerId] || 0;
-        const next = current + amount;
+        const next = current + effectiveAmount;
 
-        // Check if 50,000 threshold reached to unlock next layer
-        if (current < 50000 && next >= 50000) {
+        // Check if 100,000 threshold reached to unlock next layer
+        if (current < 100000 && next >= 100000) {
           sound.playAchievementSound();
           const currentLayerIdx = STRATA_LAYERS.findIndex(l => l.id === layerId);
           const nextLayerObj = STRATA_LAYERS[currentLayerIdx + 1];
           if (nextLayerObj) {
-            setLayerUnlockToast(`🎉 恭喜！您已在該層挖掘突破 50,000 格！【${nextLayerObj.nameZh}】已正式解鎖！`);
+            setLayerUnlockToast(`🎉 恭喜！您已在該層挖掘突破 100,000 格！【${nextLayerObj.nameZh}】已正式解鎖！`);
             setTimeout(() => setLayerUnlockToast(null), 5500);
           }
         }
@@ -738,16 +796,19 @@ export default function App() {
       return {
         ...prev,
         totalClicks: prev.totalClicks + 1,
-        totalBlocksMined: prev.totalBlocksMined + amount,
+        totalBlocksMined: prev.totalBlocksMined + effectiveAmount,
         blockTypeMinedCounts: {
           ...prev.blockTypeMinedCounts,
-          [minedBlock.id]: currentB + amount
+          [minedBlock.id]: currentB + effectiveAmount
         }
       };
     });
-  }, []);
+  }, [doubleDropSeconds, fortuneMultiplierSeconds, activeFestival.coinMultiplier]);
 
   const handleDurabilityLoss = useCallback(() => {
+    // If festival durability lock is active, ignore durability damage
+    if (unlimitedDurabilitySeconds > 0) return;
+
     const currentPick = PICKAXE_TIERS.find(p => p.id === pickaxeState.currentTierId) || PICKAXE_TIERS[0];
     if (currentPick.tier === 0) return; // Bare hands don't lose durability
 
@@ -772,7 +833,7 @@ export default function App() {
         currentDurability: newDura
       };
     });
-  }, [pickaxeState.currentTierId, pickaxeState.unbreakingLevel, unlockAchievement]);
+  }, [unlimitedDurabilitySeconds, pickaxeState.currentTierId, pickaxeState.unbreakingLevel, unlockAchievement]);
 
   // --- Handlers: Building Zone ---
   const handlePlaceBlock = useCallback((index: number) => {
@@ -843,59 +904,6 @@ export default function App() {
     unlockAchievement('build_clear_all');
   }, [buildGrid, unlockAchievement]);
 
-  // Presets for building
-  const handleLoadPreset = useCallback((presetName: string) => {
-    sound.playAchievementSound();
-    const newGrid = Array(100).fill(null);
-
-    if (presetName === 'creeper') {
-      // 10x10 Creeper face
-      // Rows 0-9, Cols 0-9
-      const creeperMask = [
-        [0,0,0,0,0,0,0,0,0,0],
-        [0,1,1,1,1,1,1,1,1,0],
-        [0,1,0,0,1,1,0,0,1,0],
-        [0,1,0,0,1,1,0,0,1,0],
-        [0,1,1,1,0,0,1,1,1,0],
-        [0,1,1,0,0,0,0,1,1,0],
-        [0,1,1,0,0,0,0,1,1,0],
-        [0,1,1,0,1,1,0,1,1,0],
-        [0,1,1,1,1,1,1,1,1,0],
-        [0,0,0,0,0,0,0,0,0,0]
-      ];
-      for (let r = 0; r < 10; r++) {
-        for (let c = 0; c < 10; c++) {
-          const idx = r * 10 + c;
-          if (creeperMask[r][c] === 1) newGrid[idx] = 'emerald_ore';
-          else if (r >= 1 && r <= 8 && c >= 1 && c <= 8) newGrid[idx] = 'coal_ore';
-        }
-      }
-    } else if (presetName === 'heart') {
-      const heartIdxs = [
-        12, 13, 16, 17,
-        21, 22, 23, 24, 25, 26, 27, 28,
-        31, 32, 33, 34, 35, 36, 37, 38,
-        41, 42, 43, 44, 45, 46, 47, 48,
-        52, 53, 54, 55, 56, 57,
-        63, 64, 65, 66,
-        74, 75
-      ];
-      heartIdxs.forEach(i => {
-        newGrid[i] = 'redstone_ore';
-      });
-    } else if (presetName === 'sword') {
-      const swordIdxs = [
-        9, 18, 27, 36, 45, 54,
-        63, 64, 72, 73, 81, 90
-      ];
-      swordIdxs.forEach((idx, step) => {
-        newGrid[idx] = step > 7 ? 'wood' : 'diamond_ore';
-      });
-    }
-
-    setBuildGrid(newGrid);
-  }, []);
-
   // --- Handlers: Market Selling ---
   const handleSellBlock = useCallback((blockId: string, amount: number, customUnitPrice?: number) => {
     const block = BLOCK_TYPES.find(b => b.id === blockId);
@@ -905,7 +913,8 @@ export default function App() {
     if (realAmount <= 0) return;
 
     const unitPrice = typeof customUnitPrice === 'number' ? customUnitPrice : block.sellPrice;
-    const earned = Math.round(realAmount * unitPrice);
+    const festMultiplier = doubleMarketSellSeconds > 0 ? 2 : 1;
+    const earned = Math.round(realAmount * unitPrice * festMultiplier);
     const isInflationTrade = marketInflationEvent.multiplier > 1.05;
 
     setInventory(prev => ({
@@ -931,7 +940,7 @@ export default function App() {
     if (blockId === 'cobblestone' && realAmount >= 50) unlockAchievement('sell_cobble_50');
     if (earned >= 500) unlockAchievement('sell_single_trade_500');
     if (earned >= 1500) unlockAchievement('sell_single_trade_1500');
-  }, [inventory, marketInflationEvent.multiplier, unlockAchievement]);
+  }, [inventory, marketInflationEvent.multiplier, doubleMarketSellSeconds, unlockAchievement]);
 
   const handleSellAll = useCallback((customTotalEarned?: number) => {
     let totalEarned = 0;
@@ -947,7 +956,9 @@ export default function App() {
       }
     });
 
-    const finalEarned = typeof customTotalEarned === 'number' ? customTotalEarned : totalEarned;
+    const festMultiplier = doubleMarketSellSeconds > 0 ? 2 : 1;
+    const baseEarned = typeof customTotalEarned === 'number' ? customTotalEarned : totalEarned;
+    const finalEarned = Math.round(baseEarned * festMultiplier);
     if (finalEarned <= 0 && totalSold <= 0) return;
 
     const isInflationTrade = marketInflationEvent.multiplier > 1.05;
@@ -964,7 +975,7 @@ export default function App() {
     unlockAchievement('quick_sell_all');
     if (finalEarned >= 500) unlockAchievement('sell_single_trade_500');
     if (finalEarned >= 1500) unlockAchievement('sell_single_trade_1500');
-  }, [inventory, marketInflationEvent.multiplier, unlockAchievement]);
+  }, [inventory, marketInflationEvent.multiplier, doubleMarketSellSeconds, unlockAchievement]);
 
   // --- Handlers: Shop Purchases & Upgrades ---
   const handleBuyPickaxe = useCallback((tierId: string, cost: number) => {
@@ -1103,6 +1114,186 @@ export default function App() {
       setTimeout(() => setSupplyToastMsg(null), 5000);
     }
   }, [coins, pickaxeState.currentTierId, selectedLayerId, hasAutoMiner]);
+
+  // --- Handlers: Festival Limited Supplies & Relics ---
+  const handleBuyFestivalSupply = useCallback((supply: FestivalSupplyItem) => {
+    if (coins < supply.cost) return;
+    setCoins(prev => prev - supply.cost);
+
+    switch (supply.effectType) {
+      case 'red_envelope': {
+        const bonusReward = Math.floor(Math.random() * 10001) + 8888; // 8,888 ~ 18,888
+        setCoins(prev => prev + bonusReward);
+        sound.playPouchOpenSound();
+        setSupplyToastMsg(`🧧 開運純金大紅包開啟！迎春接福，恭喜獲得 +${bonusReward.toLocaleString()} 遊戲幣！`);
+        setTimeout(() => setSupplyToastMsg(null), 5000);
+        break;
+      }
+      case 'firecracker': {
+        const targetLayer = STRATA_LAYERS.find(l => l.id === selectedLayerId) || STRATA_LAYERS[0];
+        const layerBlocks = BLOCK_TYPES.filter(b => targetLayer.blockIds.includes(b.id));
+        const fallback = layerBlocks.length > 0 ? layerBlocks : BLOCK_TYPES.slice(0, 3);
+        const harvested: Record<string, number> = {};
+        for (let i = 0; i < 66; i++) {
+          const randomBlock = fallback[Math.floor(Math.random() * fallback.length)];
+          harvested[randomBlock.id] = (harvested[randomBlock.id] || 0) + 1;
+        }
+        setInventory(prev => {
+          const next = { ...prev };
+          Object.entries(harvested).forEach(([bId, count]) => {
+            next[bId] = (next[bId] || 0) + count;
+          });
+          return next;
+        });
+        setLayerMinedCounts(prev => ({
+          ...prev,
+          [selectedLayerId]: (prev[selectedLayerId] || 0) + 66
+        }));
+        setStats(prev => ({
+          ...prev,
+          totalBlocksMined: prev.totalBlocksMined + 66
+        }));
+        setCoins(prev => prev + 1000);
+        sound.playExplosionSound();
+        setSupplyToastMsg(`🧨 萬象更新連環爆竹引爆！瞬間採收 66 塊【${targetLayer.nameZh}】方塊並獲 +1,000 金幣！`);
+        setTimeout(() => setSupplyToastMsg(null), 5000);
+        break;
+      }
+      case 'fortune_dumpling': {
+        setUnlimitedDurabilitySeconds(prev => prev + 90);
+        setHasteRemainingSeconds(prev => prev + 90);
+        sound.playUpgradeSound();
+        setSupplyToastMsg('🥟 純金招財金餃已享用！90 秒內鎬具絕對無損不耗耐久，且開採飆速 150%！');
+        setTimeout(() => setSupplyToastMsg(null), 5000);
+        break;
+      }
+      case 'halloween_candy': {
+        const abyssBlocks = BLOCK_TYPES.filter(b => b.category === 'deepslate' || b.category === 'nether' || b.category === 'gem');
+        const fallback = abyssBlocks.length > 0 ? abyssBlocks : BLOCK_TYPES;
+        const harvested: Record<string, number> = {};
+        for (let i = 0; i < 45; i++) {
+          const randomBlock = fallback[Math.floor(Math.random() * fallback.length)];
+          harvested[randomBlock.id] = (harvested[randomBlock.id] || 0) + 1;
+        }
+        setInventory(prev => {
+          const next = { ...prev };
+          Object.entries(harvested).forEach(([bId, count]) => {
+            next[bId] = (next[bId] || 0) + count;
+          });
+          return next;
+        });
+        setHasteRemainingSeconds(prev => prev + 60);
+        sound.playCoinSound();
+        setSupplyToastMsg('🍬 南瓜怪跳跳糖魔力爆發！45 塊深暗裂谷神礦直接入庫，並獲 60 秒急速！');
+        setTimeout(() => setSupplyToastMsg(null), 5000);
+        break;
+      }
+      case 'jack_lantern': {
+        setFortuneMultiplierSeconds(prev => prev + 120);
+        sound.playUpgradeSound();
+        setSupplyToastMsg('🎃 附魔傑克南瓜聖燈點亮！120 秒內每次挖掘觸發 3 倍幸運爆擊掉落！');
+        setTimeout(() => setSupplyToastMsg(null), 5000);
+        break;
+      }
+      case 'phantom_cloak': {
+        setUnlimitedDurabilitySeconds(prev => prev + 180);
+        sound.playUpgradeSound();
+        setSupplyToastMsg('👻 幽靈幻影隱形斗篷披上！180 秒內鎬具耐久度完全鎖定，絕對不減損！');
+        setTimeout(() => setSupplyToastMsg(null), 5000);
+        break;
+      }
+      case 'christmas_gift': {
+        const giftCoins = 5000;
+        setCoins(prev => prev + giftCoins);
+        const rareGems = ['diamond_ore', 'emerald_ore', 'amethyst', 'deepslate_diamond', 'celestial_crystal'];
+        const harvested: Record<string, number> = {};
+        for (let i = 0; i < 30; i++) {
+          const gemId = rareGems[Math.floor(Math.random() * rareGems.length)];
+          harvested[gemId] = (harvested[gemId] || 0) + 1;
+        }
+        setInventory(prev => {
+          const next = { ...prev };
+          Object.entries(harvested).forEach(([bId, count]) => {
+            next[bId] = (next[bId] || 0) + count;
+          });
+          return next;
+        });
+        sound.playPouchOpenSound();
+        setSupplyToastMsg(`🎁 聖誕老人驚喜禮盒拆開！獲得 +${giftCoins.toLocaleString()} 遊戲幣與 30 顆高階神礦！`);
+        setTimeout(() => setSupplyToastMsg(null), 5000);
+        break;
+      }
+      case 'blizzard_core': {
+        setUnlimitedDurabilitySeconds(prev => prev + 150);
+        setFestivalAutoMinerFastSeconds(prev => prev + 150);
+        sound.playUpgradeSound();
+        setSupplyToastMsg('❄️ 永凍暴風雪核心啟動！150 秒內鎬具耐久完全鎖定，且自動採礦狂飆！');
+        setTimeout(() => setSupplyToastMsg(null), 5000);
+        break;
+      }
+      case 'candy_cane': {
+        setDoubleMarketSellSeconds(prev => prev + 90);
+        sound.playCoinSound();
+        setSupplyToastMsg('🍭 拐杖糖歡樂能量棒生效！90 秒內在交易所售出任何方塊均享受雙倍金幣！');
+        setTimeout(() => setSupplyToastMsg(null), 5000);
+        break;
+      }
+      case 'mooncake': {
+        setCoins(prev => prev + 6666);
+        setHasteRemainingSeconds(prev => prev + 90);
+        sound.playCoinSound();
+        setSupplyToastMsg('🥮 廣式雙黃金月餅享用完畢！獲得 +6,666 遊戲幣與 90 秒急迫採礦狀態！');
+        setTimeout(() => setSupplyToastMsg(null), 5000);
+        break;
+      }
+      case 'rabbit_charm': {
+        setDoubleDropSeconds(prev => prev + 120);
+        sound.playUpgradeSound();
+        setSupplyToastMsg('🐇 月宮玉兔祈願玉佩庇佑！120 秒內每次採礦收穫雙倍方塊！');
+        setTimeout(() => setSupplyToastMsg(null), 5000);
+        break;
+      }
+      case 'coconut_drink': {
+        setHasteRemainingSeconds(prev => prev + 120);
+        sound.playCoinSound();
+        setSupplyToastMsg('🥥 冰鎮沁涼熱帶椰子汁飲用！120 秒內開採時間縮減 60%，極致狂飆！');
+        setTimeout(() => setSupplyToastMsg(null), 5000);
+        break;
+      }
+      case 'trident_surge': {
+        const targetLayer = STRATA_LAYERS.find(l => l.id === selectedLayerId) || STRATA_LAYERS[0];
+        const layerBlocks = BLOCK_TYPES.filter(b => targetLayer.blockIds.includes(b.id));
+        const fallback = layerBlocks.length > 0 ? layerBlocks : BLOCK_TYPES.slice(0, 3);
+        const harvested: Record<string, number> = {};
+        for (let i = 0; i < 50; i++) {
+          const randomBlock = fallback[Math.floor(Math.random() * fallback.length)];
+          harvested[randomBlock.id] = (harvested[randomBlock.id] || 0) + 1;
+        }
+        setInventory(prev => {
+          const next = { ...prev };
+          Object.entries(harvested).forEach(([bId, count]) => {
+            next[bId] = (next[bId] || 0) + count;
+          });
+          return next;
+        });
+        setLayerMinedCounts(prev => ({
+          ...prev,
+          [selectedLayerId]: (prev[selectedLayerId] || 0) + 50
+        }));
+        setStats(prev => ({
+          ...prev,
+          totalBlocksMined: prev.totalBlocksMined + 50
+        }));
+        setCoins(prev => prev + 2000);
+        sound.playExplosionSound();
+        setSupplyToastMsg(`🔱 海神潮汐三叉戟激盪！瞬間收割 50 塊【${targetLayer.nameZh}】方塊並獲 +2,000 金幣！`);
+        setTimeout(() => setSupplyToastMsg(null), 5000);
+        break;
+      }
+      default:
+        break;
+    }
+  }, [coins, selectedLayerId]);
 
   // --- Handlers: Red Reset Progress (選單紅色重製進度) ---
   const handleResetProgress = useCallback(() => {
@@ -1263,8 +1454,12 @@ export default function App() {
 
   // Theme styling
   const activeTheme = useMemo(() => {
+    if (isFestivalBgActive && activeFestival) {
+      const festTheme = THEME_BACKGROUNDS.find(t => t.id === activeFestival.bgThemeId);
+      if (festTheme) return festTheme;
+    }
     return THEME_BACKGROUNDS.find(t => t.id === currentThemeId) || THEME_BACKGROUNDS[0];
-  }, [currentThemeId]);
+  }, [currentThemeId, isFestivalBgActive, activeFestival]);
 
   const activeSkin = useMemo(() => {
     return PLAYER_SKINS.find(s => s.id === currentSkinId) || PLAYER_SKINS[0];
@@ -1283,6 +1478,53 @@ export default function App() {
         backgroundSize: '24px 24px'
       }}
     >
+      {/* Festive Ambient Particles Overlay */}
+      {isFestivalBgActive && (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-10 opacity-70">
+          {activeFestival.particleType === 'snow' && (
+            <div className="absolute inset-0 flex justify-around animate-pulse">
+              <span className="text-xl animate-bounce" style={{ animationDuration: '3s' }}>❄️</span>
+              <span className="text-sm animate-bounce" style={{ animationDuration: '4.5s', marginTop: '60px' }}>❄️</span>
+              <span className="text-lg animate-bounce" style={{ animationDuration: '2.5s', marginTop: '120px' }}>❄️</span>
+              <span className="text-xs animate-bounce" style={{ animationDuration: '5s', marginTop: '40px' }}>❄️</span>
+              <span className="text-base animate-bounce" style={{ animationDuration: '3.8s', marginTop: '90px' }}>❄️</span>
+            </div>
+          )}
+          {activeFestival.particleType === 'bats' && (
+            <div className="absolute inset-0 flex justify-around animate-pulse">
+              <span className="text-lg animate-bounce" style={{ animationDuration: '4s' }}>🦇</span>
+              <span className="text-xs animate-bounce" style={{ animationDuration: '3.2s', marginTop: '80px' }}>🦇</span>
+              <span className="text-sm animate-bounce" style={{ animationDuration: '5s', marginTop: '140px' }}>🎃</span>
+              <span className="text-base animate-bounce" style={{ animationDuration: '3.5s', marginTop: '50px' }}>🦇</span>
+            </div>
+          )}
+          {activeFestival.particleType === 'sparks' && (
+            <div className="absolute inset-0 flex justify-around animate-pulse">
+              <span className="text-base animate-bounce" style={{ animationDuration: '2.8s' }}>✨</span>
+              <span className="text-sm animate-bounce" style={{ animationDuration: '4s', marginTop: '70px' }}>🏮</span>
+              <span className="text-lg animate-bounce" style={{ animationDuration: '3.2s', marginTop: '130px' }}>✨</span>
+              <span className="text-xs animate-bounce" style={{ animationDuration: '4.8s', marginTop: '30px' }}>🏮</span>
+            </div>
+          )}
+          {activeFestival.particleType === 'petals' && (
+            <div className="absolute inset-0 flex justify-around animate-pulse">
+              <span className="text-sm animate-bounce" style={{ animationDuration: '3.5s' }}>🌸</span>
+              <span className="text-lg animate-bounce" style={{ animationDuration: '4.2s', marginTop: '60px' }}>🥮</span>
+              <span className="text-xs animate-bounce" style={{ animationDuration: '3s', marginTop: '110px' }}>🌸</span>
+              <span className="text-base animate-bounce" style={{ animationDuration: '5s', marginTop: '40px' }}>🌕</span>
+            </div>
+          )}
+          {activeFestival.particleType === 'bubbles' && (
+            <div className="absolute inset-0 flex justify-around animate-pulse">
+              <span className="text-base animate-bounce" style={{ animationDuration: '3s' }}>🫧</span>
+              <span className="text-sm animate-bounce" style={{ animationDuration: '4.5s', marginTop: '80px' }}>🌊</span>
+              <span className="text-xl animate-bounce" style={{ animationDuration: '2.6s', marginTop: '140px' }}>🫧</span>
+              <span className="text-xs animate-bounce" style={{ animationDuration: '5.2s', marginTop: '50px' }}>🐚</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Top Header Navigation */}
       <header className="border-b-4 border-black bg-zinc-950/95 shadow-md backdrop-blur-xs sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
@@ -1393,6 +1635,22 @@ export default function App() {
             >
               <Coins className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
               <span>{coins.toLocaleString()} 幣</span>
+            </button>
+
+            {/* Festival / Special Events Button */}
+            <button
+              onClick={() => {
+                sound.playAchievementSound();
+                setIsFestivalModalOpen(true);
+              }}
+              title="查看特殊節慶活動與限時神祕道具"
+              className="relative px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-rose-700 to-amber-700 hover:from-rose-600 hover:to-amber-600 text-rose-100 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#4c0519,inset_2px_2px_0_#fb7185] active:scale-95 flex items-center gap-1.5 animate-pulse"
+            >
+              <PartyPopper className="w-3.5 h-3.5 text-amber-300" />
+              <span>{activeFestival.seasonEmoji} 特殊活動</span>
+              <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.2 rounded-full bg-amber-400 text-black text-[9px] font-black border border-black shadow">
+                HOT
+              </span>
             </button>
 
             {/* Market Button */}
@@ -1519,6 +1777,51 @@ export default function App() {
 
       {/* Main Container */}
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {/* Festive Holiday Event Banner */}
+        <div
+          className="p-3.5 rounded-xl border-3 border-black flex flex-wrap items-center justify-between gap-3 shadow-[inset_2px_2px_0_rgba(255,255,255,0.1),0_4px_12px_rgba(0,0,0,0.5)] transition-all"
+          style={{
+            backgroundColor: activeFestival.accentColor + '1a',
+            borderColor: activeFestival.accentColor
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="w-11 h-11 rounded-lg border-2 border-black flex items-center justify-center text-2xl shadow shrink-0"
+              style={{ backgroundColor: activeFestival.accentColor + '30' }}
+            >
+              {activeFestival.seasonEmoji}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold text-zinc-300">特殊節日慶典進行中：</span>
+                <strong className="text-xs sm:text-sm font-black text-amber-300 tracking-wide font-minecraft">
+                  {activeFestival.bannerTitle}
+                </strong>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-black/70 text-rose-300 border border-rose-600/60 font-mono font-bold">
+                  {activeFestival.badge}
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-300 mt-0.5">
+                {activeFestival.bonusDesc} • 專屬節慶主題背景已{isFestivalBgActive ? '生效 🎨' : '關閉'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={() => {
+                sound.playAchievementSound();
+                setIsFestivalModalOpen(true);
+              }}
+              className="px-3.5 py-1.5 bg-gradient-to-r from-rose-700 to-amber-600 hover:from-rose-600 hover:to-amber-500 text-white font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#4c0519,inset_2px_2px_0_#fb7185] active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>節慶活動中心 & 限時道具</span>
+            </button>
+          </div>
+        </div>
+
         {/* Dynamic Real-time Market Inflation Ticker Bar */}
         <div className="p-3 bg-zinc-950/90 border-3 border-black rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-[inset_2px_2px_0_#333]">
           <div className="flex items-center gap-2.5">
@@ -1620,7 +1923,6 @@ export default function App() {
             onPlaceBlock={handlePlaceBlock}
             onReclaimBlock={handleReclaimBlock}
             onClearAll={handleClearAllBlocks}
-            onLoadPreset={handleLoadPreset}
           />
         )}
       </main>
@@ -1783,8 +2085,22 @@ export default function App() {
         onEquipSkin={setCurrentSkinId}
         initialTab={shopInitialTab}
         onBuySupply={handleBuySupply}
+        activeFestival={activeFestival}
+        onBuyFestivalSupply={handleBuyFestivalSupply}
         hasAutoMiner={hasAutoMiner}
         hasteRemainingSeconds={hasteRemainingSeconds}
+      />
+
+      {/* FESTIVAL & SPECIAL EVENT MODAL */}
+      <FestivalModal
+        isOpen={isFestivalModalOpen}
+        onClose={() => setIsFestivalModalOpen(false)}
+        currentFestivalId={currentFestivalId}
+        onSelectFestival={setCurrentFestivalId}
+        isFestivalBgActive={isFestivalBgActive}
+        onToggleFestivalBg={setIsFestivalBgActive}
+        coins={coins}
+        onBuyFestivalSupply={handleBuyFestivalSupply}
       />
 
       {/* FRIENDS MODAL */}

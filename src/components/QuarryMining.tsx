@@ -159,7 +159,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   const currentLayerMined = layerMinedCounts[activeLayer.id] || 0;
   const isLastLayer = currentLayerIndex === STRATA_LAYERS.length - 1;
   const nextLayer = !isLastLayer ? STRATA_LAYERS[currentLayerIndex + 1] : null;
-  const unlockThreshold = 50000;
+  const unlockThreshold = 100000;
   const currentLayerProgressPct = Math.min(100, Math.floor((currentLayerMined / unlockThreshold) * 1000) / 10);
   const isNextLayerUnlocked = currentLayerMined >= unlockThreshold;
 
@@ -167,7 +167,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   const isLayerUnlocked = (layerIndex: number): boolean => {
     if (layerIndex === 0) return true;
     const prevLayer = STRATA_LAYERS[layerIndex - 1];
-    return (layerMinedCounts[prevLayer.id] || 0) >= 50000;
+    return (layerMinedCounts[prevLayer.id] || 0) >= 100000;
   };
 
   return (
@@ -178,7 +178,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
           <h2 className="text-xl font-black text-amber-300 drop-shadow-[2px_2px_0_#000] flex items-center gap-2">
             <span>⛏️ 礦脈挖掘場 (Quarry Field)</span>
             <span className="text-xs px-2.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700 font-mono font-bold">
-              8大深度礦脈層 • 50,000格層級解鎖
+              8大深度礦脈層 • 100,000格層級解鎖
             </span>
           </h2>
           <p className="text-xs text-zinc-400 mt-1">
@@ -279,8 +279,8 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
                   <span className="text-base">{layer.icon}</span>
                   {!unlocked ? (
                     <Lock className="w-3.5 h-3.5 text-zinc-500" />
-                  ) : count >= 50000 ? (
-                    <span className="text-[10px] font-mono text-emerald-400 font-bold">50k+</span>
+                  ) : count >= 100000 ? (
+                    <span className="text-[10px] font-mono text-emerald-400 font-bold">100k+</span>
                   ) : (
                     <span className="text-[10px] font-mono text-zinc-400">{count > 9999 ? `${Math.floor(count/1000)}k` : count}</span>
                   )}
@@ -291,7 +291,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
                     {layer.nameZh.split('：')[1] || layer.nameZh}
                   </div>
                   <div className="text-[10px] text-zinc-400 truncate">
-                    {!unlocked ? `需上層挖滿5萬` : `已挖 ${count.toLocaleString()}`}
+                    {!unlocked ? `需上層挖滿10萬` : `已挖 ${count.toLocaleString()}`}
                   </div>
                 </div>
               </button>

@@ -2,7 +2,7 @@ import React from 'react';
 import { BLOCK_TYPES } from '../data/gameData';
 import { BlockTexture } from './BlockTexture';
 import { sound } from '../utils/soundEffects';
-import { Trash2, Sparkles, RefreshCw } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 interface BuildingZoneProps {
   grid: (string | null)[];
@@ -11,7 +11,6 @@ interface BuildingZoneProps {
   onPlaceBlock: (index: number) => void;
   onReclaimBlock: (index: number) => void;
   onClearAll: () => void;
-  onLoadPreset: (presetName: string) => void;
 }
 
 export const BuildingZone: React.FC<BuildingZoneProps> = ({
@@ -20,8 +19,7 @@ export const BuildingZone: React.FC<BuildingZoneProps> = ({
   selectedBlockId,
   onPlaceBlock,
   onReclaimBlock,
-  onClearAll,
-  onLoadPreset
+  onClearAll
 }) => {
   const selectedBlock = BLOCK_TYPES.find(b => b.id === selectedBlockId) || BLOCK_TYPES[0];
   const currentCount = inventory[selectedBlockId] || 0;
@@ -59,35 +57,13 @@ export const BuildingZone: React.FC<BuildingZoneProps> = ({
 
         {/* Quick controls */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative group">
-            <button
-              onClick={() => onLoadPreset('creeper')}
-              className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-amber-200 text-xs font-black border-2 border-black rounded shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#34d399] transition-transform active:scale-95 flex items-center gap-1"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              苦力怕範本
-            </button>
-          </div>
-          <button
-            onClick={() => onLoadPreset('heart')}
-            className="px-3 py-1.5 bg-red-900 hover:bg-red-800 text-amber-200 text-xs font-black border-2 border-black rounded shadow-[inset_-2px_-2px_0_#450a0a,inset_2px_2px_0_#f87171] transition-transform active:scale-95 flex items-center gap-1"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            像素愛心
-          </button>
-          <button
-            onClick={() => onLoadPreset('sword')}
-            className="px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-amber-200 text-xs font-black border-2 border-black rounded shadow-[inset_-2px_-2px_0_#1e3a8a,inset_2px_2px_0_#60a5fa] transition-transform active:scale-95 flex items-center gap-1"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            鑽石寶劍
-          </button>
           <button
             onClick={onClearAll}
-            className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-xs font-black border-2 border-black rounded shadow-[inset_-2px_-2px_0_#3f3f46,inset_2px_2px_0_#a1a1aa] transition-transform active:scale-95 flex items-center gap-1"
+            className="px-3.5 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-xs font-black border-2 border-black rounded shadow-[inset_-2px_-2px_0_#3f3f46,inset_2px_2px_0_#a1a1aa] transition-transform active:scale-95 flex items-center gap-1.5"
+            title="清空畫布並全數返還方塊至背包"
           >
             <Trash2 className="w-3.5 h-3.5 text-red-400" />
-            清空返還
+            清空返還背包
           </button>
         </div>
       </div>

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { PICKAXE_TIERS, THEME_BACKGROUNDS, PLAYER_SKINS, SHOP_SUPPLIES } from '../data/gameData';
-import { PickaxeState, ThemeBackground, PlayerSkin, ShopSupplyItem } from '../types';
+import { PickaxeState, ThemeBackground, PlayerSkin, ShopSupplyItem, FestivalEvent, FestivalSupplyItem } from '../types';
 import { sound } from '../utils/soundEffects';
-import { ShoppingBag, Pickaxe, Palette, User, Zap, Shield, Sparkles, Wrench, Check, X, Coins, Package, Bot, Flame } from 'lucide-react';
+import { ShoppingBag, Pickaxe, Palette, User, Zap, Shield, Sparkles, Wrench, Check, X, Coins, Package, Bot, Flame, PartyPopper } from 'lucide-react';
 
 interface ShopModalProps {
   isOpen: boolean;
@@ -23,9 +23,11 @@ interface ShopModalProps {
   onBuySkin: (skin: PlayerSkin) => void;
   onEquipSkin: (skinId: string) => void;
   onBuySupply?: (supply: ShopSupplyItem) => void;
+  activeFestival?: FestivalEvent;
+  onBuyFestivalSupply?: (supply: FestivalSupplyItem) => void;
   hasAutoMiner?: boolean;
   hasteRemainingSeconds?: number;
-  initialTab?: 'pickaxes' | 'themes' | 'skins' | 'supplies';
+  initialTab?: 'pickaxes' | 'themes' | 'skins' | 'supplies' | 'festivals';
 }
 
 export const ShopModal: React.FC<ShopModalProps> = ({
@@ -47,11 +49,13 @@ export const ShopModal: React.FC<ShopModalProps> = ({
   onBuySkin,
   onEquipSkin,
   onBuySupply,
+  activeFestival,
+  onBuyFestivalSupply,
   hasAutoMiner = false,
   hasteRemainingSeconds = 0,
   initialTab = 'pickaxes'
 }) => {
-  const [activeTab, setActiveTab] = useState<'pickaxes' | 'themes' | 'skins' | 'supplies'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'pickaxes' | 'themes' | 'skins' | 'supplies' | 'festivals'>(initialTab);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -164,6 +168,22 @@ export const ShopModal: React.FC<ShopModalProps> = ({
             <Package className="w-4 h-4 text-emerald-400" />
             <span>📦 探險補給與神器 ({SHOP_SUPPLIES.length})</span>
           </button>
+          {activeFestival && (
+            <button
+              onClick={() => {
+                setActiveTab('festivals');
+                sound.playClickSound();
+              }}
+              className={`px-4 py-2 text-xs font-black rounded-t-lg border-t-2 border-x-2 border-black flex items-center gap-2 transition-all ${
+                activeTab === 'festivals'
+                  ? 'bg-[#242424] text-rose-300 border-b-0 -mb-[2px] shadow-[inset_0_2px_0_#f43f5e]'
+                  : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border-b-2'
+              }`}
+            >
+              <PartyPopper className="w-4 h-4 text-rose-400" />
+              <span>🎪 節慶限定 ({activeFestival.nameZh})</span>
+            </button>
+          )}
         </div>
 
         {/* Feedback notification toast */}
@@ -599,6 +619,67 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* TAB 5: FESTIVAL LIMITED COMMODITIES */}
+          {activeTab === 'festivals' && activeFestival && (
+            <div className="space-y-4">
+              <div className="p-3.5 bg-gradient-to-r from-red-950/80 to-amber-950/80 border-2 border-rose-600 rounded-lg flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-black text-amber-300 font-minecraft">
+                    {activeFestival.bannerTitle}
+                  </h3>
+                  <p className="text-xs text-zinc-300 mt-0.5">
+                    {activeFestival.bonusDesc}
+                  </p>
+                </div>
+                <span className="text-xs font-bold text-rose-300 bg-black/60 px-2.5 py-1 rounded border border-rose-500/50 shrink-0">
+                  {activeFestival.badge}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {activeFestival.limitedSupplies.map(supply => (
+                  <div
+                    key={supply.id}
+                    className="p-3.5 bg-zinc-900 border-2 border-black rounded-lg flex flex-col justify-between gap-2 shadow-[inset_-2px_-2px_0_#111,inset_2px_2px_0_#333]"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl p-1 bg-black/40 border border-zinc-800 rounded">{supply.iconEmoji}</span>
+                          <span className="font-bold text-sm text-white font-minecraft">{supply.nameZh}</span>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-700 font-bold font-mono">
+                          {supply.badge}
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-300 mb-2 leading-relaxed">{supply.descZh}</p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
+                      <span className="text-xs font-mono text-amber-300 font-black">
+                        {supply.cost.toLocaleString()} 遊戲幣
+                      </span>
+
+                      <button
+                        disabled={coins < supply.cost}
+                        onClick={() => {
+                          if (coins >= supply.cost && onBuyFestivalSupply) {
+                            onBuyFestivalSupply(supply);
+                            showMsg(`成功購買使用節日限定【${supply.nameZh}】！`);
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-rose-700 hover:bg-rose-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-black border-2 border-black rounded active:scale-95 flex items-center gap-1 shadow-[inset_1px_1px_0_#fb7185,inset_-1px_-1px_0_#4c0519]"
+                      >
+                        <Coins className="w-3.5 h-3.5" />
+                        <span>購買並使用 ({supply.cost} 幣)</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

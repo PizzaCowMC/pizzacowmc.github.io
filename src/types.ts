@@ -18,12 +18,56 @@ export interface StrataLayer {
   nameZh: string;
   nameEn: string;
   order: number;
-  requiredMinedToUnlock: number; // e.g., 50000 for layer > 0
+  requiredMinedToUnlock: number; // e.g., 100000 for layer > 0
   icon: string;
   accentColor: string;
   borderGlow: string;
   descZh: string;
   blockIds: string[];
+}
+
+export interface FestivalSupplyItem {
+  id: string;
+  festivalId: string;
+  nameZh: string;
+  nameEn: string;
+  cost: number;
+  iconEmoji: string;
+  badge: string;
+  descZh: string;
+  effectType:
+    | 'red_envelope'
+    | 'firecracker'
+    | 'fortune_dumpling'
+    | 'halloween_candy'
+    | 'jack_lantern'
+    | 'phantom_cloak'
+    | 'christmas_gift'
+    | 'blizzard_core'
+    | 'candy_cane'
+    | 'mooncake'
+    | 'rabbit_charm'
+    | 'coconut_drink'
+    | 'trident_surge';
+}
+
+export interface FestivalEvent {
+  id: string;
+  nameZh: string;
+  nameEn: string;
+  seasonEmoji: string;
+  badge: string;
+  periodDesc: string;
+  bannerTitle: string;
+  bannerDesc: string;
+  accentColor: string;
+  borderGlow: string;
+  bgThemeId: string; // references ThemeBackground id
+  particleType: 'snow' | 'lanterns' | 'sparks' | 'bats' | 'bubbles' | 'petals';
+  bonusDesc: string;
+  coinMultiplier: number;
+  speedBonusPct: number;
+  limitedSupplies: FestivalSupplyItem[];
 }
 
 export interface MarketInflationEvent {

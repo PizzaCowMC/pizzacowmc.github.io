@@ -86,19 +86,19 @@ function build1000Achievements(): Achievement[] {
 
   const layerStepTargets = [
     100, 300, 600, 1000, 1500, 2000, 3000, 4500, 6000, 8000,
-    10000, 13000, 16000, 20000, 25000, 30000, 36000, 42000, 48000, 50000, // 50,000 unlocks next!
-    60000, 75000, 90000, 120000, 150000
+    10000, 13000, 16000, 20000, 25000, 30000, 36000, 42000, 50000, 60000,
+    75000, 90000, 100000, 120000, 150000 // 100,000 unlocks next!
   ]; // 25 targets per layer
 
   layersInfo.forEach((layer) => {
     layerStepTargets.forEach((tgt, stepIdx) => {
-      const isUnlockStep = tgt === 50000;
+      const isUnlockStep = tgt === 100000;
       addAch(
         `layer_${layer.id}_${tgt}`,
         'mining',
         `${layer.name}開拓 #${stepIdx + 1} (${tgt >= 10000 ? `${tgt / 10000}萬格` : `${tgt}格`})`,
         `${layer.name} Mastery #${stepIdx + 1}`,
-        `在「${layer.name}」礦脈層累計挖掘達 ${tgt.toLocaleString()} 格方塊${isUnlockStep ? '（達成5萬格解鎖下層資格！）' : ''}。`,
+        `在「${layer.name}」礦脈層累計挖掘達 ${tgt.toLocaleString()} 格方塊${isUnlockStep ? '（達成10萬格解鎖下層資格！）' : ''}。`,
         `Mine ${tgt.toLocaleString()} blocks in the ${layer.name} stratum.`,
         isUnlockStep ? '🔓' : layer.icon,
         isUnlockStep ? 500 : 25 + stepIdx * 15

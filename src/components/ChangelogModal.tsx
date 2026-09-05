@@ -12,15 +12,43 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
   const logs = [
     {
+      version: 'v2.5.0',
+      date: '最新節日慶典重大更新',
+      badge: '特殊節慶系統與 10 萬格挑戰',
+      badgeColor: 'bg-gradient-to-r from-rose-600 via-amber-600 to-purple-600 text-white shadow animate-pulse',
+      highlights: [
+        {
+          type: 'festival',
+          title: '🎪 全新特殊節慶活動系統上線',
+          desc: '盛大推出五大主題節日：新春廟會、萬聖南瓜夜、聖誕冰雪季、中秋賞月會、夏日海洋祭！每個節日具備專屬節慶背景、動態氛圍效果（雪花、蝙蝠、火花、花瓣、泡泡）與全場加成！'
+        },
+        {
+          type: 'supplies',
+          title: '🎁 節日限定神祕特殊道具專櫃',
+          desc: '各節慶推出限定神器：開運純金大紅包（開出萬額金幣）、連環爆竹（炸收66塊）、萬聖跳跳糖、聖誕驚喜禮盒、蛋黃金月餅、永凍暴風雪核心（耐久鎖死+自動採礦倍速）等！'
+        },
+        {
+          type: 'strata',
+          title: '⛏️ 礦脈地層解鎖門檻調升為 100,000 格',
+          desc: '為提供更具深度與成就感的開採體驗，地層深入挑戰正式提升至 100,000 格，解鎖更顯榮耀！'
+        },
+        {
+          type: 'building',
+          title: '🧱 建築工坊純粹化（移除範本）',
+          desc: '移除 100 格建築工坊預設範本按鈕，回歸純粹、零干擾的玩家自由像素沙盒創作，並保留一鍵清空返還全部方塊機制。'
+        }
+      ]
+    },
+    {
       version: 'v2.0.0',
-      date: '最新史詩更新',
+      date: '前次重大更新',
       badge: '深度經濟與千階成就',
       badgeColor: 'bg-gradient-to-r from-red-600 to-amber-600 text-white shadow',
       highlights: [
         {
           type: 'strata',
-          title: '8 大深層礦脈層與 50,000 格解鎖機制',
-          desc: '全面擴充地質構造：地表表層、淺層岩石、水晶裂谷、深板岩深淵、下界地心、終界虛空、幽匿深穴、天界秘境！每一層必須在上一層挖滿 50,000 格方塊才能深入下一層！'
+          title: '8 大深層礦脈層機制',
+          desc: '全面擴充地質構造：地表表層、淺層岩石、水晶裂谷、深板岩深淵、下界地心、終界虛空、幽匿深穴、天界秘境！'
         },
         {
           type: 'economy',

@@ -1,4 +1,4 @@
-import { BlockType, PickaxeTier, ThemeBackground, PlayerSkin, StrataLayer, MarketInflationEvent, ShopSupplyItem } from '../types';
+import { BlockType, PickaxeTier, ThemeBackground, PlayerSkin, StrataLayer, MarketInflationEvent, ShopSupplyItem, FestivalEvent, FestivalSupplyItem } from '../types';
 
 // Blocks with 20% reduced base sell value and newly added strata blocks
 export const BLOCK_TYPES: BlockType[] = [
@@ -519,7 +519,7 @@ export const STRATA_LAYERS: StrataLayer[] = [
     nameZh: '第 2 層：淺層沉積礦脈帶',
     nameEn: 'Layer 2: Shallow Sedimentary Vein',
     order: 1,
-    requiredMinedToUnlock: 50000,
+    requiredMinedToUnlock: 100000,
     icon: '🪙',
     accentColor: '#eab308',
     borderGlow: 'border-amber-500',
@@ -531,7 +531,7 @@ export const STRATA_LAYERS: StrataLayer[] = [
     nameZh: '第 3 層：深層金石結晶地帶',
     nameEn: 'Layer 3: Crystalline Deep Belt',
     order: 2,
-    requiredMinedToUnlock: 50000,
+    requiredMinedToUnlock: 100000,
     icon: '💎',
     accentColor: '#38bdf8',
     borderGlow: 'border-sky-500',
@@ -543,7 +543,7 @@ export const STRATA_LAYERS: StrataLayer[] = [
     nameZh: '第 4 層：深板岩暗黑裂谷',
     nameEn: 'Layer 4: Deepslate Abyss Chasm',
     order: 3,
-    requiredMinedToUnlock: 50000,
+    requiredMinedToUnlock: 100000,
     icon: '🪨',
     accentColor: '#94a3b8',
     borderGlow: 'border-slate-500',
@@ -555,7 +555,7 @@ export const STRATA_LAYERS: StrataLayer[] = [
     nameZh: '第 5 層：地獄熾熱熔岩地心',
     nameEn: 'Layer 5: Nether Molten Core',
     order: 4,
-    requiredMinedToUnlock: 50000,
+    requiredMinedToUnlock: 100000,
     icon: '🔥',
     accentColor: '#ef4444',
     borderGlow: 'border-red-600',
@@ -567,7 +567,7 @@ export const STRATA_LAYERS: StrataLayer[] = [
     nameZh: '第 6 層：終界外島虛空星環',
     nameEn: 'Layer 6: The End Void Islands',
     order: 5,
-    requiredMinedToUnlock: 50000,
+    requiredMinedToUnlock: 100000,
     icon: '🌌',
     accentColor: '#a855f7',
     borderGlow: 'border-purple-500',
@@ -579,7 +579,7 @@ export const STRATA_LAYERS: StrataLayer[] = [
     nameZh: '第 7 層：伏守幽匿深暗異域',
     nameEn: 'Layer 7: Ancient Deep Dark Realm',
     order: 6,
-    requiredMinedToUnlock: 50000,
+    requiredMinedToUnlock: 100000,
     icon: '👁️',
     accentColor: '#06b6d4',
     borderGlow: 'border-cyan-500',
@@ -591,7 +591,7 @@ export const STRATA_LAYERS: StrataLayer[] = [
     nameZh: '第 8 層：天界以太星輝神域',
     nameEn: 'Layer 8: Aether Celestial Heaven',
     order: 7,
-    requiredMinedToUnlock: 50000,
+    requiredMinedToUnlock: 100000,
     icon: '☀️',
     accentColor: '#facc15',
     borderGlow: 'border-yellow-400',
@@ -867,6 +867,56 @@ export const THEME_BACKGROUNDS: ThemeBackground[] = [
     accentColor: '#818cf8',
     previewColor: '#4338ca',
     desc: '萬千恆星誕生、紫藍光芒交織的宇宙深空。'
+  },
+  {
+    id: 'spring_palace',
+    nameZh: '🏮 新春喜慶紅宮殿',
+    nameEn: 'Spring Festival Palace',
+    cost: 0,
+    bgCss: 'bg-[#280808]',
+    accentColor: '#ef4444',
+    previewColor: '#991b1b',
+    desc: '迎春接福、張燈結綵的大紅喜慶宮殿，洋溢濃厚年節氛圍！'
+  },
+  {
+    id: 'halloween_night',
+    nameZh: '🎃 萬聖幽暗南瓜夜',
+    nameEn: 'Halloween Pumpkin Night',
+    cost: 0,
+    bgCss: 'bg-[#13091f]',
+    accentColor: '#f97316',
+    previewColor: '#581c87',
+    desc: '南瓜燈火幽微、迷霧翻騰的萬聖驚魂夜，神秘又刺激！'
+  },
+  {
+    id: 'christmas_aurora',
+    nameZh: '🎄 聖誕雪夜極光林',
+    nameEn: 'Christmas Aurora Woods',
+    cost: 0,
+    bgCss: 'bg-[#0a1820]',
+    accentColor: '#38bdf8',
+    previewColor: '#0f766e',
+    desc: '極光漫天、雪花紛飛的聖誕松木林，傳遞冬日奇蹟祝福！'
+  },
+  {
+    id: 'mid_autumn_moon',
+    nameZh: '🥮 金秋滿月桂花林',
+    nameEn: 'Mid-Autumn Moon Forest',
+    cost: 0,
+    bgCss: 'bg-[#0e1329]',
+    accentColor: '#fbbf24',
+    previewColor: '#1e1b4b',
+    desc: '銀月高懸、桂花飄香的金秋賞月中秋夜，詩意盎然！'
+  },
+  {
+    id: 'summer_beach',
+    nameZh: '🌊 蔚藍夏日熱帶海灘',
+    nameEn: 'Tropical Summer Beach',
+    cost: 0,
+    bgCss: 'bg-[#08202b]',
+    accentColor: '#06b6d4',
+    previewColor: '#0369a1',
+    desc: '熱帶椰風、陽光海浪的夏日衝浪勝地，盡情揮灑熱情！'
   }
 ];
 
@@ -1096,5 +1146,247 @@ export const MARKET_INFLATION_TEMPLATES: Omit<MarketInflationEvent, 'remainingSe
     multiplier: 0.75,
     type: 'deflation',
     durationSeconds: 30
+  }
+];
+
+// Special Holiday & Seasonal Festival Events
+export const FESTIVAL_EVENTS: FestivalEvent[] = [
+  {
+    id: 'spring_festival',
+    nameZh: '新春廟會狂歡節',
+    nameEn: 'Spring Festival Lunar Carnival',
+    seasonEmoji: '🏮',
+    badge: '🏮 新春慶典進行中',
+    periodDesc: '農曆新年 • 喜慶迎春',
+    bannerTitle: '🏮 新春大吉！迎春接福狂歡盛典',
+    bannerDesc: '節日特權生效：開採全部方塊額外獲得 +100% 雙倍金幣掉落！限時大紅包與吉祥爆竹熱烈發售！',
+    accentColor: '#ef4444',
+    borderGlow: 'border-red-500',
+    bgThemeId: 'spring_palace',
+    particleType: 'sparks',
+    bonusDesc: '採礦金幣雙倍 (+100%)，連鎖爆竹炸收加成',
+    coinMultiplier: 2.0,
+    speedBonusPct: 30,
+    limitedSupplies: [
+      {
+        id: 'f_red_envelope',
+        festivalId: 'spring_festival',
+        nameZh: '🧧 開運純金大紅包',
+        nameEn: 'Lucky Golden Red Envelope',
+        cost: 888,
+        iconEmoji: '🧧',
+        badge: '開出 8,888 ~ 18,888 幣',
+        descZh: '長輩親手送上的大吉大利純金紅包！拆開必定隨機獲得 8,888 ~ 18,888 巨額金幣！',
+        effectType: 'red_envelope'
+      },
+      {
+        id: 'f_firecracker',
+        festivalId: 'spring_festival',
+        nameZh: '🧨 萬象更新連環爆竹',
+        nameEn: 'Dragon Chain Firecrackers',
+        cost: 1688,
+        iconEmoji: '🧨',
+        badge: '炸收 66 塊 + 雙倍幣',
+        descZh: '點燃霹靂啪啦的吉祥鞭炮，瞬間將當前層級 66 個方塊炸入背包，並額外獎勵 1,000 金幣！',
+        effectType: 'firecracker'
+      },
+      {
+        id: 'f_fortune_dumpling',
+        festivalId: 'spring_festival',
+        nameZh: '🥟 純金如意招財金餃',
+        nameEn: 'Golden Fortune Dumpling',
+        cost: 999,
+        iconEmoji: '🥟',
+        badge: '90秒無損+極速',
+        descZh: '包有純金元寶的賀歲餃子！食用後 90 秒內鎬具完全不耗損耐久度，且開採速度提升 150%！',
+        effectType: 'fortune_dumpling'
+      }
+    ]
+  },
+  {
+    id: 'halloween',
+    nameZh: '萬聖南瓜幽魂之夜',
+    nameEn: 'Halloween Pumpkin Night',
+    seasonEmoji: '🎃',
+    badge: '🎃 萬聖狂歡夜進行中',
+    periodDesc: '萬聖前夕 • 百鬼夜行',
+    bannerTitle: '🎃 不給糖就搗蛋！萬聖南瓜幽魂狂歡',
+    bannerDesc: '節日特權生效：開採速度提升 +50%，深板岩與幽暗地層寶石爆率翻倍！',
+    accentColor: '#f97316',
+    borderGlow: 'border-orange-500',
+    bgThemeId: 'halloween_night',
+    particleType: 'bats',
+    bonusDesc: '開採速度提升 +50%，深層寶石爆率狂飆',
+    coinMultiplier: 1.5,
+    speedBonusPct: 50,
+    limitedSupplies: [
+      {
+        id: 'f_halloween_candy',
+        festivalId: 'halloween',
+        nameZh: '🍬 南瓜怪魔幻跳跳糖',
+        nameEn: 'Trick-or-Treat Magic Candy',
+        cost: 950,
+        iconEmoji: '🍬',
+        badge: '炸收 45 塊深暗裂谷',
+        descZh: '充滿魔法能量的萬聖糖果！食用後瞬間直接在背包注入 45 塊深板岩/地獄珍稀礦石，並獲 60 秒急速！',
+        effectType: 'halloween_candy'
+      },
+      {
+        id: 'f_jack_lantern',
+        festivalId: 'halloween',
+        nameZh: '🎃 附魔傑克南瓜聖燈',
+        nameEn: 'Jack-o-Lantern Relic',
+        cost: 1500,
+        iconEmoji: '🎃',
+        badge: '120秒 +200% 幸運',
+        descZh: '燃燒幽靈狐火的避邪南瓜燈！使用後 120 秒內每次挖掘必定觸發 3 倍幸運掉落！',
+        effectType: 'jack_lantern'
+      },
+      {
+        id: 'f_phantom_cloak',
+        festivalId: 'halloween',
+        nameZh: '👻 幽靈幻影隱形斗篷',
+        nameEn: 'Phantom Veil',
+        cost: 1800,
+        iconEmoji: '👻',
+        badge: '180秒耐久度凍結',
+        descZh: '虛無縹緲的幽魂斗篷！披上後 180 秒內無論如何挖掘，手中鎬具耐久度完全鎖定不減！',
+        effectType: 'phantom_cloak'
+      }
+    ]
+  },
+  {
+    id: 'christmas',
+    nameZh: '聖誕冰雪奇幻節',
+    nameEn: 'Christmas Aurora Wonderland',
+    seasonEmoji: '🎄',
+    badge: '🎄 聖誕冰雪節進行中',
+    periodDesc: '雪夜銀鈴 • 聖誕奇蹟',
+    bannerTitle: '🎄 聖誕快樂！冬日極光雪國慶典',
+    bannerDesc: '節日特權生效：交易所所有方塊收購價格常駐 +40%！聖誕老人特約空投禮盒！',
+    accentColor: '#38bdf8',
+    borderGlow: 'border-cyan-400',
+    bgThemeId: 'christmas_aurora',
+    particleType: 'snow',
+    bonusDesc: '交易所收購價格常駐 +40%，極地耐久度永久護甲',
+    coinMultiplier: 1.4,
+    speedBonusPct: 30,
+    limitedSupplies: [
+      {
+        id: 'f_christmas_gift',
+        festivalId: 'christmas',
+        nameZh: '🎁 聖誕老人驚喜禮盒',
+        nameEn: 'Christmas Mystery Gift',
+        cost: 1225,
+        iconEmoji: '🎁',
+        badge: '開出神礦群 + 5,000幣',
+        descZh: '精美絲帶包裹的巨型禮物盒！打開必定獲得 5,000 遊戲幣 + 30 顆高階鑽石、綠寶石與紫水晶！',
+        effectType: 'christmas_gift'
+      },
+      {
+        id: 'f_blizzard_core',
+        festivalId: 'christmas',
+        nameZh: '❄️ 永凍暴風雪核心',
+        nameEn: 'Everfrost Blizzard Core',
+        cost: 2000,
+        iconEmoji: '❄️',
+        badge: '150秒耐久凍結+自動速採',
+        descZh: '凝聚極地萬年玄冰的神器！150 秒內鎬具耐久度絕對鎖死，且自動採礦頻率提升至每 1 秒一次！',
+        effectType: 'blizzard_core'
+      },
+      {
+        id: 'f_candy_cane',
+        festivalId: 'christmas',
+        nameZh: '🍭 拐杖糖歡樂能量棒',
+        nameEn: 'Holiday Candy Cane Bar',
+        cost: 850,
+        iconEmoji: '🍭',
+        badge: '90秒賣出價翻倍',
+        descZh: '薄荷清香的聖誕拐杖糖！食用後 90 秒內在交易所售出任何方塊均享受雙倍金幣收益！',
+        effectType: 'candy_cane'
+      }
+    ]
+  },
+  {
+    id: 'mid_autumn',
+    nameZh: '中秋賞月盛宴',
+    nameEn: 'Mid-Autumn Moon Festival',
+    seasonEmoji: '🥮',
+    badge: '🥮 中秋賞月盛宴中',
+    periodDesc: '金秋滿月 • 桂花月餅',
+    bannerTitle: '🥮 但願人長久！中秋滿月桂香盛會',
+    bannerDesc: '節日特權生效：滿月神力加持，開採速度全面提升 +40%，金幣掉落 +30%！',
+    accentColor: '#fbbf24',
+    borderGlow: 'border-amber-400',
+    bgThemeId: 'mid_autumn_moon',
+    particleType: 'petals',
+    bonusDesc: '開採速度 +40%，滿月金幣掉落 +30%',
+    coinMultiplier: 1.3,
+    speedBonusPct: 40,
+    limitedSupplies: [
+      {
+        id: 'f_mooncake',
+        festivalId: 'mid_autumn',
+        nameZh: '🥮 特製廣式雙黃金月餅',
+        nameEn: 'Golden Yolk Mooncake',
+        cost: 1000,
+        iconEmoji: '🥮',
+        badge: '獲得 6,666 幣 + 急速',
+        descZh: '金黃油亮的傳統名點！品嚐後立即獲得 6,666 遊戲幣，並附加 90 秒急迫採礦狀態！',
+        effectType: 'mooncake'
+      },
+      {
+        id: 'f_rabbit_charm',
+        festivalId: 'mid_autumn',
+        nameZh: '🐇 月宮玉兔祈願玉佩',
+        nameEn: 'Moon Jade Rabbit Charm',
+        cost: 1888,
+        iconEmoji: '🐇',
+        badge: '120秒雙倍掉落+回耐久',
+        descZh: '月宮仙兔祝福的溫潤美玉！120 秒內每次敲碎方塊均收穫 2 個，且每次點擊恢復 2 點鎬具耐久！',
+        effectType: 'rabbit_charm'
+      }
+    ]
+  },
+  {
+    id: 'summer_ocean',
+    nameZh: '夏日海洋衝浪祭',
+    nameEn: 'Summer Ocean Splash Festival',
+    seasonEmoji: '🌊',
+    badge: '🌊 夏日海洋祭進行中',
+    periodDesc: '盛夏衝浪 • 沁涼海灘',
+    bannerTitle: '🌊 沁涼一夏！夏日熱帶海洋派對',
+    bannerDesc: '節日特權生效：夏日清涼降溫，全方塊開採硬度降低 25%，採掘速度倍增！',
+    accentColor: '#06b6d4',
+    borderGlow: 'border-teal-400',
+    bgThemeId: 'summer_beach',
+    particleType: 'bubbles',
+    bonusDesc: '全方塊開採硬度 -25%，速度倍增',
+    coinMultiplier: 1.2,
+    speedBonusPct: 50,
+    limitedSupplies: [
+      {
+        id: 'f_coconut_drink',
+        festivalId: 'summer_ocean',
+        nameZh: '🥥 冰鎮沁涼熱帶椰子汁',
+        nameEn: 'Chilled Tropical Coconut',
+        cost: 750,
+        iconEmoji: '🥥',
+        badge: '120秒採礦速倍增',
+        descZh: '現剖冰鎮的新鮮椰汁！飲用後透心涼，120 秒內採礦時間縮減 60%，享受極致疾風挖掘！',
+        effectType: 'coconut_drink'
+      },
+      {
+        id: 'f_trident_surge',
+        festivalId: 'summer_ocean',
+        nameZh: '🔱 海神潮汐三叉戟',
+        nameEn: 'Tidal Trident Surge',
+        cost: 1999,
+        iconEmoji: '🔱',
+        badge: '瞬間收割 50 塊豐富資源',
+        descZh: '召喚海洋怒濤的三叉戟！瞬間開採 50 塊高品質礦石並存入背包，且獲得 2,000 額外金幣！',
+        effectType: 'trident_surge'
+      }
+    ]
   }
 ];
