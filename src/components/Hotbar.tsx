@@ -4,6 +4,7 @@ import { PickaxeState } from '../types';
 import { BlockTexture } from './BlockTexture';
 import { sound } from '../utils/soundEffects';
 import { Coins, Pickaxe } from 'lucide-react';
+import { useLanguage } from '../utils/i18n';
 
 interface HotbarProps {
   inventory: Record<string, number>;
@@ -24,13 +25,16 @@ export const Hotbar: React.FC<HotbarProps> = ({
   onOpenMarket,
   onOpenShop
 }) => {
+  const { language, getName, t } = useLanguage();
   const currentPick = PICKAXE_TIERS.find(p => p.id === pickaxeState.currentTierId) || PICKAXE_TIERS[0];
   const durabilityPct = currentPick.tier === 0
     ? 100
     : Math.max(0, Math.min(100, Math.round((pickaxeState.currentDurability / currentPick.maxDurability) * 100)));
 
+  const isEn = language === 'en';
+
   return (
-    <aside aria-label="快捷列與狀態" className="fixed bottom-2 left-1/2 -translate-x-1/2 z-40 max-w-[98vw] flex flex-col items-center">
+    <aside aria-label="Hotbar & Quick Status" className="fixed bottom-2 left-1/2 -translate-x-1/2 z-40 max-w-[98vw] flex flex-col items-center">
       {/* Top quick stats bar */}
       <div className="flex items-center gap-2 mb-1 px-3 py-0.5 bg-black/80 border border-zinc-700 rounded-full text-xs text-zinc-200 shadow-md backdrop-blur-xs">
         <button
@@ -38,7 +42,7 @@ export const Hotbar: React.FC<HotbarProps> = ({
           className="flex items-center gap-1.5 text-amber-300 hover:text-amber-200 font-mono font-bold transition-colors cursor-pointer"
         >
           <Coins className="w-3.5 h-3.5 text-amber-400" />
-          <span>{coins.toLocaleString()} 幣 (點擊賣方塊)</span>
+          <span>{coins.toLocaleString()} {isEn ? 'Coins (Sell)' : '幣 (點擊賣方塊)'}</span>
         </button>
 
         <span className="text-zinc-600">|</span>
@@ -48,7 +52,7 @@ export const Hotbar: React.FC<HotbarProps> = ({
           className="flex items-center gap-1.5 text-cyan-300 hover:text-cyan-200 font-bold transition-colors cursor-pointer"
         >
           <Pickaxe className="w-3.5 h-3.5 text-cyan-400" />
-          <span>{currentPick.nameZh}</span>
+          <span>{getName(currentPick)}</span>
           {currentPick.tier !== 0 && (
             <span className={`text-[10px] font-mono ${durabilityPct < 20 ? 'text-red-400' : 'text-zinc-400'}`}>
               ({durabilityPct}%)
@@ -62,6 +66,7 @@ export const Hotbar: React.FC<HotbarProps> = ({
         {BLOCK_TYPES.map(block => {
           const isSelected = selectedBlockId === block.id;
           const count = inventory[block.id] || 0;
+          const blockName = getName(block);
 
           return (
             <button
@@ -70,7 +75,7 @@ export const Hotbar: React.FC<HotbarProps> = ({
                 sound.playClickSound();
                 onSelectBlock(block.id);
               }}
-              title={`${block.nameZh} (${block.nameEn}) - 庫存: ${count} 個 (點擊選為建築方塊)`}
+              title={`${blockName} - ${t('hotbar.inStock')}: ${count}`}
               className={`relative w-10 h-10 sm:w-12 sm:h-12 border-2 rounded flex flex-col items-center justify-center transition-transform active:scale-95 group shrink-0 ${
                 isSelected
                   ? 'border-white bg-zinc-800 shadow-[0_0_8px_rgba(255,255,255,0.8),inset_0_0_0_2px_#fff]'
@@ -90,7 +95,7 @@ export const Hotbar: React.FC<HotbarProps> = ({
 
               {/* Tooltip on hover */}
               <div className="absolute -top-9 bg-black/95 border border-amber-400 text-amber-300 text-[10px] px-2 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-lg">
-                {block.nameZh} ({count})
+                {blockName} ({count})
               </div>
             </button>
           );

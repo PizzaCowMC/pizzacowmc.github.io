@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { BLOCK_TYPES, PICKAXE_TIERS, THEME_BACKGROUNDS, PLAYER_SKINS, STRATA_LAYERS, MARKET_INFLATION_TEMPLATES, SHOP_SUPPLIES, FESTIVAL_EVENTS } from './data/gameData';
+import { BLOCK_TYPES, PICKAXE_TIERS, THEME_BACKGROUNDS, PLAYER_SKINS, STRATA_LAYERS, MARKET_INFLATION_TEMPLATES, SHOP_SUPPLIES } from './data/gameData';
 import { INITIAL_ACHIEVEMENTS } from './data/achievementsData';
-import { BlockType, PickaxeState, ThemeBackground, PlayerSkin, Friend, Achievement, MarketInflationEvent, ShopSupplyItem, FestivalEvent, FestivalSupplyItem } from './types';
+import { BlockType, PickaxeState, ThemeBackground, PlayerSkin, Friend, Achievement, MarketInflationEvent, ShopSupplyItem } from './types';
 import { QuarryMining } from './components/QuarryMining';
 import { BuildingZone } from './components/BuildingZone';
 import { Hotbar } from './components/Hotbar';
 import { MarketModal } from './components/MarketModal';
 import { ShopModal } from './components/ShopModal';
-import { FestivalModal } from './components/FestivalModal';
 import { FriendsModal } from './components/FriendsModal';
 import { AchievementsModal } from './components/AchievementsModal';
 import { GameMenuModal } from './components/GameMenuModal';
 import { ChangelogModal } from './components/ChangelogModal';
 import { AuthModal } from './components/AuthModal';
+import { FestivalsModal } from './components/FestivalsModal';
+import { FestivalParticles } from './components/FestivalParticles';
 import { sound } from './utils/soundEffects';
 import {
   ShoppingBag,
@@ -32,8 +33,7 @@ import {
   Layers,
   CheckCircle2,
   TrendingUp,
-  Flame,
-  PartyPopper
+  Flame
 } from 'lucide-react';
 import {
   subscribeToAuth,
@@ -41,10 +41,14 @@ import {
   loadUserData,
   isFirebaseConfigured
 } from './services/firebase';
+import { useLanguage } from './utils/i18n';
 
 const STORAGE_KEY = 'mc_mining_workshop_v1';
 
 export default function App() {
+  const { language, toggleLanguage, t, getName, getDesc } = useLanguage();
+  const isEn = language === 'en';
+
   // --- Game State with LocalStorage Persistence ---
   const [coins, setCoins] = useState<number>(() => {
     try {
@@ -311,36 +315,26 @@ export default function App() {
   const [isShopOpen, setIsShopOpen] = useState<boolean>(false);
   const [isFriendsOpen, setIsFriendsOpen] = useState<boolean>(false);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
-  const [isFestivalModalOpen, setIsFestivalModalOpen] = useState<boolean>(false);
-  const [shopInitialTab, setShopInitialTab] = useState<'pickaxes' | 'themes' | 'skins' | 'supplies' | 'festivals'>('pickaxes');
-
-  // Festival & Holiday Events state
-  const [currentFestivalId, setCurrentFestivalId] = useState<string>(() => {
+  const [isFestivalsOpen, setIsFestivalsOpen] = useState<boolean>(false);
+  const [activeFestivalId, setActiveFestivalId] = useState<string>(() => {
     try {
-      const saved = localStorage.getItem(`${STORAGE_KEY}_festival_id`);
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return 'spring_festival';
+      const saved = localStorage.getItem(`${STORAGE_KEY}_active_festival`);
+      return saved ? JSON.parse(saved) : 'halloween';
+    } catch {
+      return 'halloween';
+    }
   });
-  const [isFestivalBgActive, setIsFestivalBgActive] = useState<boolean>(() => {
+  const [dailyGiftClaimedToday, setDailyGiftClaimedToday] = useState<boolean>(() => {
     try {
-      const saved = localStorage.getItem(`${STORAGE_KEY}_festival_bg_active`);
-      if (saved !== null) return JSON.parse(saved);
-    } catch {}
-    return true;
+      return localStorage.getItem(`${STORAGE_KEY}_daily_fest_gift`) === new Date().toISOString().slice(0, 10);
+    } catch {
+      return false;
+    }
   });
-
-  // Active Festival Memo
-  const activeFestival = useMemo(() => {
-    return FESTIVAL_EVENTS.find(f => f.id === currentFestivalId) || FESTIVAL_EVENTS[0];
-  }, [currentFestivalId]);
-
-  // Festival Buff Countdowns
-  const [unlimitedDurabilitySeconds, setUnlimitedDurabilitySeconds] = useState<number>(0);
-  const [fortuneMultiplierSeconds, setFortuneMultiplierSeconds] = useState<number>(0);
-  const [doubleDropSeconds, setDoubleDropSeconds] = useState<number>(0);
-  const [doubleMarketSellSeconds, setDoubleMarketSellSeconds] = useState<number>(0);
-  const [festivalAutoMinerFastSeconds, setFestivalAutoMinerFastSeconds] = useState<number>(0);
+  const [extremeHasteSeconds, setExtremeHasteSeconds] = useState<number>(0);
+  const [zeroDurabilitySeconds, setZeroDurabilitySeconds] = useState<number>(0);
+  const [doubleCoinsSeconds, setDoubleCoinsSeconds] = useState<number>(0);
+  const [shopInitialTab, setShopInitialTab] = useState<'pickaxes' | 'themes' | 'skins' | 'supplies'>('pickaxes');
 
   // Supplies & Automations
   const [hasAutoMiner, setHasAutoMiner] = useState<boolean>(() => {
@@ -554,30 +548,48 @@ export default function App() {
   }, [hasAutoMiner]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_festival_id`, JSON.stringify(currentFestivalId));
-  }, [currentFestivalId]);
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_active_festival`, JSON.stringify(activeFestivalId));
+    } catch {}
+  }, [activeFestivalId]);
 
+  // Haste buff countdown
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_festival_bg_active`, JSON.stringify(isFestivalBgActive));
-  }, [isFestivalBgActive]);
-
-  // Haste & Festival buffs countdown
-  useEffect(() => {
+    if (hasteRemainingSeconds <= 0) return;
     const timer = setInterval(() => {
       setHasteRemainingSeconds(prev => (prev <= 1 ? 0 : prev - 1));
-      setUnlimitedDurabilitySeconds(prev => (prev <= 1 ? 0 : prev - 1));
-      setFortuneMultiplierSeconds(prev => (prev <= 1 ? 0 : prev - 1));
-      setDoubleDropSeconds(prev => (prev <= 1 ? 0 : prev - 1));
-      setDoubleMarketSellSeconds(prev => (prev <= 1 ? 0 : prev - 1));
-      setFestivalAutoMinerFastSeconds(prev => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [hasteRemainingSeconds]);
 
-  // Steam Auto-Miner Robot loop: mines 1 block every 3 seconds (or every 1 second when fast blizzard core active)
+  // Festival Buffs countdowns
   useEffect(() => {
-    if (!hasAutoMiner && festivalAutoMinerFastSeconds <= 0) return;
-    const intervalMs = festivalAutoMinerFastSeconds > 0 ? 1000 : 3000;
+    if (extremeHasteSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setExtremeHasteSeconds(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [extremeHasteSeconds]);
+
+  useEffect(() => {
+    if (zeroDurabilitySeconds <= 0) return;
+    const timer = setInterval(() => {
+      setZeroDurabilitySeconds(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [zeroDurabilitySeconds]);
+
+  useEffect(() => {
+    if (doubleCoinsSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setDoubleCoinsSeconds(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [doubleCoinsSeconds]);
+
+  // Steam Auto-Miner Robot loop: mines 1 block every 3 seconds
+  useEffect(() => {
+    if (!hasAutoMiner) return;
     const interval = setInterval(() => {
       const targetLayer = STRATA_LAYERS.find(l => l.id === selectedLayerId) || STRATA_LAYERS[0];
       const layerBlocks = BLOCK_TYPES.filter(b => targetLayer.blockIds.includes(b.id));
@@ -600,9 +612,9 @@ export default function App() {
           [randomBlock.id]: (prev.blockTypeMinedCounts[randomBlock.id] || 0) + 1
         }
       }));
-    }, intervalMs);
+    }, 3000);
     return () => clearInterval(interval);
-  }, [hasAutoMiner, selectedLayerId, festivalAutoMinerFastSeconds]);
+  }, [hasAutoMiner, selectedLayerId]);
 
   // Periodic timer for random market inflation
   useEffect(() => {
@@ -749,29 +761,15 @@ export default function App() {
 
   // --- Handlers: Mining ---
   const handleMineSuccess = useCallback((minedBlock: BlockType, amount: number, layerId?: string) => {
-    let effectiveAmount = amount;
-    if (doubleDropSeconds > 0) {
-      effectiveAmount *= 2;
-    }
-    if (fortuneMultiplierSeconds > 0 && Math.random() < 0.65) {
-      effectiveAmount += 2;
-    }
-
     setInventory(prev => ({
       ...prev,
-      [minedBlock.id]: (prev[minedBlock.id] || 0) + effectiveAmount
+      [minedBlock.id]: (prev[minedBlock.id] || 0) + amount
     }));
-
-    // Festival coin bonus upon mining
-    const festCoinBonus = Math.round(minedBlock.sellPrice * (activeFestival.coinMultiplier - 1));
-    if (festCoinBonus > 0) {
-      setCoins(c => c + festCoinBonus);
-    }
 
     if (layerId) {
       setLayerMinedCounts(prev => {
         const current = prev[layerId] || 0;
-        const next = current + effectiveAmount;
+        const next = current + amount;
 
         // Check if 100,000 threshold reached to unlock next layer
         if (current < 100000 && next >= 100000) {
@@ -796,18 +794,18 @@ export default function App() {
       return {
         ...prev,
         totalClicks: prev.totalClicks + 1,
-        totalBlocksMined: prev.totalBlocksMined + effectiveAmount,
+        totalBlocksMined: prev.totalBlocksMined + amount,
         blockTypeMinedCounts: {
           ...prev.blockTypeMinedCounts,
-          [minedBlock.id]: currentB + effectiveAmount
+          [minedBlock.id]: currentB + amount
         }
       };
     });
-  }, [doubleDropSeconds, fortuneMultiplierSeconds, activeFestival.coinMultiplier]);
+  }, []);
 
   const handleDurabilityLoss = useCallback(() => {
-    // If festival durability lock is active, ignore durability damage
-    if (unlimitedDurabilitySeconds > 0) return;
+    // Zero-durability lock buff (Christmas event)
+    if (zeroDurabilitySeconds > 0) return;
 
     const currentPick = PICKAXE_TIERS.find(p => p.id === pickaxeState.currentTierId) || PICKAXE_TIERS[0];
     if (currentPick.tier === 0) return; // Bare hands don't lose durability
@@ -833,7 +831,7 @@ export default function App() {
         currentDurability: newDura
       };
     });
-  }, [unlimitedDurabilitySeconds, pickaxeState.currentTierId, pickaxeState.unbreakingLevel, unlockAchievement]);
+  }, [zeroDurabilitySeconds, pickaxeState.currentTierId, pickaxeState.unbreakingLevel, unlockAchievement]);
 
   // --- Handlers: Building Zone ---
   const handlePlaceBlock = useCallback((index: number) => {
@@ -904,6 +902,59 @@ export default function App() {
     unlockAchievement('build_clear_all');
   }, [buildGrid, unlockAchievement]);
 
+  // Presets for building
+  const handleLoadPreset = useCallback((presetName: string) => {
+    sound.playAchievementSound();
+    const newGrid = Array(100).fill(null);
+
+    if (presetName === 'creeper') {
+      // 10x10 Creeper face
+      // Rows 0-9, Cols 0-9
+      const creeperMask = [
+        [0,0,0,0,0,0,0,0,0,0],
+        [0,1,1,1,1,1,1,1,1,0],
+        [0,1,0,0,1,1,0,0,1,0],
+        [0,1,0,0,1,1,0,0,1,0],
+        [0,1,1,1,0,0,1,1,1,0],
+        [0,1,1,0,0,0,0,1,1,0],
+        [0,1,1,0,0,0,0,1,1,0],
+        [0,1,1,0,1,1,0,1,1,0],
+        [0,1,1,1,1,1,1,1,1,0],
+        [0,0,0,0,0,0,0,0,0,0]
+      ];
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 10; c++) {
+          const idx = r * 10 + c;
+          if (creeperMask[r][c] === 1) newGrid[idx] = 'emerald_ore';
+          else if (r >= 1 && r <= 8 && c >= 1 && c <= 8) newGrid[idx] = 'coal_ore';
+        }
+      }
+    } else if (presetName === 'heart') {
+      const heartIdxs = [
+        12, 13, 16, 17,
+        21, 22, 23, 24, 25, 26, 27, 28,
+        31, 32, 33, 34, 35, 36, 37, 38,
+        41, 42, 43, 44, 45, 46, 47, 48,
+        52, 53, 54, 55, 56, 57,
+        63, 64, 65, 66,
+        74, 75
+      ];
+      heartIdxs.forEach(i => {
+        newGrid[i] = 'redstone_ore';
+      });
+    } else if (presetName === 'sword') {
+      const swordIdxs = [
+        9, 18, 27, 36, 45, 54,
+        63, 64, 72, 73, 81, 90
+      ];
+      swordIdxs.forEach((idx, step) => {
+        newGrid[idx] = step > 7 ? 'wood' : 'diamond_ore';
+      });
+    }
+
+    setBuildGrid(newGrid);
+  }, []);
+
   // --- Handlers: Market Selling ---
   const handleSellBlock = useCallback((blockId: string, amount: number, customUnitPrice?: number) => {
     const block = BLOCK_TYPES.find(b => b.id === blockId);
@@ -913,8 +964,8 @@ export default function App() {
     if (realAmount <= 0) return;
 
     const unitPrice = typeof customUnitPrice === 'number' ? customUnitPrice : block.sellPrice;
-    const festMultiplier = doubleMarketSellSeconds > 0 ? 2 : 1;
-    const earned = Math.round(realAmount * unitPrice * festMultiplier);
+    const baseEarned = Math.round(realAmount * unitPrice);
+    const earned = doubleCoinsSeconds > 0 ? baseEarned * 2 : baseEarned;
     const isInflationTrade = marketInflationEvent.multiplier > 1.05;
 
     setInventory(prev => ({
@@ -940,7 +991,7 @@ export default function App() {
     if (blockId === 'cobblestone' && realAmount >= 50) unlockAchievement('sell_cobble_50');
     if (earned >= 500) unlockAchievement('sell_single_trade_500');
     if (earned >= 1500) unlockAchievement('sell_single_trade_1500');
-  }, [inventory, marketInflationEvent.multiplier, doubleMarketSellSeconds, unlockAchievement]);
+  }, [inventory, marketInflationEvent.multiplier, doubleCoinsSeconds, unlockAchievement]);
 
   const handleSellAll = useCallback((customTotalEarned?: number) => {
     let totalEarned = 0;
@@ -956,9 +1007,8 @@ export default function App() {
       }
     });
 
-    const festMultiplier = doubleMarketSellSeconds > 0 ? 2 : 1;
     const baseEarned = typeof customTotalEarned === 'number' ? customTotalEarned : totalEarned;
-    const finalEarned = Math.round(baseEarned * festMultiplier);
+    const finalEarned = doubleCoinsSeconds > 0 ? baseEarned * 2 : baseEarned;
     if (finalEarned <= 0 && totalSold <= 0) return;
 
     const isInflationTrade = marketInflationEvent.multiplier > 1.05;
@@ -975,7 +1025,7 @@ export default function App() {
     unlockAchievement('quick_sell_all');
     if (finalEarned >= 500) unlockAchievement('sell_single_trade_500');
     if (finalEarned >= 1500) unlockAchievement('sell_single_trade_1500');
-  }, [inventory, marketInflationEvent.multiplier, doubleMarketSellSeconds, unlockAchievement]);
+  }, [inventory, marketInflationEvent.multiplier, doubleCoinsSeconds, unlockAchievement]);
 
   // --- Handlers: Shop Purchases & Upgrades ---
   const handleBuyPickaxe = useCallback((tierId: string, cost: number) => {
@@ -1112,188 +1162,54 @@ export default function App() {
       sound.playUpgradeSound();
       setSupplyToastMsg('🤖 蒸氣紅石自動採礦魔像已啟動！每 3 秒自動為您在當前層級開採 1 個方塊！');
       setTimeout(() => setSupplyToastMsg(null), 5000);
+    } else if (supply.type === 'double_coins_candy') {
+      setCoins(prev => prev - supply.cost);
+      setDoubleCoinsSeconds(prev => prev + 120);
+      sound.playPouchOpenSound();
+      setSupplyToastMsg('🍬 萬聖節南瓜雙倍金幣糖果生效！120 秒內賣出方塊金幣收益翻倍！');
+      setTimeout(() => setSupplyToastMsg(null), 4500);
+    } else if (supply.type === 'ice_shard') {
+      setCoins(prev => prev - supply.cost);
+      setZeroDurabilitySeconds(prev => prev + 90);
+      sound.playUpgradeSound();
+      setSupplyToastMsg('❄️ 聖誕極地零度冰晶生效！90 秒內挖掘方塊鎬具耐久鎖死不消耗！');
+      setTimeout(() => setSupplyToastMsg(null), 4500);
+    } else if (supply.type === 'cherry_dango') {
+      setCoins(prev => prev - supply.cost);
+      setExtremeHasteSeconds(prev => prev + 60);
+      sound.playCoinSound();
+      setSupplyToastMsg('🍡 櫻花春日三色團子生效！60 秒內採礦速度極限激增 +100%！');
+      setTimeout(() => setSupplyToastMsg(null), 4500);
+    } else if (supply.type === 'lucky_packet') {
+      setCoins(prev => prev - supply.cost);
+      const bonusReward = Math.floor(Math.random() * 2001) + 1500; // 1,500 ~ 3,500
+      setCoins(prev => prev + bonusReward);
+      sound.playPouchOpenSound();
+      setSupplyToastMsg(`🧧 新春開運壓歲大紅包開啟！恭喜獲得 +${bonusReward.toLocaleString()} 遊戲幣！`);
+      setTimeout(() => setSupplyToastMsg(null), 4500);
+    } else if (supply.type === 'watermelon_ice') {
+      setCoins(prev => prev - supply.cost);
+      setExtremeHasteSeconds(prev => prev + 45);
+      setDoubleCoinsSeconds(prev => prev + 45);
+      sound.playCoinSound();
+      setSupplyToastMsg('🍉 夏至冰鎮西瓜切片生效！45 秒內同時享受極速採礦與雙倍金幣加成！');
+      setTimeout(() => setSupplyToastMsg(null), 4500);
     }
   }, [coins, pickaxeState.currentTierId, selectedLayerId, hasAutoMiner]);
 
-  // --- Handlers: Festival Limited Supplies & Relics ---
-  const handleBuyFestivalSupply = useCallback((supply: FestivalSupplyItem) => {
-    if (coins < supply.cost) return;
-    setCoins(prev => prev - supply.cost);
-
-    switch (supply.effectType) {
-      case 'red_envelope': {
-        const bonusReward = Math.floor(Math.random() * 10001) + 8888; // 8,888 ~ 18,888
-        setCoins(prev => prev + bonusReward);
-        sound.playPouchOpenSound();
-        setSupplyToastMsg(`🧧 開運純金大紅包開啟！迎春接福，恭喜獲得 +${bonusReward.toLocaleString()} 遊戲幣！`);
-        setTimeout(() => setSupplyToastMsg(null), 5000);
-        break;
-      }
-      case 'firecracker': {
-        const targetLayer = STRATA_LAYERS.find(l => l.id === selectedLayerId) || STRATA_LAYERS[0];
-        const layerBlocks = BLOCK_TYPES.filter(b => targetLayer.blockIds.includes(b.id));
-        const fallback = layerBlocks.length > 0 ? layerBlocks : BLOCK_TYPES.slice(0, 3);
-        const harvested: Record<string, number> = {};
-        for (let i = 0; i < 66; i++) {
-          const randomBlock = fallback[Math.floor(Math.random() * fallback.length)];
-          harvested[randomBlock.id] = (harvested[randomBlock.id] || 0) + 1;
-        }
-        setInventory(prev => {
-          const next = { ...prev };
-          Object.entries(harvested).forEach(([bId, count]) => {
-            next[bId] = (next[bId] || 0) + count;
-          });
-          return next;
-        });
-        setLayerMinedCounts(prev => ({
-          ...prev,
-          [selectedLayerId]: (prev[selectedLayerId] || 0) + 66
-        }));
-        setStats(prev => ({
-          ...prev,
-          totalBlocksMined: prev.totalBlocksMined + 66
-        }));
-        setCoins(prev => prev + 1000);
-        sound.playExplosionSound();
-        setSupplyToastMsg(`🧨 萬象更新連環爆竹引爆！瞬間採收 66 塊【${targetLayer.nameZh}】方塊並獲 +1,000 金幣！`);
-        setTimeout(() => setSupplyToastMsg(null), 5000);
-        break;
-      }
-      case 'fortune_dumpling': {
-        setUnlimitedDurabilitySeconds(prev => prev + 90);
-        setHasteRemainingSeconds(prev => prev + 90);
-        sound.playUpgradeSound();
-        setSupplyToastMsg('🥟 純金招財金餃已享用！90 秒內鎬具絕對無損不耗耐久，且開採飆速 150%！');
-        setTimeout(() => setSupplyToastMsg(null), 5000);
-        break;
-      }
-      case 'halloween_candy': {
-        const abyssBlocks = BLOCK_TYPES.filter(b => b.category === 'deepslate' || b.category === 'nether' || b.category === 'gem');
-        const fallback = abyssBlocks.length > 0 ? abyssBlocks : BLOCK_TYPES;
-        const harvested: Record<string, number> = {};
-        for (let i = 0; i < 45; i++) {
-          const randomBlock = fallback[Math.floor(Math.random() * fallback.length)];
-          harvested[randomBlock.id] = (harvested[randomBlock.id] || 0) + 1;
-        }
-        setInventory(prev => {
-          const next = { ...prev };
-          Object.entries(harvested).forEach(([bId, count]) => {
-            next[bId] = (next[bId] || 0) + count;
-          });
-          return next;
-        });
-        setHasteRemainingSeconds(prev => prev + 60);
-        sound.playCoinSound();
-        setSupplyToastMsg('🍬 南瓜怪跳跳糖魔力爆發！45 塊深暗裂谷神礦直接入庫，並獲 60 秒急速！');
-        setTimeout(() => setSupplyToastMsg(null), 5000);
-        break;
-      }
-      case 'jack_lantern': {
-        setFortuneMultiplierSeconds(prev => prev + 120);
-        sound.playUpgradeSound();
-        setSupplyToastMsg('🎃 附魔傑克南瓜聖燈點亮！120 秒內每次挖掘觸發 3 倍幸運爆擊掉落！');
-        setTimeout(() => setSupplyToastMsg(null), 5000);
-        break;
-      }
-      case 'phantom_cloak': {
-        setUnlimitedDurabilitySeconds(prev => prev + 180);
-        sound.playUpgradeSound();
-        setSupplyToastMsg('👻 幽靈幻影隱形斗篷披上！180 秒內鎬具耐久度完全鎖定，絕對不減損！');
-        setTimeout(() => setSupplyToastMsg(null), 5000);
-        break;
-      }
-      case 'christmas_gift': {
-        const giftCoins = 5000;
-        setCoins(prev => prev + giftCoins);
-        const rareGems = ['diamond_ore', 'emerald_ore', 'amethyst', 'deepslate_diamond', 'celestial_crystal'];
-        const harvested: Record<string, number> = {};
-        for (let i = 0; i < 30; i++) {
-          const gemId = rareGems[Math.floor(Math.random() * rareGems.length)];
-          harvested[gemId] = (harvested[gemId] || 0) + 1;
-        }
-        setInventory(prev => {
-          const next = { ...prev };
-          Object.entries(harvested).forEach(([bId, count]) => {
-            next[bId] = (next[bId] || 0) + count;
-          });
-          return next;
-        });
-        sound.playPouchOpenSound();
-        setSupplyToastMsg(`🎁 聖誕老人驚喜禮盒拆開！獲得 +${giftCoins.toLocaleString()} 遊戲幣與 30 顆高階神礦！`);
-        setTimeout(() => setSupplyToastMsg(null), 5000);
-        break;
-      }
-      case 'blizzard_core': {
-        setUnlimitedDurabilitySeconds(prev => prev + 150);
-        setFestivalAutoMinerFastSeconds(prev => prev + 150);
-        sound.playUpgradeSound();
-        setSupplyToastMsg('❄️ 永凍暴風雪核心啟動！150 秒內鎬具耐久完全鎖定，且自動採礦狂飆！');
-        setTimeout(() => setSupplyToastMsg(null), 5000);
-        break;
-      }
-      case 'candy_cane': {
-        setDoubleMarketSellSeconds(prev => prev + 90);
-        sound.playCoinSound();
-        setSupplyToastMsg('🍭 拐杖糖歡樂能量棒生效！90 秒內在交易所售出任何方塊均享受雙倍金幣！');
-        setTimeout(() => setSupplyToastMsg(null), 5000);
-        break;
-      }
-      case 'mooncake': {
-        setCoins(prev => prev + 6666);
-        setHasteRemainingSeconds(prev => prev + 90);
-        sound.playCoinSound();
-        setSupplyToastMsg('🥮 廣式雙黃金月餅享用完畢！獲得 +6,666 遊戲幣與 90 秒急迫採礦狀態！');
-        setTimeout(() => setSupplyToastMsg(null), 5000);
-        break;
-      }
-      case 'rabbit_charm': {
-        setDoubleDropSeconds(prev => prev + 120);
-        sound.playUpgradeSound();
-        setSupplyToastMsg('🐇 月宮玉兔祈願玉佩庇佑！120 秒內每次採礦收穫雙倍方塊！');
-        setTimeout(() => setSupplyToastMsg(null), 5000);
-        break;
-      }
-      case 'coconut_drink': {
-        setHasteRemainingSeconds(prev => prev + 120);
-        sound.playCoinSound();
-        setSupplyToastMsg('🥥 冰鎮沁涼熱帶椰子汁飲用！120 秒內開採時間縮減 60%，極致狂飆！');
-        setTimeout(() => setSupplyToastMsg(null), 5000);
-        break;
-      }
-      case 'trident_surge': {
-        const targetLayer = STRATA_LAYERS.find(l => l.id === selectedLayerId) || STRATA_LAYERS[0];
-        const layerBlocks = BLOCK_TYPES.filter(b => targetLayer.blockIds.includes(b.id));
-        const fallback = layerBlocks.length > 0 ? layerBlocks : BLOCK_TYPES.slice(0, 3);
-        const harvested: Record<string, number> = {};
-        for (let i = 0; i < 50; i++) {
-          const randomBlock = fallback[Math.floor(Math.random() * fallback.length)];
-          harvested[randomBlock.id] = (harvested[randomBlock.id] || 0) + 1;
-        }
-        setInventory(prev => {
-          const next = { ...prev };
-          Object.entries(harvested).forEach(([bId, count]) => {
-            next[bId] = (next[bId] || 0) + count;
-          });
-          return next;
-        });
-        setLayerMinedCounts(prev => ({
-          ...prev,
-          [selectedLayerId]: (prev[selectedLayerId] || 0) + 50
-        }));
-        setStats(prev => ({
-          ...prev,
-          totalBlocksMined: prev.totalBlocksMined + 50
-        }));
-        setCoins(prev => prev + 2000);
-        sound.playExplosionSound();
-        setSupplyToastMsg(`🔱 海神潮汐三叉戟激盪！瞬間收割 50 塊【${targetLayer.nameZh}】方塊並獲 +2,000 金幣！`);
-        setTimeout(() => setSupplyToastMsg(null), 5000);
-        break;
-      }
-      default:
-        break;
-    }
-  }, [coins, selectedLayerId]);
+  // --- Handlers: Festival Daily Gift Claim ---
+  const handleClaimDailyFestivalGift = useCallback((coinsAmount: number) => {
+    if (dailyGiftClaimedToday) return;
+    const today = new Date().toISOString().slice(0, 10);
+    setCoins(prev => prev + coinsAmount);
+    setDailyGiftClaimedToday(true);
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_daily_fest_gift`, today);
+    } catch {}
+    sound.playPouchOpenSound();
+    setSupplyToastMsg(`🎉 領取成功！獲得節慶每日祝福大禮包 +${coinsAmount.toLocaleString()} 遊戲幣！`);
+    setTimeout(() => setSupplyToastMsg(null), 4500);
+  }, [dailyGiftClaimedToday]);
 
   // --- Handlers: Red Reset Progress (選單紅色重製進度) ---
   const handleResetProgress = useCallback(() => {
@@ -1454,12 +1370,8 @@ export default function App() {
 
   // Theme styling
   const activeTheme = useMemo(() => {
-    if (isFestivalBgActive && activeFestival) {
-      const festTheme = THEME_BACKGROUNDS.find(t => t.id === activeFestival.bgThemeId);
-      if (festTheme) return festTheme;
-    }
     return THEME_BACKGROUNDS.find(t => t.id === currentThemeId) || THEME_BACKGROUNDS[0];
-  }, [currentThemeId, isFestivalBgActive, activeFestival]);
+  }, [currentThemeId]);
 
   const activeSkin = useMemo(() => {
     return PLAYER_SKINS.find(s => s.id === currentSkinId) || PLAYER_SKINS[0];
@@ -1478,52 +1390,8 @@ export default function App() {
         backgroundSize: '24px 24px'
       }}
     >
-      {/* Festive Ambient Particles Overlay */}
-      {isFestivalBgActive && (
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-10 opacity-70">
-          {activeFestival.particleType === 'snow' && (
-            <div className="absolute inset-0 flex justify-around animate-pulse">
-              <span className="text-xl animate-bounce" style={{ animationDuration: '3s' }}>❄️</span>
-              <span className="text-sm animate-bounce" style={{ animationDuration: '4.5s', marginTop: '60px' }}>❄️</span>
-              <span className="text-lg animate-bounce" style={{ animationDuration: '2.5s', marginTop: '120px' }}>❄️</span>
-              <span className="text-xs animate-bounce" style={{ animationDuration: '5s', marginTop: '40px' }}>❄️</span>
-              <span className="text-base animate-bounce" style={{ animationDuration: '3.8s', marginTop: '90px' }}>❄️</span>
-            </div>
-          )}
-          {activeFestival.particleType === 'bats' && (
-            <div className="absolute inset-0 flex justify-around animate-pulse">
-              <span className="text-lg animate-bounce" style={{ animationDuration: '4s' }}>🦇</span>
-              <span className="text-xs animate-bounce" style={{ animationDuration: '3.2s', marginTop: '80px' }}>🦇</span>
-              <span className="text-sm animate-bounce" style={{ animationDuration: '5s', marginTop: '140px' }}>🎃</span>
-              <span className="text-base animate-bounce" style={{ animationDuration: '3.5s', marginTop: '50px' }}>🦇</span>
-            </div>
-          )}
-          {activeFestival.particleType === 'sparks' && (
-            <div className="absolute inset-0 flex justify-around animate-pulse">
-              <span className="text-base animate-bounce" style={{ animationDuration: '2.8s' }}>✨</span>
-              <span className="text-sm animate-bounce" style={{ animationDuration: '4s', marginTop: '70px' }}>🏮</span>
-              <span className="text-lg animate-bounce" style={{ animationDuration: '3.2s', marginTop: '130px' }}>✨</span>
-              <span className="text-xs animate-bounce" style={{ animationDuration: '4.8s', marginTop: '30px' }}>🏮</span>
-            </div>
-          )}
-          {activeFestival.particleType === 'petals' && (
-            <div className="absolute inset-0 flex justify-around animate-pulse">
-              <span className="text-sm animate-bounce" style={{ animationDuration: '3.5s' }}>🌸</span>
-              <span className="text-lg animate-bounce" style={{ animationDuration: '4.2s', marginTop: '60px' }}>🥮</span>
-              <span className="text-xs animate-bounce" style={{ animationDuration: '3s', marginTop: '110px' }}>🌸</span>
-              <span className="text-base animate-bounce" style={{ animationDuration: '5s', marginTop: '40px' }}>🌕</span>
-            </div>
-          )}
-          {activeFestival.particleType === 'bubbles' && (
-            <div className="absolute inset-0 flex justify-around animate-pulse">
-              <span className="text-base animate-bounce" style={{ animationDuration: '3s' }}>🫧</span>
-              <span className="text-sm animate-bounce" style={{ animationDuration: '4.5s', marginTop: '80px' }}>🌊</span>
-              <span className="text-xl animate-bounce" style={{ animationDuration: '2.6s', marginTop: '140px' }}>🫧</span>
-              <span className="text-xs animate-bounce" style={{ animationDuration: '5.2s', marginTop: '50px' }}>🐚</span>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Dynamic Festival Atmosphere Particles */}
+      <FestivalParticles festivalId={activeFestivalId} />
 
       {/* Top Header Navigation */}
       <header className="border-b-4 border-black bg-zinc-950/95 shadow-md backdrop-blur-xs sticky top-0 z-30">
@@ -1537,11 +1405,11 @@ export default function App() {
                 sound.playClickSound();
                 setIsMenuOpen(true);
               }}
-              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs sm:text-sm rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#78350f,inset_2px_2px_0_#fde047] active:scale-95 flex items-center gap-1.5 font-minecraft tracking-wider"
-              title="開啟遊戲主選單"
+              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs sm:text-sm rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#78350f,inset_2px_2px_0_#fde047] active:scale-95 flex items-center gap-1.5 font-minecraft tracking-wider cursor-pointer"
+              title={isEn ? 'Open Game Main Menu' : '開啟遊戲主選單'}
             >
               <Menu className="w-4 h-4" />
-              <span>主選單</span>
+              <span>{t('nav.menu')}</span>
             </button>
 
             <div className="flex items-center gap-2">
@@ -1549,7 +1417,7 @@ export default function App() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-sm sm:text-base font-black text-amber-300 drop-shadow-[2px_2px_0_#000] tracking-wide font-minecraft">
-                    MINECRAFT 挖掘場與建築工坊
+                    {t('app.title')}
                   </h1>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-zinc-400">
@@ -1557,7 +1425,7 @@ export default function App() {
                   <span className="text-zinc-600">•</span>
                   <span className="font-mono text-zinc-400">#{myFriendCode}</span>
                   <span className="text-zinc-600">•</span>
-                  <span className="text-cyan-400">{activeTheme.nameZh}</span>
+                  <span className="text-cyan-400">{getName(activeTheme)}</span>
                 </div>
               </div>
             </div>
@@ -1569,7 +1437,7 @@ export default function App() {
               rel="noopener noreferrer"
               onClick={() => sound.playClickSound()}
               className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-[#1a2e22] hover:bg-[#223d2d] border-2 border-emerald-500/60 rounded-lg text-emerald-300 text-xs font-bold transition-all shadow active:scale-95 group ml-1"
-              title="造訪 PizzaCowMC GitHub"
+              title="Visit PizzaCowMC GitHub"
             >
               <Github className="w-3.5 h-3.5 text-emerald-400" />
               <span>By PizzaCowMC</span>
@@ -1584,41 +1452,41 @@ export default function App() {
                 sound.playClickSound();
                 setActiveView('all');
               }}
-              className={`px-3 py-1 rounded transition-all ${
+              className={`px-3 py-1 rounded transition-all cursor-pointer ${
                 activeView === 'all'
                   ? 'bg-zinc-800 text-amber-300 shadow'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
-              全部顯示
+              {t('nav.all')}
             </button>
             <button
               onClick={() => {
                 sound.playClickSound();
                 setActiveView('quarry');
               }}
-              className={`px-3 py-1 rounded flex items-center gap-1 transition-all ${
+              className={`px-3 py-1 rounded flex items-center gap-1 transition-all cursor-pointer ${
                 activeView === 'quarry'
                   ? 'bg-amber-900/60 text-amber-300 border border-amber-600/50 shadow'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
               <Pickaxe className="w-3.5 h-3.5 text-amber-400" />
-              <span>⛏️ 挖掘場</span>
+              <span>{t('nav.quarry')}</span>
             </button>
             <button
               onClick={() => {
                 sound.playClickSound();
                 setActiveView('building');
               }}
-              className={`px-3 py-1 rounded flex items-center gap-1 transition-all ${
+              className={`px-3 py-1 rounded flex items-center gap-1 transition-all cursor-pointer ${
                 activeView === 'building'
                   ? 'bg-blue-900/60 text-blue-300 border border-blue-600/50 shadow'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
               <Box className="w-3.5 h-3.5 text-blue-400" />
-              <span>🧱 100格建築</span>
+              <span>{t('nav.building')}</span>
             </button>
           </div>
 
@@ -1630,27 +1498,11 @@ export default function App() {
                 sound.playClickSound();
                 setIsMarketOpen(true);
               }}
-              title="點擊前往方塊交易所出售庫存"
-              className="px-2.5 sm:px-3 py-1.5 bg-black/80 hover:bg-black text-amber-300 border-2 border-amber-400 rounded-lg font-mono font-black text-xs sm:text-sm flex items-center gap-1.5 transition-transform active:scale-95 shadow-[inset_1px_1px_0_#fde047]"
+              title={isEn ? 'Click to visit Market and sell blocks' : '點擊前往方塊交易所出售庫存'}
+              className="px-2.5 sm:px-3 py-1.5 bg-black/80 hover:bg-black text-amber-300 border-2 border-amber-400 rounded-lg font-mono font-black text-xs sm:text-sm flex items-center gap-1.5 transition-transform active:scale-95 shadow-[inset_1px_1px_0_#fde047] cursor-pointer"
             >
               <Coins className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
-              <span>{coins.toLocaleString()} 幣</span>
-            </button>
-
-            {/* Festival / Special Events Button */}
-            <button
-              onClick={() => {
-                sound.playAchievementSound();
-                setIsFestivalModalOpen(true);
-              }}
-              title="查看特殊節慶活動與限時神祕道具"
-              className="relative px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-rose-700 to-amber-700 hover:from-rose-600 hover:to-amber-600 text-rose-100 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#4c0519,inset_2px_2px_0_#fb7185] active:scale-95 flex items-center gap-1.5 animate-pulse"
-            >
-              <PartyPopper className="w-3.5 h-3.5 text-amber-300" />
-              <span>{activeFestival.seasonEmoji} 特殊活動</span>
-              <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.2 rounded-full bg-amber-400 text-black text-[9px] font-black border border-black shadow">
-                HOT
-              </span>
+              <span>{coins.toLocaleString()} {t('common.coins')}</span>
             </button>
 
             {/* Market Button */}
@@ -1659,10 +1511,10 @@ export default function App() {
                 sound.playClickSound();
                 setIsMarketOpen(true);
               }}
-              className="px-2.5 sm:px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-emerald-100 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#34d399] active:scale-95 flex items-center gap-1"
+              className="px-2.5 sm:px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-emerald-100 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#34d399] active:scale-95 flex items-center gap-1 cursor-pointer"
             >
               <Coins className="w-3.5 h-3.5" />
-              <span>賣方塊</span>
+              <span>{t('nav.market')}</span>
             </button>
 
             {/* Shop Button */}
@@ -1672,10 +1524,25 @@ export default function App() {
                 setShopInitialTab('pickaxes');
                 setIsShopOpen(true);
               }}
-              className="px-2.5 sm:px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-amber-100 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#78350f,inset_2px_2px_0_#fde047] active:scale-95 flex items-center gap-1"
+              className="px-2.5 sm:px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-amber-100 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#78350f,inset_2px_2px_0_#fde047] active:scale-95 flex items-center gap-1 cursor-pointer"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
-              <span>商店</span>
+              <span>{t('nav.shop')}</span>
+            </button>
+
+            {/* Festival Celebration Button */}
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                setIsFestivalsOpen(true);
+              }}
+              className="px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-red-600 via-amber-600 to-yellow-600 hover:from-red-500 hover:to-yellow-500 text-yellow-100 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#7f1d1d,inset_2px_2px_0_#fde047] active:scale-95 flex items-center gap-1 relative cursor-pointer"
+              title={isEn ? 'Festival Hall: Limited pickaxes, gifts and buffs' : '節慶活動大廳：萬聖節、聖誕節、春節、櫻花祭限定神鎬與特惠'}
+            >
+              <span>{t('nav.festivals')}</span>
+              {!dailyGiftClaimedToday && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full animate-ping" />
+              )}
             </button>
 
             {/* Achievements Button */}
@@ -1684,10 +1551,10 @@ export default function App() {
                 sound.playClickSound();
                 setIsAchievementsOpen(true);
               }}
-              className="px-2.5 sm:px-3 py-1.5 bg-purple-800 hover:bg-purple-700 text-purple-200 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#3b0764,inset_2px_2px_0_#c084fc] active:scale-95 flex items-center gap-1"
+              className="px-2.5 sm:px-3 py-1.5 bg-purple-800 hover:bg-purple-700 text-purple-200 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#3b0764,inset_2px_2px_0_#c084fc] active:scale-95 flex items-center gap-1 cursor-pointer"
             >
               <Trophy className="w-3.5 h-3.5" />
-              <span>成就</span>
+              <span>{t('nav.achievements')}</span>
             </button>
 
             {/* Friends Button */}
@@ -1696,10 +1563,10 @@ export default function App() {
                 sound.playClickSound();
                 setIsFriendsOpen(true);
               }}
-              className="relative px-2.5 sm:px-3 py-1.5 bg-blue-700 hover:bg-blue-600 text-blue-100 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#1e3a8a,inset_2px_2px_0_#60a5fa] active:scale-95 flex items-center gap-1"
+              className="relative px-2.5 sm:px-3 py-1.5 bg-blue-700 hover:bg-blue-600 text-blue-100 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#1e3a8a,inset_2px_2px_0_#60a5fa] active:scale-95 flex items-center gap-1 cursor-pointer"
             >
               <Users className="w-3.5 h-3.5" />
-              <span>好友</span>
+              <span>{t('nav.friends')}</span>
               {friends.length >= 1 && !friendRewardClaimed && (
                 <span className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-amber-400 rounded-full animate-ping" />
               )}
@@ -1711,15 +1578,15 @@ export default function App() {
                 sound.playClickSound();
                 setIsAuthOpen(true);
               }}
-              title="Firebase 帳號登入與雲端存檔"
-              className={`px-2.5 sm:px-3 py-1.5 font-black text-xs rounded-lg border-2 border-black active:scale-95 flex items-center gap-1.5 transition-all ${
+              title={isEn ? 'Firebase Account & Cloud Save' : 'Firebase 帳號登入與雲端存檔'}
+              className={`px-2.5 sm:px-3 py-1.5 font-black text-xs rounded-lg border-2 border-black active:scale-95 flex items-center gap-1.5 transition-all cursor-pointer ${
                 currentUser
                   ? 'bg-emerald-900/80 hover:bg-emerald-800 text-emerald-200 border-emerald-500 shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#34d399]'
                   : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
               }`}
             >
               <Cloud className={`w-3.5 h-3.5 ${currentUser ? 'text-emerald-400' : 'text-zinc-400'}`} />
-              <span>{currentUser ? '雲端已連線' : 'Firebase'}</span>
+              <span>{currentUser ? (isEn ? 'Cloud Online' : '雲端已連線') : 'Firebase'}</span>
               {currentUser && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />}
             </button>
 
@@ -1729,10 +1596,23 @@ export default function App() {
                 sound.playClickSound();
                 setIsChangelogOpen(true);
               }}
-              title="查看版本更新日誌"
-              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-amber-300 border-2 border-black rounded-lg active:scale-95"
+              title={isEn ? 'View Version Changelog' : '查看版本更新日誌'}
+              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-amber-300 border-2 border-black rounded-lg active:scale-95 cursor-pointer"
             >
               <Scroll className="w-4 h-4" />
+            </button>
+
+            {/* Quick Language Toggle */}
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                toggleLanguage();
+              }}
+              title={isEn ? '切換至繁體中文 (Traditional Chinese)' : 'Switch to English (預設英文)'}
+              className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-amber-300 font-bold border-2 border-black rounded-lg active:scale-95 text-xs flex items-center gap-1 cursor-pointer font-minecraft"
+            >
+              <span>🌐</span>
+              <span>{isEn ? 'EN' : '繁中'}</span>
             </button>
 
             {/* Sound Toggle */}
@@ -1743,8 +1623,8 @@ export default function App() {
                 sound.setSoundEnabled(next);
                 if (next) sound.playClickSound();
               }}
-              title={soundEnabled ? '關閉音效' : '開啟音效'}
-              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-2 border-black rounded-lg active:scale-95"
+              title={soundEnabled ? (isEn ? 'Mute Audio' : '關閉音效') : (isEn ? 'Enable Audio' : '開啟音效')}
+              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-2 border-black rounded-lg active:scale-95 cursor-pointer"
             >
               {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-zinc-500" />}
             </button>
@@ -1777,51 +1657,6 @@ export default function App() {
 
       {/* Main Container */}
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Festive Holiday Event Banner */}
-        <div
-          className="p-3.5 rounded-xl border-3 border-black flex flex-wrap items-center justify-between gap-3 shadow-[inset_2px_2px_0_rgba(255,255,255,0.1),0_4px_12px_rgba(0,0,0,0.5)] transition-all"
-          style={{
-            backgroundColor: activeFestival.accentColor + '1a',
-            borderColor: activeFestival.accentColor
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-11 h-11 rounded-lg border-2 border-black flex items-center justify-center text-2xl shadow shrink-0"
-              style={{ backgroundColor: activeFestival.accentColor + '30' }}
-            >
-              {activeFestival.seasonEmoji}
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-semibold text-zinc-300">特殊節日慶典進行中：</span>
-                <strong className="text-xs sm:text-sm font-black text-amber-300 tracking-wide font-minecraft">
-                  {activeFestival.bannerTitle}
-                </strong>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-black/70 text-rose-300 border border-rose-600/60 font-mono font-bold">
-                  {activeFestival.badge}
-                </span>
-              </div>
-              <p className="text-[11px] text-zinc-300 mt-0.5">
-                {activeFestival.bonusDesc} • 專屬節慶主題背景已{isFestivalBgActive ? '生效 🎨' : '關閉'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 ml-auto">
-            <button
-              onClick={() => {
-                sound.playAchievementSound();
-                setIsFestivalModalOpen(true);
-              }}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-rose-700 to-amber-600 hover:from-rose-600 hover:to-amber-500 text-white font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#4c0519,inset_2px_2px_0_#fb7185] active:scale-95 flex items-center gap-1.5 cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>節慶活動中心 & 限時道具</span>
-            </button>
-          </div>
-        </div>
-
         {/* Dynamic Real-time Market Inflation Ticker Bar */}
         <div className="p-3 bg-zinc-950/90 border-3 border-black rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-[inset_2px_2px_0_#333]">
           <div className="flex items-center gap-2.5">
@@ -1840,9 +1675,11 @@ export default function App() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-zinc-400">市場即時通膨動態：</span>
+                <span className="text-xs font-semibold text-zinc-400">
+                  {isEn ? 'Market Inflation Dynamic:' : '市場即時通膨動態：'}
+                </span>
                 <strong className="text-xs sm:text-sm font-black text-amber-300 tracking-wide font-minecraft">
-                  {marketInflationEvent.title}
+                  {getName(marketInflationEvent)}
                 </strong>
                 <span className={`px-2 py-0.5 rounded text-[11px] font-black border border-black ${
                   marketInflationEvent.multiplier >= 1.0
@@ -1850,12 +1687,13 @@ export default function App() {
                     : 'bg-blue-950 text-blue-300 border-blue-600'
                 }`}>
                   {marketInflationEvent.multiplier >= 1.0
-                    ? `+${Math.round((marketInflationEvent.multiplier - 1) * 100)}% 通膨增益`
-                    : `${Math.round((marketInflationEvent.multiplier - 1) * 100)}% 市場緊縮`}
+                    ? `+${Math.round((marketInflationEvent.multiplier - 1) * 100)}% ${isEn ? 'Inflation Surge' : '通膨增益'}`
+                    : `${Math.round((marketInflationEvent.multiplier - 1) * 100)}% ${isEn ? 'Market Deflation' : '市場緊縮'}`}
                 </span>
               </div>
               <p className="text-[11px] text-zinc-400 hidden sm:block">
-                {marketInflationEvent.description} • 剩餘週期：<strong className="text-amber-400 font-mono">{marketInflationEvent.remainingSeconds}</strong> 秒
+                {getDesc(marketInflationEvent)} • {isEn ? 'Remaining cycle: ' : '剩餘週期：'}
+                <strong className="text-amber-400 font-mono">{marketInflationEvent.remainingSeconds}</strong> {isEn ? 's' : '秒'}
               </p>
             </div>
           </div>
@@ -1868,7 +1706,7 @@ export default function App() {
             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#34d399] active:scale-95 flex items-center gap-1.5 cursor-pointer ml-auto"
           >
             <Coins className="w-3.5 h-3.5" />
-            <span>前往交易所拋售</span>
+            <span>{isEn ? 'Go to Exchange' : '前往交易所拋售'}</span>
           </button>
         </div>
 
@@ -1878,7 +1716,9 @@ export default function App() {
             <div className="flex items-center gap-2.5 text-xs sm:text-sm text-amber-200 font-bold">
               <span className="text-xl">🎁</span>
               <span>
-                達成 1 位好友里程碑！恭喜解鎖 <strong className="text-amber-300 font-black">100 遊戲幣</strong> 專屬獎勵！
+                {isEn ? 'Reached 1-Friend Milestone! Unlocked ' : '達成 1 位好友里程碑！恭喜解鎖 '}
+                <strong className="text-amber-300 font-black">{isEn ? '100 Coins' : '100 遊戲幣'}</strong>
+                {isEn ? ' exclusive reward!' : ' 專屬獎勵！'}
               </span>
             </div>
             <button
@@ -1888,7 +1728,7 @@ export default function App() {
               }}
               className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded border-2 border-black shadow-[inset_-2px_-2px_0_#b45309,inset_2px_2px_0_#fef08a] active:scale-95 cursor-pointer whitespace-nowrap"
             >
-              立即領取 100 幣
+              {isEn ? 'Claim 100 Coins' : '立即領取 100 幣'}
             </button>
           </div>
         )}
@@ -1911,6 +1751,9 @@ export default function App() {
             totalBlocksMined={stats.totalBlocksMined}
             hasteRemainingSeconds={hasteRemainingSeconds}
             hasAutoMiner={hasAutoMiner}
+            extremeHasteSeconds={extremeHasteSeconds}
+            doubleCoinsSeconds={doubleCoinsSeconds}
+            zeroDurabilitySeconds={zeroDurabilitySeconds}
           />
         )}
 
@@ -1923,6 +1766,7 @@ export default function App() {
             onPlaceBlock={handlePlaceBlock}
             onReclaimBlock={handleReclaimBlock}
             onClearAll={handleClearAllBlocks}
+            onLoadPreset={handleLoadPreset}
           />
         )}
       </main>
@@ -1931,22 +1775,22 @@ export default function App() {
       <footer className="max-w-6xl mx-auto px-4 mt-12 mb-16 pt-6 border-t-2 border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-400">
         <div className="flex items-center gap-2">
           <span className="text-base">🎮</span>
-          <span className="font-bold text-zinc-300">MINECRAFT 挖掘場與建築工坊</span>
+          <span className="font-bold text-zinc-300">{t('app.title')}</span>
           <span className="text-zinc-600">|</span>
           <button
             onClick={() => {
               sound.playClickSound();
               setIsChangelogOpen(true);
             }}
-            className="text-amber-400 hover:underline flex items-center gap-1 font-mono"
+            className="text-amber-400 hover:underline flex items-center gap-1 font-mono cursor-pointer"
           >
-            <span>v1.2.0 (更新日誌)</span>
+            <span>{isEn ? 'v2.2.0 (Changelog)' : 'v2.2.0 (更新日誌)'}</span>
           </button>
         </div>
 
         {/* Prominent PizzaCowMC GitHub Credit */}
         <div className="flex items-center gap-2">
-          <span>專案由</span>
+          <span>{isEn ? 'Open-source project' : '專案由'}</span>
           <a
             href="https://github.com/PizzaCowMC"
             target="_blank"
@@ -1958,7 +1802,7 @@ export default function App() {
             <span>By PizzaCowMC</span>
             <ExternalLink className="w-3 h-3 text-emerald-400" />
           </a>
-          <span>開源打造</span>
+          {!isEn && <span>開源打造</span>}
         </div>
       </footer>
 
@@ -1989,13 +1833,15 @@ export default function App() {
           <div>
             <div className="text-[10px] uppercase tracking-wider font-mono text-emerald-400 font-bold flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
-              成就已解鎖 Achievement!
+              {isEn ? 'Achievement Unlocked!' : '成就已解鎖 Achievement!'}
             </div>
-            <div className="font-black text-amber-300 text-sm">{popupAchievement.nameZh}</div>
-            <div className="text-xs text-zinc-300 line-clamp-1">{popupAchievement.descZh}</div>
+            <div className="font-black text-amber-300 text-sm">{getName(popupAchievement)}</div>
+            <div className="text-xs text-zinc-300 line-clamp-1">{getDesc(popupAchievement)}</div>
             {popupAchievement.coinReward > 0 && (
               <div className="text-[11px] font-mono text-yellow-400 font-bold mt-0.5">
-                獎勵：+{popupAchievement.coinReward} 遊戲幣 (前往成就頁領取)
+                {isEn
+                  ? `Reward: +${popupAchievement.coinReward} coins (Claim in Achievements tab)`
+                  : `獎勵：+${popupAchievement.coinReward} 遊戲幣 (前往成就頁領取)`}
               </div>
             )}
           </div>
@@ -2017,6 +1863,7 @@ export default function App() {
         onOpenFriends={() => setIsFriendsOpen(true)}
         onOpenChangelog={() => setIsChangelogOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenFestivals={() => setIsFestivalsOpen(true)}
         currentUser={currentUser}
         soundEnabled={soundEnabled}
         onToggleSound={() => {
@@ -2085,22 +1932,8 @@ export default function App() {
         onEquipSkin={setCurrentSkinId}
         initialTab={shopInitialTab}
         onBuySupply={handleBuySupply}
-        activeFestival={activeFestival}
-        onBuyFestivalSupply={handleBuyFestivalSupply}
         hasAutoMiner={hasAutoMiner}
         hasteRemainingSeconds={hasteRemainingSeconds}
-      />
-
-      {/* FESTIVAL & SPECIAL EVENT MODAL */}
-      <FestivalModal
-        isOpen={isFestivalModalOpen}
-        onClose={() => setIsFestivalModalOpen(false)}
-        currentFestivalId={currentFestivalId}
-        onSelectFestival={setCurrentFestivalId}
-        isFestivalBgActive={isFestivalBgActive}
-        onToggleFestivalBg={setIsFestivalBgActive}
-        coins={coins}
-        onBuyFestivalSupply={handleBuyFestivalSupply}
       />
 
       {/* FRIENDS MODAL */}
@@ -2123,6 +1956,32 @@ export default function App() {
         achievements={achievements}
         onClaimReward={handleClaimAchReward}
         onClaimAllRewards={handleClaimAllAchRewards}
+      />
+
+      {/* FESTIVALS MODAL */}
+      <FestivalsModal
+        isOpen={isFestivalsOpen}
+        onClose={() => setIsFestivalsOpen(false)}
+        activeFestivalId={activeFestivalId}
+        onSelectActiveFestival={setActiveFestivalId}
+        coins={coins}
+        currentThemeId={currentThemeId}
+        ownedThemes={ownedThemes}
+        onBuyTheme={handleBuyTheme}
+        onEquipTheme={setCurrentThemeId}
+        pickaxeState={pickaxeState}
+        ownedPickaxes={ownedPickaxes}
+        onBuyPickaxe={handleBuyPickaxe}
+        onEquipPickaxe={handleEquipPickaxe}
+        onBuySupply={handleBuySupply}
+        onClaimDailyFestivalGift={handleClaimDailyFestivalGift}
+        dailyGiftClaimedToday={dailyGiftClaimedToday}
+        activeBuffs={{
+          hasteSeconds: hasteRemainingSeconds,
+          zeroDurabilitySeconds,
+          doubleCoinsSeconds,
+          extremeHasteSeconds
+        }}
       />
     </div>
   );

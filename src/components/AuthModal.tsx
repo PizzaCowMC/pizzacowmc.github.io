@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
 import {
-  User,
-  LogIn,
-  UserPlus,
-  LogOut,
   Cloud,
   CloudUpload,
   CloudDownload,
@@ -14,7 +10,9 @@ import {
   ShieldCheck,
   Sparkles,
   KeyRound,
-  ExternalLink
+  LogIn,
+  UserPlus,
+  LogOut
 } from 'lucide-react';
 import { sound } from '../utils/soundEffects';
 import {
@@ -23,9 +21,9 @@ import {
   logoutUser,
   saveFirebaseConfig,
   getSavedFirebaseConfig,
-  isFirebaseConfigured,
   FirebaseConfigOptions
 } from '../services/firebase';
+import { useLanguage } from '../utils/i18n';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -48,12 +46,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onUserLoggedOut,
   onUserLoggedIn
 }) => {
+  const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'login' | 'register' | 'cloud' | 'config'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  const isEn = language === 'en';
 
   // Config State
   const initialConfig = getSavedFirebaseConfig() || {
@@ -79,7 +80,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      showMsg('請輸入電子信箱與密碼！', 'error');
+      showMsg(isEn ? 'Please enter your email and password!' : '請輸入電子信箱與密碼！', 'error');
       return;
     }
     setLoading(true);
@@ -88,23 +89,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(false);
     if (res.user) {
       sound.playAchievementSound();
-      showMsg(`✅ 登入成功！歡迎回來，${res.user.displayName || res.user.email}`, 'success');
+      showMsg(
+        isEn
+          ? `✅ Logged in successfully! Welcome back, ${res.user.displayName || res.user.email}`
+          : `✅ 登入成功！歡迎回來，${res.user.displayName || res.user.email}`,
+        'success'
+      );
       onUserLoggedIn();
       setActiveTab('cloud');
     } else {
       sound.playHitSound(2);
-      showMsg(`❌ 登入失敗：${res.error}`, 'error');
+      showMsg(isEn ? `❌ Login failed: ${res.error}` : `❌ 登入失敗：${res.error}`, 'error');
     }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      showMsg('請填寫完整註冊資訊！', 'error');
+      showMsg(isEn ? 'Please fill in all registration fields!' : '請填寫完整註冊資訊！', 'error');
       return;
     }
     if (password.length < 6) {
-      showMsg('密碼長度請至少 6 位字符！', 'error');
+      showMsg(isEn ? 'Password must be at least 6 characters long!' : '密碼長度請至少 6 位字符！', 'error');
       return;
     }
     setLoading(true);
@@ -113,12 +119,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(false);
     if (res.user) {
       sound.playAchievementSound();
-      showMsg(`🎉 註冊成功並已自動登入！`, 'success');
+      showMsg(isEn ? '🎉 Registration successful! Auto-logged in.' : '🎉 註冊成功並已自動登入！', 'success');
       onUserLoggedIn();
       setActiveTab('cloud');
     } else {
       sound.playHitSound(2);
-      showMsg(`❌ 註冊失敗：${res.error}`, 'error');
+      showMsg(isEn ? `❌ Registration failed: ${res.error}` : `❌ 註冊失敗：${res.error}`, 'error');
     }
   };
 
@@ -126,7 +132,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     sound.playClickSound();
     await logoutUser();
     onUserLoggedOut();
-    showMsg('已成功登出帳號。', 'info');
+    showMsg(isEn ? 'Successfully logged out.' : '已成功登出帳號。', 'info');
     setActiveTab('login');
   };
 
@@ -137,10 +143,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(false);
     if (res.success) {
       sound.playAchievementSound();
-      showMsg('☁️ 進度已成功儲存至雲端資料庫！', 'success');
+      showMsg(isEn ? '☁️ Progress successfully saved to Cloud Database!' : '☁️ 進度已成功儲存至雲端資料庫！', 'success');
     } else {
       sound.playHitSound(2);
-      showMsg(`❌ 雲端存檔失敗：${res.error}`, 'error');
+      showMsg(isEn ? `❌ Cloud save failed: ${res.error}` : `❌ 雲端存檔失敗：${res.error}`, 'error');
     }
   };
 
@@ -151,16 +157,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(false);
     if (res.success) {
       sound.playAchievementSound();
-      showMsg('📥 雲端進度已成功載入覆蓋！', 'success');
+      showMsg(isEn ? '📥 Cloud progress successfully loaded and applied!' : '📥 雲端進度已成功載入覆蓋！', 'success');
     } else {
       sound.playHitSound(2);
-      showMsg(`❌ 雲端進度讀取失敗：${res.error}`, 'error');
+      showMsg(isEn ? `❌ Cloud load failed: ${res.error}` : `❌ 雲端進度讀取失敗：${res.error}`, 'error');
     }
   };
 
   const handleParseRawJson = () => {
     try {
-      // Clean up string like `const firebaseConfig = { ... }` or raw JSON
       let cleaned = rawConfigJson.trim();
       if (cleaned.includes('{')) {
         const start = cleaned.indexOf('{');
@@ -169,7 +174,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           cleaned = cleaned.substring(start, end + 1);
         }
       }
-      // Relaxed JSON parsing for JS object keys if necessary
       const jsonLike = cleaned
         .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')
         .replace(/'/g, '"');
@@ -183,33 +187,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           messagingSenderId: parsed.messagingSenderId || '',
           appId: parsed.appId || ''
         });
-        showMsg('✅ 成功解析 Firebase 配置！請點擊「套用並保存設定」完成連線。', 'success');
+        showMsg(
+          isEn
+            ? '✅ Successfully parsed Firebase Config! Click "Apply & Save Config" below.'
+            : '✅ 成功解析 Firebase 配置！請點擊「套用並保存設定」完成連線。',
+          'success'
+        );
       } else {
-        showMsg('⚠️ 解析失敗：未找到 apiKey 或 projectId 欄位！', 'error');
+        showMsg(isEn ? '⚠️ Parse failed: apiKey or projectId fields not found!' : '⚠️ 解析失敗：未找到 apiKey 或 projectId 欄位！', 'error');
       }
-    } catch (err: any) {
-      showMsg('⚠️ JSON 格式有誤，請手動在下方表單填寫或檢查格式！', 'error');
+    } catch {
+      showMsg(isEn ? '⚠️ Invalid JSON format, please check or fill the form fields manually!' : '⚠️ JSON 格式有誤，請手動在下方表單填寫或檢查格式！', 'error');
     }
   };
 
   const handleSaveConfig = () => {
     if (!configForm.apiKey || !configForm.projectId) {
-      showMsg('請至少填寫 API Key 與 Project ID！', 'error');
+      showMsg(isEn ? 'Please fill in at least API Key and Project ID!' : '請至少填寫 API Key 與 Project ID！', 'error');
       return;
     }
     const ok = saveFirebaseConfig(configForm);
     if (ok) {
       sound.playAchievementSound();
-      showMsg('🚀 Firebase 專案配置已保存並重新初始化！', 'success');
+      showMsg(isEn ? '🚀 Firebase project config saved and re-initialized!' : '🚀 Firebase 專案配置已保存並重新初始化！', 'success');
     } else {
-      showMsg('儲存設定失敗，請確認瀏覽器支援 localStorage。', 'error');
+      showMsg(isEn ? 'Failed to save config, ensure localStorage is available.' : '儲存設定失敗，請確認瀏覽器支援 localStorage。', 'error');
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-[#222] border-4 border-[#3c3c3c] rounded-xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-white font-sans">
-        
         {/* Header */}
         <div className="bg-[#181818] px-5 py-4 border-b-4 border-[#333] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -218,10 +226,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-black text-amber-400 font-minecraft tracking-wide">
-                🔥 Firebase 帳號與雲端存檔
+                🔥 {t('auth.title')}
               </h2>
               <p className="text-xs text-zinc-400">
-                註冊、登入、自動登入與進度雲端同步
+                {t('auth.subtitle')}
               </p>
             </div>
           </div>
@@ -230,7 +238,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               sound.playClickSound();
               onClose();
             }}
-            className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors"
+            className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -244,14 +252,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 sound.playClickSound();
                 setActiveTab('cloud');
               }}
-              className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'cloud'
                   ? 'bg-[#282828] text-amber-400 border-t-2 border-amber-500'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <Cloud className="w-3.5 h-3.5" />
-              <span>雲端存檔</span>
+              <span>{t('auth.tabCloud')}</span>
             </button>
           ) : (
             <>
@@ -260,28 +268,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   sound.playClickSound();
                   setActiveTab('login');
                 }}
-                className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'login'
                     ? 'bg-[#282828] text-amber-400 border-t-2 border-amber-500'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 <LogIn className="w-3.5 h-3.5" />
-                <span>帳號登入</span>
+                <span>{t('auth.tabLogin')}</span>
               </button>
               <button
                 onClick={() => {
                   sound.playClickSound();
                   setActiveTab('register');
                 }}
-                className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'register'
                     ? 'bg-[#282828] text-emerald-400 border-t-2 border-emerald-500'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 <UserPlus className="w-3.5 h-3.5" />
-                <span>註冊新帳號</span>
+                <span>{t('auth.tabRegister')}</span>
               </button>
             </>
           )}
@@ -291,20 +299,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               sound.playClickSound();
               setActiveTab('config');
             }}
-            className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 ml-auto ${
+            className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 ml-auto cursor-pointer ${
               activeTab === 'config'
                 ? 'bg-[#282828] text-blue-400 border-t-2 border-blue-500'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             <Settings className="w-3.5 h-3.5" />
-            <span>Firebase 專案設定</span>
+            <span>{t('auth.tabConfig')}</span>
           </button>
         </div>
 
         {/* Body content */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          
           {/* Status Message Alert */}
           {statusMsg && (
             <div
@@ -335,13 +342,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-zinc-400">目前身分：</span>
+                  <span className="text-xs font-bold text-zinc-400">{t('auth.currentIdentity')}</span>
                   <span className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded ${currentUser ? 'bg-emerald-900/40 text-emerald-400 border border-emerald-700/50' : 'bg-zinc-800 text-zinc-400'}`}>
-                    {currentUser ? '已連線 (已登入)' : '訪客模式 (本機存檔)'}
+                    {currentUser ? t('auth.onlineLoggedIn') : t('auth.guestMode')}
                   </span>
                 </div>
                 <div className="text-sm font-bold text-white mt-0.5">
-                  {currentUser ? (currentUser.displayName || currentUser.email) : '尚未登入 Firebase'}
+                  {currentUser ? (currentUser.displayName || currentUser.email) : t('auth.notLoggedIn')}
                 </div>
               </div>
             </div>
@@ -349,10 +356,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {currentUser && (
               <button
                 onClick={handleLogout}
-                className="px-3 py-1.5 bg-rose-900/50 hover:bg-rose-800 text-rose-200 border border-rose-700/50 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"
+                className="px-3 py-1.5 bg-rose-900/50 hover:bg-rose-800 text-rose-200 border border-rose-700/50 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>登出</span>
+                <span>{t('auth.logout')}</span>
               </button>
             )}
           </div>
@@ -362,7 +369,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <form onSubmit={handleLogin} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-zinc-300 mb-1">
-                  電子信箱 (Email)
+                  {t('auth.email')}
                 </label>
                 <input
                   type="email"
@@ -376,7 +383,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-zinc-300 mb-1">
-                  密碼 (Password)
+                  {t('auth.password')}
                 </label>
                 <input
                   type="password"
@@ -390,26 +397,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <div className="text-[11px] text-zinc-400 flex items-center gap-1.5 bg-[#181818] p-2.5 rounded-lg border border-[#2b2b2b]">
                 <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>系統已啟用「自動登入」，下次進入遊戲將自動識別身分並同步進度。</span>
+                <span>{t('auth.autoLoginNotice')}</span>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-white font-bold rounded-lg text-sm transition-all flex items-center justify-center gap-2 shadow-md active:scale-98"
+                className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 text-white font-bold rounded-lg text-sm transition-all flex items-center justify-center gap-2 shadow-md active:scale-98 cursor-pointer"
               >
                 <LogIn className="w-4 h-4" />
-                <span>{loading ? '登入中...' : '登入並載入雲端存檔'}</span>
+                <span>{loading ? t('auth.loggingIn') : t('auth.loginBtn')}</span>
               </button>
 
               <div className="text-center pt-1">
-                <span className="text-xs text-zinc-400">還沒有帳號？</span>
+                <span className="text-xs text-zinc-400">{t('auth.noAccount')}</span>
                 <button
                   type="button"
                   onClick={() => setActiveTab('register')}
-                  className="text-xs text-amber-400 font-bold hover:underline ml-1"
+                  className="text-xs text-amber-400 font-bold hover:underline ml-1 cursor-pointer"
                 >
-                  立即註冊新玩家
+                  {t('auth.registerNow')}
                 </button>
               </div>
             </form>
@@ -420,7 +427,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <form onSubmit={handleRegister} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-zinc-300 mb-1">
-                  玩家暱稱 (顯示名稱)
+                  {t('auth.displayName')}
                 </label>
                 <input
                   type="text"
@@ -433,7 +440,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-zinc-300 mb-1">
-                  電子信箱 (Email)
+                  {t('auth.email')}
                 </label>
                 <input
                   type="email"
@@ -447,7 +454,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-zinc-300 mb-1">
-                  密碼 (至少 6 位)
+                  {t('auth.password')} {isEn ? '(At least 6 chars)' : '(至少 6 位)'}
                 </label>
                 <input
                   type="password"
@@ -463,20 +470,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 text-white font-bold rounded-lg text-sm transition-all flex items-center justify-center gap-2 shadow-md active:scale-98"
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-700 text-white font-bold rounded-lg text-sm transition-all flex items-center justify-center gap-2 shadow-md active:scale-98 cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>{loading ? '註冊中...' : '確認註冊並自動登入'}</span>
+                <span>{loading ? t('auth.registering') : t('auth.registerBtn')}</span>
               </button>
 
               <div className="text-center pt-1">
-                <span className="text-xs text-zinc-400">已有帳號？</span>
+                <span className="text-xs text-zinc-400">{t('auth.hasAccount')}</span>
                 <button
                   type="button"
                   onClick={() => setActiveTab('login')}
-                  className="text-xs text-amber-400 font-bold hover:underline ml-1"
+                  className="text-xs text-amber-400 font-bold hover:underline ml-1 cursor-pointer"
                 >
-                  切換至登入
+                  {t('auth.switchToLogin')}
                 </button>
               </div>
             </form>
@@ -489,34 +496,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div className="flex items-center justify-between text-xs text-zinc-300">
                   <span className="font-bold flex items-center gap-1.5 text-amber-400">
                     <Cloud className="w-4 h-4" />
-                    雲端同步狀態
+                    {t('auth.syncStatus')}
                   </span>
                   <span className="font-mono text-zinc-400">
-                    上次同步：{lastSavedTime ? new Date(lastSavedTime).toLocaleTimeString() : '尚未同步'}
+                    {t('auth.lastSynced')} {lastSavedTime ? new Date(lastSavedTime).toLocaleTimeString() : t('auth.notSyncedYet')}
                   </span>
                 </div>
 
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  雲端存檔會儲存您的金幣、方塊庫存、鎬子階級、耐久度、100 格建築區、150 個成就狀態與所有統計資料。
+                  {t('auth.syncDesc')}
                 </p>
 
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <button
                     onClick={handleSaveToCloud}
                     disabled={loading || !currentUser}
-                    className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow transition-all active:scale-95"
+                    className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow transition-all active:scale-95 cursor-pointer"
                   >
                     <CloudUpload className="w-4 h-4" />
-                    <span>上傳目前進度至雲端</span>
+                    <span>{t('auth.uploadProgress')}</span>
                   </button>
 
                   <button
                     onClick={handleLoadFromCloud}
                     disabled={loading || !currentUser}
-                    className="py-2.5 px-3 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow transition-all active:scale-95"
+                    className="py-2.5 px-3 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow transition-all active:scale-95 cursor-pointer"
                   >
                     <CloudDownload className="w-4 h-4" />
-                    <span>下載並載入雲端進度</span>
+                    <span>{t('auth.downloadProgress')}</span>
                   </button>
                 </div>
               </div>
@@ -527,15 +534,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {activeTab === 'config' && (
             <div className="space-y-4">
               <div className="bg-amber-950/20 border border-amber-600/30 p-3 rounded-lg text-xs text-amber-300 leading-relaxed">
-                💡 <strong>使用您自己的 Firebase 專案：</strong>
-                可在下方直接貼上 Firebase Web Config 設定物件，或於 <code className="bg-black/40 px-1 py-0.5 rounded text-zinc-200">.env</code> 填入環境變數。儲存後立即生效！
+                💡 {t('auth.customProjectTip')}
               </div>
 
               {/* Fast Paste JSON textarea */}
               <div>
                 <label className="block text-xs font-bold text-zinc-300 mb-1 flex items-center justify-between">
-                  <span>快速貼上 Firebase Config (JSON / JS 物件)</span>
-                  <span className="text-[10px] text-zinc-500">Firebase 控制台 &gt; 專案設定 &gt; 一般</span>
+                  <span>{t('auth.pasteConfigLabel')}</span>
+                  <span className="text-[10px] text-zinc-500">{t('auth.pasteConfigHint')}</span>
                 </label>
                 <div className="space-y-2">
                   <textarea
@@ -548,10 +554,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <button
                     type="button"
                     onClick={handleParseRawJson}
-                    className="px-3 py-1.5 bg-[#333] hover:bg-[#444] text-xs text-zinc-200 rounded-lg font-bold transition-all flex items-center gap-1"
+                    className="px-3 py-1.5 bg-[#333] hover:bg-[#444] text-xs text-zinc-200 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>解析上方 JSON 填入表單</span>
+                    <span>{t('auth.parseJson')}</span>
                   </button>
                 </div>
               </div>
@@ -607,10 +613,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   onClick={handleSaveConfig}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow transition-all active:scale-98"
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow transition-all active:scale-98 cursor-pointer"
                 >
                   <KeyRound className="w-4 h-4" />
-                  <span>套用並保存設定</span>
+                  <span>{t('auth.applyConfig')}</span>
                 </button>
               </div>
             </div>
@@ -621,19 +627,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="bg-[#181818] px-5 py-3 border-t-2 border-[#333] flex items-center justify-between text-xs text-zinc-400">
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-            <span>雲端存檔就緒</span>
+            <span>{t('auth.ready')}</span>
           </div>
           <button
             onClick={() => {
               sound.playClickSound();
               onClose();
             }}
-            className="px-4 py-1.5 bg-[#333] hover:bg-[#444] text-white rounded-lg font-bold transition-colors"
+            className="px-4 py-1.5 bg-[#333] hover:bg-[#444] text-white rounded-lg font-bold transition-colors cursor-pointer"
           >
-            完成
+            {t('common.confirm')}
           </button>
         </div>
-
       </div>
     </div>
   );

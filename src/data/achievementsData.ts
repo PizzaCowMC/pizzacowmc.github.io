@@ -86,8 +86,9 @@ function build1000Achievements(): Achievement[] {
 
   const layerStepTargets = [
     100, 300, 600, 1000, 1500, 2000, 3000, 4500, 6000, 8000,
-    10000, 13000, 16000, 20000, 25000, 30000, 36000, 42000, 50000, 60000,
-    75000, 90000, 100000, 120000, 150000 // 100,000 unlocks next!
+    10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 75000, 90000,
+    100000, // 100,000 unlocks next!
+    120000, 150000, 200000, 250000
   ]; // 25 targets per layer
 
   layersInfo.forEach((layer) => {
@@ -101,7 +102,7 @@ function build1000Achievements(): Achievement[] {
         `在「${layer.name}」礦脈層累計挖掘達 ${tgt.toLocaleString()} 格方塊${isUnlockStep ? '（達成10萬格解鎖下層資格！）' : ''}。`,
         `Mine ${tgt.toLocaleString()} blocks in the ${layer.name} stratum.`,
         isUnlockStep ? '🔓' : layer.icon,
-        isUnlockStep ? 500 : 25 + stepIdx * 15
+        isUnlockStep ? 800 : 25 + stepIdx * 15
       );
     });
   });

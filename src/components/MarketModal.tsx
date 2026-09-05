@@ -3,7 +3,8 @@ import { BLOCK_TYPES } from '../data/gameData';
 import { MarketInflationEvent } from '../types';
 import { BlockTexture } from './BlockTexture';
 import { sound } from '../utils/soundEffects';
-import { Coins, ArrowRight, CheckCheck, X, TrendingUp, Sparkles, Flame, Clock, Zap } from 'lucide-react';
+import { Coins, CheckCheck, X, TrendingUp, Sparkles, Flame, Clock, Zap } from 'lucide-react';
+import { useLanguage } from '../utils/i18n';
 
 interface MarketModalProps {
   isOpen: boolean;
@@ -24,9 +25,12 @@ export const MarketModal: React.FC<MarketModalProps> = ({
   onSellBlock,
   onSellAll
 }) => {
+  const { language, getName, t } = useLanguage();
   const [lastSoldMsg, setLastSoldMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const isEn = language === 'en';
 
   // Helper to calculate effective price with inflation and category boost
   const getEffectivePrice = (block: typeof BLOCK_TYPES[0]): number => {
@@ -49,7 +53,11 @@ export const MarketModal: React.FC<MarketModalProps> = ({
     sound.playCoinSound();
     onSellBlock(blockId, amount, unitPrice);
     const earned = amount * unitPrice;
-    setLastSoldMsg(`成功出售 ${amount} 個 ${blockName}，獲得 +${earned.toLocaleString()} 遊戲幣！`);
+    setLastSoldMsg(
+      isEn
+        ? `Successfully sold ${amount}x ${blockName} for +${earned.toLocaleString()} Coins!`
+        : `成功出售 ${amount} 個 ${blockName}，獲得 +${earned.toLocaleString()} 遊戲幣！`
+    );
     setTimeout(() => setLastSoldMsg(null), 3000);
   };
 
@@ -57,7 +65,11 @@ export const MarketModal: React.FC<MarketModalProps> = ({
     if (totalStockValue <= 0) return;
     sound.playCoinSound();
     onSellAll(totalStockValue);
-    setLastSoldMsg(`一鍵全數出清！總計入袋 +${totalStockValue.toLocaleString()} 遊戲幣！`);
+    setLastSoldMsg(
+      isEn
+        ? `Sold all inventory! Pocketed +${totalStockValue.toLocaleString()} Coins!`
+        : `一鍵全數出清！總計入袋 +${totalStockValue.toLocaleString()} 遊戲幣！`
+    );
     setTimeout(() => setLastSoldMsg(null), 3500);
   };
 
@@ -75,10 +87,10 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg sm:text-xl font-black text-amber-300 drop-shadow-[2px_2px_0_#000]">
-                方塊交易所 (Block Market)
+                {t('market.title')}
               </h3>
               <p className="text-xs text-zinc-400">
-                販售庫存方塊獲取遊戲幣！實時波動的市場通膨機制，把握高點獲利！
+                {t('market.subtitle')}
               </p>
             </div>
           </div>
@@ -86,7 +98,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
           <div className="flex items-center gap-3">
             <div className="px-3 py-1 bg-black/60 border-2 border-amber-400 rounded flex items-center gap-1.5 text-amber-300 font-mono font-black text-sm">
               <Coins className="w-4 h-4 text-amber-400" />
-              <span>{coins.toLocaleString()} 幣</span>
+              <span>{coins.toLocaleString()} {isEn ? 'Coins' : '幣'}</span>
             </div>
             <button
               onClick={() => {
@@ -117,7 +129,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-black text-sm text-white flex items-center gap-1.5">
-                  {inflationEvent.title}
+                  {isEn ? (inflationEvent.titleEn || inflationEvent.title) : inflationEvent.title}
                 </span>
                 <span className={`text-xs font-mono font-black px-2 py-0.5 rounded border ${
                   isInflationHigh
@@ -127,20 +139,20 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                     : 'bg-zinc-800 text-zinc-300 border-zinc-700'
                 }`}>
                   {inflationEvent.multiplier >= 1
-                    ? `+${Math.round((inflationEvent.multiplier - 1) * 100)}% 通膨加成 (x${inflationEvent.multiplier.toFixed(2)})`
-                    : `${Math.round((inflationEvent.multiplier - 1) * 100)}% 緊縮優惠 (x${inflationEvent.multiplier.toFixed(2)})`}
+                    ? `+${Math.round((inflationEvent.multiplier - 1) * 100)}% ${isEn ? 'Inflation Wave' : '通膨加成'} (x${inflationEvent.multiplier.toFixed(2)})`
+                    : `${Math.round((inflationEvent.multiplier - 1) * 100)}% ${isEn ? 'Deflation' : '緊縮優惠'} (x${inflationEvent.multiplier.toFixed(2)})`}
                 </span>
               </div>
               <p className="text-xs text-zinc-300/90 mt-0.5">
-                {inflationEvent.description}
+                {isEn ? (inflationEvent.descEn || inflationEvent.description) : inflationEvent.description}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 font-mono text-xs bg-black/60 px-3 py-1.5 rounded border border-zinc-700 shrink-0 self-start sm:self-auto">
             <Clock className="w-4 h-4 text-amber-400 animate-spin" />
-            <span className="text-zinc-400">通膨週期剩餘：</span>
-            <span className="text-amber-300 font-bold">{inflationEvent.remainingSeconds} 秒</span>
+            <span className="text-zinc-400">{isEn ? 'Wave Remaining:' : '通膨週期剩餘：'}</span>
+            <span className="text-amber-300 font-bold">{inflationEvent.remainingSeconds} {isEn ? 'sec' : '秒'}</span>
           </div>
         </div>
 
@@ -148,9 +160,9 @@ export const MarketModal: React.FC<MarketModalProps> = ({
         <div className="px-4 py-2.5 bg-zinc-950 border-b-2 border-zinc-800 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs">
             <TrendingUp className="w-4 h-4 text-emerald-400" />
-            <span className="text-zinc-300">目前庫存全部估值（含通膨加成）：</span>
+            <span className="text-zinc-300">{isEn ? 'Total Inventory Valuation (with inflation):' : '目前庫存全部估值（含通膨加成）：'}</span>
             <span className="font-mono font-bold text-amber-300 text-sm">
-              {totalStockValue.toLocaleString()} 遊戲幣
+              {totalStockValue.toLocaleString()} {isEn ? 'Coins' : '遊戲幣'}
             </span>
           </div>
 
@@ -164,7 +176,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            一鍵出清全部庫存 ({totalStockValue.toLocaleString()} 幣)
+            {isEn ? `Sell All (${totalStockValue.toLocaleString()} Coins)` : `一鍵出清全部庫存 (${totalStockValue.toLocaleString()} 幣)`}
           </button>
         </div>
 
@@ -183,6 +195,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
             const effectivePrice = getEffectivePrice(block);
             const isCategoryBoosted = inflationEvent.affectedCategories?.includes(block.category);
             const hasInventory = qty > 0;
+            const blockName = getName(block);
 
             return (
               <div
@@ -203,19 +216,19 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                   <div>
                     <div className="flex items-center gap-1.5">
                       <span className="font-black text-sm text-amber-200">
-                        {block.nameZh}
+                        {blockName}
                       </span>
                       {isCategoryBoosted && (
                         <span className="text-[10px] px-1 bg-red-950 text-red-400 border border-red-700 rounded font-mono font-bold">
-                          特惠大漲!
+                          {isEn ? 'Surge!' : '特惠大漲!'}
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-xs font-mono mt-0.5">
-                      <span className="text-zinc-400">庫存: <strong className={hasInventory ? "text-white" : "text-zinc-600"}>{qty}</strong></span>
+                      <span className="text-zinc-400">{isEn ? 'Stock:' : '庫存:'} <strong className={hasInventory ? "text-white" : "text-zinc-600"}>{qty}</strong></span>
                       <span className="text-zinc-500">•</span>
                       <span className="text-amber-400 font-bold flex items-center gap-0.5">
-                        單價: {effectivePrice} 幣
+                        {isEn ? 'Price:' : '單價:'} {effectivePrice} {isEn ? 'Coins' : '幣'}
                         {effectivePrice !== block.sellPrice && (
                           <span className="text-[10px] text-zinc-500 line-through ml-1">
                             {block.sellPrice}
@@ -230,18 +243,18 @@ export const MarketModal: React.FC<MarketModalProps> = ({
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     disabled={qty < 1}
-                    onClick={() => handleSell(block.id, 1, block.nameZh, effectivePrice)}
-                    className="px-2 py-1 text-xs font-bold rounded border border-black bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-200 shadow-[inset_1px_1px_0_#52525b]"
+                    onClick={() => handleSell(block.id, 1, blockName, effectivePrice)}
+                    className="px-2 py-1 text-xs font-bold rounded border border-black bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-200 shadow-[inset_1px_1px_0_#52525b] cursor-pointer"
                   >
-                    賣 1 個
+                    {isEn ? 'Sell 1' : '賣 1 個'}
                   </button>
 
                   <button
                     disabled={qty < 1}
-                    onClick={() => handleSell(block.id, qty, block.nameZh, effectivePrice)}
-                    className="px-2.5 py-1 text-xs font-black rounded border border-black bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-amber-100 shadow-[inset_-1px_-1px_0_#78350f,inset_1px_1px_0_#fde047]"
+                    onClick={() => handleSell(block.id, qty, blockName, effectivePrice)}
+                    className="px-2.5 py-1 text-xs font-black rounded border border-black bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-amber-100 shadow-[inset_-1px_-1px_0_#78350f,inset_1px_1px_0_#fde047] cursor-pointer"
                   >
-                    全賣 ({qty * effectivePrice}幣)
+                    {isEn ? `Sell All (${qty * effectivePrice})` : `全賣 (${qty * effectivePrice}幣)`}
                   </button>
                 </div>
               </div>
@@ -251,7 +264,7 @@ export const MarketModal: React.FC<MarketModalProps> = ({
 
         {/* Footer */}
         <div className="p-3 bg-zinc-900 border-t-2 border-black text-center text-xs text-zinc-400">
-          💡 方塊基礎價值已依新市場經濟下調 20%，可藉由隨機「通膨爆發」時機一口氣拋售獲取暴利！
+          💡 {isEn ? 'Block prices rebalanced. Seize hyper-inflation waves to liquidate your inventory for maximum profits!' : '方塊基礎價值已依新市場經濟下調 20%，可藉由隨機「通膨爆發」時機一口氣拋售獲取暴利！'}
         </div>
       </div>
     </div>

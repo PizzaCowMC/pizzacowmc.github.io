@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Achievement } from '../types';
 import { sound } from '../utils/soundEffects';
 import { Trophy, Check, Gift, Search, X, Sparkles, Coins, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useLanguage } from '../utils/i18n';
 
 interface AchievementsModalProps {
   isOpen: boolean;
@@ -20,12 +21,14 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
   onClaimReward,
   onClaimAllRewards
 }) => {
+  const { language, t } = useLanguage();
   const [selectedCat, setSelectedCat] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   if (!isOpen) return null;
 
+  const isEn = language === 'en';
   const unlockedCount = achievements.filter(a => a.unlocked).length;
   const unclaimedAchievements = achievements.filter(a => a.unlocked && a.coinReward > 0 && !a.rewardClaimed);
   const totalUnclaimedCoins = unclaimedAchievements.reduce((sum, a) => sum + a.coinReward, 0);
@@ -48,7 +51,8 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
         return (
           a.nameZh.toLowerCase().includes(q) ||
           a.nameEn.toLowerCase().includes(q) ||
-          a.descZh.toLowerCase().includes(q)
+          a.descZh.toLowerCase().includes(q) ||
+          (a.descEn && a.descEn.toLowerCase().includes(q))
         );
       }
       return true;
@@ -71,14 +75,14 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg sm:text-xl font-black text-amber-300 drop-shadow-[2px_2px_0_#000]">
-                  成就大典 (1,000 個冒險成就)
+                  {t('achievements.title')}
                 </h3>
                 <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
-                  {unlockedCount} / {achievements.length} 已解鎖
+                  {unlockedCount} / {achievements.length} {t('achievements.unlocked')}
                 </span>
               </div>
               <p className="text-xs text-zinc-400">
-                完成八大地層挖掘、經濟大亨、市場通膨拋售、建築創作與神級裝備，領取豐厚遊戲幣獎勵！
+                {t('achievements.subtitle')}
               </p>
             </div>
           </div>
@@ -100,7 +104,11 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
             <div className="flex items-center gap-2 text-xs text-amber-200">
               <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
               <span>
-                尚有 <strong className="text-amber-300 font-mono font-black">{totalUnclaimedCoins.toLocaleString()}</strong> 遊戲幣成就獎勵等待領取！
+                {isEn ? (
+                  <>You have <strong className="text-amber-300 font-mono font-black">{totalUnclaimedCoins.toLocaleString()}</strong> Coins waiting to be claimed!</>
+                ) : (
+                  <>尚有 <strong className="text-amber-300 font-mono font-black">{totalUnclaimedCoins.toLocaleString()}</strong> 遊戲幣成就獎勵等待領取！</>
+                )}
               </span>
             </div>
 
@@ -112,7 +120,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
               className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-black rounded border-2 border-black shadow-[inset_-2px_-2px_0_#b45309,inset_2px_2px_0_#fef08a] active:scale-95 flex items-center gap-1.5 cursor-pointer"
             >
               <Gift className="w-3.5 h-3.5" />
-              一鍵領取全部 ({totalUnclaimedCoins.toLocaleString()} 幣)
+              {isEn ? `Claim All (${totalUnclaimedCoins.toLocaleString()} Coins)` : `一鍵領取全部 (${totalUnclaimedCoins.toLocaleString()} 幣)`}
             </button>
           </div>
         )}
@@ -121,14 +129,14 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
         <div className="p-3 bg-zinc-950 border-b-2 border-zinc-800 flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
             {[
-              { id: 'all', label: `全部 (${achievements.length})` },
-              { id: 'unclaimed', label: `可領取 (${unclaimedAchievements.length})` },
-              { id: 'unlocked', label: `已解鎖 (${unlockedCount})` },
-              { id: 'mining', label: '⛏️ 採礦先鋒' },
-              { id: 'economy', label: '💰 財富經濟' },
-              { id: 'equipment', label: '🛠️ 鎬具裝備' },
-              { id: 'building', label: '🏗️ 建築大師' },
-              { id: 'collection', label: '🎨 收藏與探索' }
+              { id: 'all', label: isEn ? `All (${achievements.length})` : `全部 (${achievements.length})` },
+              { id: 'unclaimed', label: isEn ? `Claimable (${unclaimedAchievements.length})` : `可領取 (${unclaimedAchievements.length})` },
+              { id: 'unlocked', label: isEn ? `Unlocked (${unlockedCount})` : `已解鎖 (${unlockedCount})` },
+              { id: 'mining', label: isEn ? '⛏️ Mining' : '⛏️ 採礦先鋒' },
+              { id: 'economy', label: isEn ? '💰 Economy' : '💰 財富經濟' },
+              { id: 'equipment', label: isEn ? '🛠️ Gear' : '🛠️ 鎬具裝備' },
+              { id: 'building', label: isEn ? '🏗️ Building' : '🏗️ 建築大師' },
+              { id: 'collection', label: isEn ? '🎨 Collection' : '🎨 收藏與探索' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -137,7 +145,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                   setCurrentPage(1);
                   sound.playClickSound();
                 }}
-                className={`px-2.5 py-1 text-xs font-bold rounded whitespace-nowrap border border-black transition-colors ${
+                className={`px-2.5 py-1 text-xs font-bold rounded whitespace-nowrap border border-black transition-colors cursor-pointer ${
                   selectedCat === tab.id
                     ? 'bg-amber-600 text-amber-100 shadow-[inset_-1px_-1px_0_#78350f,inset_1px_1px_0_#fde047]'
                     : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
@@ -151,7 +159,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
           <div className="relative">
             <input
               type="text"
-              placeholder="搜尋 1000 個成就..."
+              placeholder={isEn ? 'Search achievements...' : '搜尋成就...'}
               value={searchQuery}
               onChange={e => {
                 setSearchQuery(e.target.value);
@@ -167,6 +175,8 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
         <div className="p-4 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
           {paginatedList.map(ach => {
             const isClaimable = ach.unlocked && ach.coinReward > 0 && !ach.rewardClaimed;
+            const title = isEn ? ach.nameEn : ach.nameZh;
+            const desc = isEn ? (ach.descEn || ach.descZh) : ach.descZh;
 
             return (
               <div
@@ -189,7 +199,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className={`font-black text-sm ${ach.unlocked ? 'text-amber-200' : 'text-zinc-500'}`}>
-                        {ach.nameZh}
+                        {title}
                       </span>
                       {ach.coinReward > 0 && (
                         <span className="text-[10px] px-1.5 py-0.2 bg-amber-950 text-amber-400 border border-amber-800 rounded font-mono font-bold flex items-center gap-0.5">
@@ -197,7 +207,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-zinc-400 mt-0.5 line-clamp-2">{ach.descZh}</p>
+                    <p className="text-xs text-zinc-400 mt-0.5 line-clamp-2">{desc}</p>
                   </div>
                 </div>
 
@@ -212,14 +222,14 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                       className="px-2.5 py-1 text-xs font-black bg-amber-500 hover:bg-amber-400 text-black border-2 border-black rounded shadow-[inset_-2px_-2px_0_#b45309,inset_2px_2px_0_#fef08a] active:scale-95 flex items-center gap-1 animate-pulse cursor-pointer"
                     >
                       <Gift className="w-3 h-3" />
-                      領取
+                      {t('achievements.claim')}
                     </button>
                   ) : ach.unlocked ? (
                     <div className="text-[11px] text-emerald-400 font-bold flex items-center gap-1 font-mono">
-                      <Check className="w-3.5 h-3.5" /> 已達成
+                      <Check className="w-3.5 h-3.5" /> {isEn ? 'Completed' : '已達成'}
                     </div>
                   ) : (
-                    <span className="text-[11px] text-zinc-600 font-mono">未解鎖</span>
+                    <span className="text-[11px] text-zinc-600 font-mono">{isEn ? 'Locked' : '未解鎖'}</span>
                   )}
                 </div>
               </div>
@@ -230,7 +240,9 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
         {/* Pagination & Footer */}
         <div className="p-3 bg-zinc-900 border-t-2 border-black flex flex-wrap items-center justify-between gap-2 text-xs">
           <span className="text-zinc-400 font-mono">
-            顯示第 {(safePage - 1) * PAGE_SIZE + 1} ~ {Math.min(safePage * PAGE_SIZE, filteredList.length)} 項 (共 {filteredList.length} 項)
+            {isEn
+              ? `Showing ${(safePage - 1) * PAGE_SIZE + 1} ~ ${Math.min(safePage * PAGE_SIZE, filteredList.length)} of ${filteredList.length}`
+              : `顯示第 ${(safePage - 1) * PAGE_SIZE + 1} ~ ${Math.min(safePage * PAGE_SIZE, filteredList.length)} 項 (共 ${filteredList.length} 項)`}
           </span>
 
           <div className="flex items-center gap-2">
@@ -240,10 +252,10 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                 setCurrentPage(p => Math.max(1, p - 1));
                 sound.playClickSound();
               }}
-              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-black rounded text-zinc-200 flex items-center gap-1"
+              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-black rounded text-zinc-200 flex items-center gap-1 cursor-pointer"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
-              上一頁
+              {isEn ? 'Previous' : '上一頁'}
             </button>
             <span className="font-mono text-amber-300 font-bold px-2">
               {safePage} / {totalPages}
@@ -254,9 +266,9 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                 setCurrentPage(p => Math.min(totalPages, p + 1));
                 sound.playClickSound();
               }}
-              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-black rounded text-zinc-200 flex items-center gap-1"
+              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed border border-black rounded text-zinc-200 flex items-center gap-1 cursor-pointer"
             >
-              下一頁
+              {isEn ? 'Next' : '下一頁'}
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>

@@ -1,4 +1,4 @@
-import { BlockType, PickaxeTier, ThemeBackground, PlayerSkin, StrataLayer, MarketInflationEvent, ShopSupplyItem, FestivalEvent, FestivalSupplyItem } from '../types';
+import { BlockType, PickaxeTier, ThemeBackground, PlayerSkin, StrataLayer, MarketInflationEvent, ShopSupplyItem, FestivalEvent } from '../types';
 
 // Blocks with 20% reduced base sell value and newly added strata blocks
 export const BLOCK_TYPES: BlockType[] = [
@@ -500,7 +500,7 @@ export const BLOCK_TYPES: BlockType[] = [
   }
 ];
 
-// Progression layers: Each layer requires 50,000 mined blocks in the previous layer to unlock!
+// Progression layers: Each layer requires 100,000 mined blocks in the previous layer to unlock!
 export const STRATA_LAYERS: StrataLayer[] = [
   {
     id: 'surface',
@@ -733,6 +733,67 @@ export const PICKAXE_TIERS: PickaxeTier[] = [
     color: '#ef4444',
     bgGradient: 'from-red-600 via-orange-600 to-amber-900',
     desc: '每次揮擊宛如連鎖 TNT 爆破！狂暴 65 倍粉碎，採礦神話之頂！'
+  },
+  // --- 節日限定神鎬 (Festival Limited Pickaxes) ---
+  {
+    id: 'halloween_pickaxe',
+    nameZh: '🎃 萬聖南瓜魅影神鎬',
+    nameEn: 'Pumpkin Shadow Pickaxe',
+    tier: 8,
+    cost: 48000,
+    speedMultiplier: 45.0,
+    maxDurability: 26000,
+    color: '#f97316',
+    bgGradient: 'from-orange-600 via-purple-700 to-zinc-950',
+    desc: '【萬聖節限定】幽靈南瓜火花四濺，狂暴 45 倍暗夜開採速！'
+  },
+  {
+    id: 'christmas_pickaxe',
+    nameZh: '🎄 聖誕薄荷冰晶拐杖鎬',
+    nameEn: 'Peppermint Crystal Pickaxe',
+    tier: 9,
+    cost: 78000,
+    speedMultiplier: 55.0,
+    maxDurability: 35000,
+    color: '#38bdf8',
+    bgGradient: 'from-sky-400 via-emerald-600 to-red-600',
+    desc: '【聖誕節限定】極光與霜雪交織的甜蜜神兵，狂飆 55 倍破冰極速！'
+  },
+  {
+    id: 'cny_pickaxe',
+    nameZh: '🧧 新春乾坤開運爆竹鎬',
+    nameEn: 'Firecracker Fortune Pickaxe',
+    tier: 10,
+    cost: 128888,
+    speedMultiplier: 68.0,
+    maxDurability: 50000,
+    color: '#fbbf24',
+    bgGradient: 'from-red-600 via-amber-500 to-yellow-300',
+    desc: '【新春慶典限定】祥龍吐焰、爆竹齊鳴！狂暴 68 倍超神速崩石！'
+  },
+  {
+    id: 'sakura_pickaxe',
+    nameZh: '🌸 春日落櫻花見靈木鎬',
+    nameEn: 'Cherry Blossom Spirit Pickaxe',
+    tier: 7,
+    cost: 32000,
+    speedMultiplier: 38.0,
+    maxDurability: 20000,
+    color: '#f472b6',
+    bgGradient: 'from-pink-500 via-rose-400 to-pink-900',
+    desc: '【春季櫻花限定】花瓣紛飛，輕巧靈動的 38 倍風雅開採！'
+  },
+  {
+    id: 'summer_pickaxe',
+    nameZh: '🌊 盛夏海神熔岩三叉鎬',
+    nameEn: 'Poseidon Summer Magma Pickaxe',
+    tier: 8,
+    cost: 58000,
+    speedMultiplier: 50.0,
+    maxDurability: 28000,
+    color: '#06b6d4',
+    bgGradient: 'from-cyan-500 via-blue-600 to-amber-500',
+    desc: '【盛夏慶典限定】深海巨浪與熱帶驕陽合一，極致 50 倍破岩！'
   }
 ];
 
@@ -868,55 +929,56 @@ export const THEME_BACKGROUNDS: ThemeBackground[] = [
     previewColor: '#4338ca',
     desc: '萬千恆星誕生、紫藍光芒交織的宇宙深空。'
   },
+  // --- 節慶專屬主題背景 (Holiday Festival Themes) ---
   {
-    id: 'spring_palace',
-    nameZh: '🏮 新春喜慶紅宮殿',
-    nameEn: 'Spring Festival Palace',
-    cost: 0,
-    bgCss: 'bg-[#280808]',
-    accentColor: '#ef4444',
-    previewColor: '#991b1b',
-    desc: '迎春接福、張燈結綵的大紅喜慶宮殿，洋溢濃厚年節氛圍！'
-  },
-  {
-    id: 'halloween_night',
-    nameZh: '🎃 萬聖幽暗南瓜夜',
+    id: 'halloween',
+    nameZh: '🎃 萬聖南瓜幽魂魅夜',
     nameEn: 'Halloween Pumpkin Night',
-    cost: 0,
-    bgCss: 'bg-[#13091f]',
+    cost: 1500,
+    bgCss: 'bg-[#180824]',
     accentColor: '#f97316',
-    previewColor: '#581c87',
-    desc: '南瓜燈火幽微、迷霧翻騰的萬聖驚魂夜，神秘又刺激！'
+    previewColor: '#7e22ce',
+    desc: '【萬聖活動限定】暗夜南瓜燈幽火閃爍、紫霧瀰漫的南瓜古堡。'
   },
   {
-    id: 'christmas_aurora',
-    nameZh: '🎄 聖誕雪夜極光林',
-    nameEn: 'Christmas Aurora Woods',
-    cost: 0,
-    bgCss: 'bg-[#0a1820]',
+    id: 'christmas',
+    nameZh: '❄️ 聖誕極光冰雪冬日',
+    nameEn: 'Christmas Aurora Winter',
+    cost: 1500,
+    bgCss: 'bg-[#061826]',
     accentColor: '#38bdf8',
-    previewColor: '#0f766e',
-    desc: '極光漫天、雪花紛飛的聖誕松木林，傳遞冬日奇蹟祝福！'
+    previewColor: '#0284c7',
+    desc: '【聖誕活動限定】銀白飄雪漫天覆蓋、極光彩帶耀眼的冰雪世界。'
   },
   {
-    id: 'mid_autumn_moon',
-    nameZh: '🥮 金秋滿月桂花林',
-    nameEn: 'Mid-Autumn Moon Forest',
-    cost: 0,
-    bgCss: 'bg-[#0e1329]',
+    id: 'lunar_new_year',
+    nameZh: '🏮 新春除夕赤金迎祥殿',
+    nameEn: 'Lunar New Year Grand Palace',
+    cost: 1500,
+    bgCss: 'bg-[#290508]',
     accentColor: '#fbbf24',
-    previewColor: '#1e1b4b',
-    desc: '銀月高懸、桂花飄香的金秋賞月中秋夜，詩意盎然！'
+    previewColor: '#b91c1c',
+    desc: '【新春盛典限定】大紅燈籠高掛、金龍獻瑞的除夕賀歲盛堂。'
   },
   {
-    id: 'summer_beach',
-    nameZh: '🌊 蔚藍夏日熱帶海灘',
-    nameEn: 'Tropical Summer Beach',
-    cost: 0,
-    bgCss: 'bg-[#08202b]',
-    accentColor: '#06b6d4',
+    id: 'cherry_blossom_festival',
+    nameZh: '🌸 春季花見櫻吹雪夜',
+    nameEn: 'Sakura Night Bloom',
+    cost: 1500,
+    bgCss: 'bg-[#250d18]',
+    accentColor: '#f472b6',
+    previewColor: '#db2777',
+    desc: '【春季盛會限定】落英繽紛、粉嫩落櫻隨風漫舞的浪漫秘境。'
+  },
+  {
+    id: 'summer_solstice',
+    nameZh: '🌴 盛夏熱帶碧浪烈陽',
+    nameEn: 'Tropical Summer Solstice',
+    cost: 1500,
+    bgCss: 'bg-[#081a28]',
+    accentColor: '#38bdf8',
     previewColor: '#0369a1',
-    desc: '熱帶椰風、陽光海浪的夏日衝浪勝地，盡情揮灑熱情！'
+    desc: '【盛夏狂歡限定】蔚藍海浪拍岸、陽光沙灘與椰影搖曳的熱帶樂園。'
   }
 ];
 
@@ -1083,6 +1145,73 @@ export const SHOP_SUPPLIES: ShopSupplyItem[] = [
     badge: '永久自動挖掘',
     descZh: '永久解鎖自動採礦魔像！每 3 秒自動為您在當前層級開採 1 個方塊！',
     type: 'auto_miner'
+  },
+  // --- 節日限定特殊道具 (Festival Limited Supplies) ---
+  {
+    id: 'halloween_ghost_candy',
+    nameZh: '🍬 萬聖幽靈狂歡糖果',
+    nameEn: 'Halloween Ghost Candy',
+    cost: 750,
+    iconEmoji: '🍬',
+    badge: '90秒雙倍萬聖金幣',
+    descZh: '【萬聖節限定】食用幽靈糖果，90 秒內在任何地層採礦獲得 2 倍額外金幣加乘！',
+    type: 'halloween_ghost_candy',
+    festivalTag: '萬聖節限定'
+  },
+  {
+    id: 'christmas_zero_elixir',
+    nameZh: '❄️ 絕對零度冰凍靈藥',
+    nameEn: 'Absolute Zero Elixir',
+    cost: 1500,
+    iconEmoji: '❄️',
+    badge: '120秒耐久鎖死不扣',
+    descZh: '【聖誕節限定】極寒冰霜凝固工具！120 秒內開採「完全不耗損耐久度」，安心猛挖！',
+    type: 'christmas_zero_elixir',
+    festivalTag: '聖誕節限定'
+  },
+  {
+    id: 'cny_lucky_packet',
+    nameZh: '🧧 大吉大利迎春紅包',
+    nameEn: 'Prosperity Red Packet',
+    cost: 2000,
+    iconEmoji: '🧧',
+    badge: '隨機開 3,888~9,999幣',
+    descZh: '【新春慶典限定】燙金除夕壓歲紅包！拆開保底獲得 3,888 ~ 9,999 巨額新年大金幣！',
+    type: 'cny_lucky_packet',
+    festivalTag: '新春慶典限定'
+  },
+  {
+    id: 'santa_gift_box',
+    nameZh: '🎁 聖誕老人神秘禮盒',
+    nameEn: "Santa's Secret Gift",
+    cost: 1800,
+    iconEmoji: '🎁',
+    badge: '2500~5500幣+稀有礦',
+    descZh: '【聖誕節限定】聖誕雪橇驚喜盒！隨機開出 2,500 ~ 5,500 幣與 20 個稀有建材！',
+    type: 'santa_gift_box',
+    festivalTag: '聖誕節限定'
+  },
+  {
+    id: 'hanami_dango',
+    nameZh: '🍡 春日花見三色糰子',
+    nameEn: 'Hanami Dango Treat',
+    cost: 950,
+    iconEmoji: '🍡',
+    badge: '60秒採掘速+100%',
+    descZh: '【春季限定】糯米清香的甜蜜糰子，60 秒內開採速度直接飆升 +100%！',
+    type: 'hanami_dango',
+    festivalTag: '春季限定'
+  },
+  {
+    id: 'summer_coconut',
+    nameZh: '🥥 盛夏冰鎮清涼椰子',
+    nameEn: 'Chilled Tropical Coconut',
+    cost: 1100,
+    iconEmoji: '🥥',
+    badge: '回1000耐久+炸30塊',
+    descZh: '【盛夏限定】暢飲甘甜椰汁，瞬間回復 1,000 耐久並炸出 30 個地層方塊！',
+    type: 'summer_coconut',
+    festivalTag: '盛夏限定'
   }
 ];
 
@@ -1149,244 +1278,81 @@ export const MARKET_INFLATION_TEMPLATES: Omit<MarketInflationEvent, 'remainingSe
   }
 ];
 
-// Special Holiday & Seasonal Festival Events
+// 5大節慶與特殊活動系統 (Seasonal Festival & Special Events)
 export const FESTIVAL_EVENTS: FestivalEvent[] = [
   {
-    id: 'spring_festival',
-    nameZh: '新春廟會狂歡節',
-    nameEn: 'Spring Festival Lunar Carnival',
-    seasonEmoji: '🏮',
-    badge: '🏮 新春慶典進行中',
-    periodDesc: '農曆新年 • 喜慶迎春',
-    bannerTitle: '🏮 新春大吉！迎春接福狂歡盛典',
-    bannerDesc: '節日特權生效：開採全部方塊額外獲得 +100% 雙倍金幣掉落！限時大紅包與吉祥爆竹熱烈發售！',
-    accentColor: '#ef4444',
-    borderGlow: 'border-red-500',
-    bgThemeId: 'spring_palace',
-    particleType: 'sparks',
-    bonusDesc: '採礦金幣雙倍 (+100%)，連鎖爆竹炸收加成',
-    coinMultiplier: 2.0,
-    speedBonusPct: 30,
-    limitedSupplies: [
-      {
-        id: 'f_red_envelope',
-        festivalId: 'spring_festival',
-        nameZh: '🧧 開運純金大紅包',
-        nameEn: 'Lucky Golden Red Envelope',
-        cost: 888,
-        iconEmoji: '🧧',
-        badge: '開出 8,888 ~ 18,888 幣',
-        descZh: '長輩親手送上的大吉大利純金紅包！拆開必定隨機獲得 8,888 ~ 18,888 巨額金幣！',
-        effectType: 'red_envelope'
-      },
-      {
-        id: 'f_firecracker',
-        festivalId: 'spring_festival',
-        nameZh: '🧨 萬象更新連環爆竹',
-        nameEn: 'Dragon Chain Firecrackers',
-        cost: 1688,
-        iconEmoji: '🧨',
-        badge: '炸收 66 塊 + 雙倍幣',
-        descZh: '點燃霹靂啪啦的吉祥鞭炮，瞬間將當前層級 66 個方塊炸入背包，並額外獎勵 1,000 金幣！',
-        effectType: 'firecracker'
-      },
-      {
-        id: 'f_fortune_dumpling',
-        festivalId: 'spring_festival',
-        nameZh: '🥟 純金如意招財金餃',
-        nameEn: 'Golden Fortune Dumpling',
-        cost: 999,
-        iconEmoji: '🥟',
-        badge: '90秒無損+極速',
-        descZh: '包有純金元寶的賀歲餃子！食用後 90 秒內鎬具完全不耗損耐久度，且開採速度提升 150%！',
-        effectType: 'fortune_dumpling'
-      }
-    ]
-  },
-  {
     id: 'halloween',
-    nameZh: '萬聖南瓜幽魂之夜',
-    nameEn: 'Halloween Pumpkin Night',
-    seasonEmoji: '🎃',
-    badge: '🎃 萬聖狂歡夜進行中',
-    periodDesc: '萬聖前夕 • 百鬼夜行',
-    bannerTitle: '🎃 不給糖就搗蛋！萬聖南瓜幽魂狂歡',
-    bannerDesc: '節日特權生效：開採速度提升 +50%，深板岩與幽暗地層寶石爆率翻倍！',
-    accentColor: '#f97316',
-    borderGlow: 'border-orange-500',
-    bgThemeId: 'halloween_night',
-    particleType: 'bats',
-    bonusDesc: '開採速度提升 +50%，深層寶石爆率狂飆',
-    coinMultiplier: 1.5,
-    speedBonusPct: 50,
-    limitedSupplies: [
-      {
-        id: 'f_halloween_candy',
-        festivalId: 'halloween',
-        nameZh: '🍬 南瓜怪魔幻跳跳糖',
-        nameEn: 'Trick-or-Treat Magic Candy',
-        cost: 950,
-        iconEmoji: '🍬',
-        badge: '炸收 45 塊深暗裂谷',
-        descZh: '充滿魔法能量的萬聖糖果！食用後瞬間直接在背包注入 45 塊深板岩/地獄珍稀礦石，並獲 60 秒急速！',
-        effectType: 'halloween_candy'
-      },
-      {
-        id: 'f_jack_lantern',
-        festivalId: 'halloween',
-        nameZh: '🎃 附魔傑克南瓜聖燈',
-        nameEn: 'Jack-o-Lantern Relic',
-        cost: 1500,
-        iconEmoji: '🎃',
-        badge: '120秒 +200% 幸運',
-        descZh: '燃燒幽靈狐火的避邪南瓜燈！使用後 120 秒內每次挖掘必定觸發 3 倍幸運掉落！',
-        effectType: 'jack_lantern'
-      },
-      {
-        id: 'f_phantom_cloak',
-        festivalId: 'halloween',
-        nameZh: '👻 幽靈幻影隱形斗篷',
-        nameEn: 'Phantom Veil',
-        cost: 1800,
-        iconEmoji: '👻',
-        badge: '180秒耐久度凍結',
-        descZh: '虛無縹緲的幽魂斗篷！披上後 180 秒內無論如何挖掘，手中鎬具耐久度完全鎖定不減！',
-        effectType: 'phantom_cloak'
-      }
-    ]
+    nameZh: '🎃 萬聖南瓜狂歡魅夜',
+    nameEn: 'Halloween Pumpkin Gala',
+    icon: '🎃',
+    bannerTitle: '萬聖狂歡夜 • 幽靈糖果與南瓜神鎬',
+    descZh: '深秋南瓜成熟、紫霧繚繞！享受雙倍萬聖狂歡金幣與專屬南瓜魅影神鎬！',
+    themeId: 'halloween',
+    specialPickaxeId: 'halloween_pickaxe',
+    activePeriodZh: '秋季 • 萬聖節夜影慶典',
+    particleType: 'pumpkin',
+    themeBg: THEME_BACKGROUNDS.find(t => t.id === 'halloween') || THEME_BACKGROUNDS[0],
+    specialPickaxe: PICKAXE_TIERS.find(p => p.id === 'halloween_pickaxe') || PICKAXE_TIERS[0],
+    specialItems: SHOP_SUPPLIES.filter(s => s.id === 'halloween_ghost_candy')
   },
   {
     id: 'christmas',
-    nameZh: '聖誕冰雪奇幻節',
+    nameZh: '🎄 聖誕極光冰雪盛典',
     nameEn: 'Christmas Aurora Wonderland',
-    seasonEmoji: '🎄',
-    badge: '🎄 聖誕冰雪節進行中',
-    periodDesc: '雪夜銀鈴 • 聖誕奇蹟',
-    bannerTitle: '🎄 聖誕快樂！冬日極光雪國慶典',
-    bannerDesc: '節日特權生效：交易所所有方塊收購價格常駐 +40%！聖誕老人特約空投禮盒！',
-    accentColor: '#38bdf8',
-    borderGlow: 'border-cyan-400',
-    bgThemeId: 'christmas_aurora',
+    icon: '🎄',
+    bannerTitle: '聖誕冰雪節 • 零度耐久靈藥與薄荷冰晶鎬',
+    descZh: '極光劃過冬夜，銀裝素裹！聖誕老人神秘禮盒與 120 秒無限耐久零度靈藥熱烈降臨！',
+    themeId: 'christmas',
+    specialPickaxeId: 'christmas_pickaxe',
+    activePeriodZh: '冬季 • 聖誕新年狂歡',
     particleType: 'snow',
-    bonusDesc: '交易所收購價格常駐 +40%，極地耐久度永久護甲',
-    coinMultiplier: 1.4,
-    speedBonusPct: 30,
-    limitedSupplies: [
-      {
-        id: 'f_christmas_gift',
-        festivalId: 'christmas',
-        nameZh: '🎁 聖誕老人驚喜禮盒',
-        nameEn: 'Christmas Mystery Gift',
-        cost: 1225,
-        iconEmoji: '🎁',
-        badge: '開出神礦群 + 5,000幣',
-        descZh: '精美絲帶包裹的巨型禮物盒！打開必定獲得 5,000 遊戲幣 + 30 顆高階鑽石、綠寶石與紫水晶！',
-        effectType: 'christmas_gift'
-      },
-      {
-        id: 'f_blizzard_core',
-        festivalId: 'christmas',
-        nameZh: '❄️ 永凍暴風雪核心',
-        nameEn: 'Everfrost Blizzard Core',
-        cost: 2000,
-        iconEmoji: '❄️',
-        badge: '150秒耐久凍結+自動速採',
-        descZh: '凝聚極地萬年玄冰的神器！150 秒內鎬具耐久度絕對鎖死，且自動採礦頻率提升至每 1 秒一次！',
-        effectType: 'blizzard_core'
-      },
-      {
-        id: 'f_candy_cane',
-        festivalId: 'christmas',
-        nameZh: '🍭 拐杖糖歡樂能量棒',
-        nameEn: 'Holiday Candy Cane Bar',
-        cost: 850,
-        iconEmoji: '🍭',
-        badge: '90秒賣出價翻倍',
-        descZh: '薄荷清香的聖誕拐杖糖！食用後 90 秒內在交易所售出任何方塊均享受雙倍金幣收益！',
-        effectType: 'candy_cane'
-      }
-    ]
+    themeBg: THEME_BACKGROUNDS.find(t => t.id === 'christmas') || THEME_BACKGROUNDS[0],
+    specialPickaxe: PICKAXE_TIERS.find(p => p.id === 'christmas_pickaxe') || PICKAXE_TIERS[0],
+    specialItems: SHOP_SUPPLIES.filter(s => s.id === 'christmas_zero_elixir' || s.id === 'santa_gift_box')
   },
   {
-    id: 'mid_autumn',
-    nameZh: '中秋賞月盛宴',
-    nameEn: 'Mid-Autumn Moon Festival',
-    seasonEmoji: '🥮',
-    badge: '🥮 中秋賞月盛宴中',
-    periodDesc: '金秋滿月 • 桂花月餅',
-    bannerTitle: '🥮 但願人長久！中秋滿月桂香盛會',
-    bannerDesc: '節日特權生效：滿月神力加持，開採速度全面提升 +40%，金幣掉落 +30%！',
-    accentColor: '#fbbf24',
-    borderGlow: 'border-amber-400',
-    bgThemeId: 'mid_autumn_moon',
-    particleType: 'petals',
-    bonusDesc: '開採速度 +40%，滿月金幣掉落 +30%',
-    coinMultiplier: 1.3,
-    speedBonusPct: 40,
-    limitedSupplies: [
-      {
-        id: 'f_mooncake',
-        festivalId: 'mid_autumn',
-        nameZh: '🥮 特製廣式雙黃金月餅',
-        nameEn: 'Golden Yolk Mooncake',
-        cost: 1000,
-        iconEmoji: '🥮',
-        badge: '獲得 6,666 幣 + 急速',
-        descZh: '金黃油亮的傳統名點！品嚐後立即獲得 6,666 遊戲幣，並附加 90 秒急迫採礦狀態！',
-        effectType: 'mooncake'
-      },
-      {
-        id: 'f_rabbit_charm',
-        festivalId: 'mid_autumn',
-        nameZh: '🐇 月宮玉兔祈願玉佩',
-        nameEn: 'Moon Jade Rabbit Charm',
-        cost: 1888,
-        iconEmoji: '🐇',
-        badge: '120秒雙倍掉落+回耐久',
-        descZh: '月宮仙兔祝福的溫潤美玉！120 秒內每次敲碎方塊均收穫 2 個，且每次點擊恢復 2 點鎬具耐久！',
-        effectType: 'rabbit_charm'
-      }
-    ]
+    id: 'lunar_new_year',
+    nameZh: '🧧 新春除夕赤金大吉',
+    nameEn: 'Lunar New Year Golden Festival',
+    icon: '🧧',
+    bannerTitle: '除夕迎春 • 巨額壓歲紅包與乾坤爆竹鎬',
+    descZh: '大紅燈籠高掛，爆竹破空！拆開隨機最高 9,999 巨額壓歲紅包，迎財神走大運！',
+    themeId: 'lunar_new_year',
+    specialPickaxeId: 'cny_pickaxe',
+    activePeriodZh: '初春 • 新春賀歲盛典',
+    particleType: 'firecracker',
+    themeBg: THEME_BACKGROUNDS.find(t => t.id === 'lunar_new_year') || THEME_BACKGROUNDS[0],
+    specialPickaxe: PICKAXE_TIERS.find(p => p.id === 'cny_pickaxe') || PICKAXE_TIERS[0],
+    specialItems: SHOP_SUPPLIES.filter(s => s.id === 'cny_lucky_packet')
   },
   {
-    id: 'summer_ocean',
-    nameZh: '夏日海洋衝浪祭',
-    nameEn: 'Summer Ocean Splash Festival',
-    seasonEmoji: '🌊',
-    badge: '🌊 夏日海洋祭進行中',
-    periodDesc: '盛夏衝浪 • 沁涼海灘',
-    bannerTitle: '🌊 沁涼一夏！夏日熱帶海洋派對',
-    bannerDesc: '節日特權生效：夏日清涼降溫，全方塊開採硬度降低 25%，採掘速度倍增！',
-    accentColor: '#06b6d4',
-    borderGlow: 'border-teal-400',
-    bgThemeId: 'summer_beach',
-    particleType: 'bubbles',
-    bonusDesc: '全方塊開採硬度 -25%，速度倍增',
-    coinMultiplier: 1.2,
-    speedBonusPct: 50,
-    limitedSupplies: [
-      {
-        id: 'f_coconut_drink',
-        festivalId: 'summer_ocean',
-        nameZh: '🥥 冰鎮沁涼熱帶椰子汁',
-        nameEn: 'Chilled Tropical Coconut',
-        cost: 750,
-        iconEmoji: '🥥',
-        badge: '120秒採礦速倍增',
-        descZh: '現剖冰鎮的新鮮椰汁！飲用後透心涼，120 秒內採礦時間縮減 60%，享受極致疾風挖掘！',
-        effectType: 'coconut_drink'
-      },
-      {
-        id: 'f_trident_surge',
-        festivalId: 'summer_ocean',
-        nameZh: '🔱 海神潮汐三叉戟',
-        nameEn: 'Tidal Trident Surge',
-        cost: 1999,
-        iconEmoji: '🔱',
-        badge: '瞬間收割 50 塊豐富資源',
-        descZh: '召喚海洋怒濤的三叉戟！瞬間開採 50 塊高品質礦石並存入背包，且獲得 2,000 額外金幣！',
-        effectType: 'trident_surge'
-      }
-    ]
+    id: 'cherry_blossom',
+    nameZh: '🌸 春季花見櫻吹雪祭',
+    nameEn: 'Spring Sakura Blossom Festival',
+    icon: '🌸',
+    bannerTitle: '春日花見 • 三色糰子採礦極速+100%',
+    descZh: '粉嫩落櫻隨風漫舞，輕巧靈木鎬伴隨三色糰子，享受翻倍採礦急行極速！',
+    themeId: 'cherry_blossom_festival',
+    specialPickaxeId: 'sakura_pickaxe',
+    activePeriodZh: '春季 • 櫻花花見祭典',
+    particleType: 'sakura',
+    themeBg: THEME_BACKGROUNDS.find(t => t.id === 'cherry_blossom_festival') || THEME_BACKGROUNDS[0],
+    specialPickaxe: PICKAXE_TIERS.find(p => p.id === 'sakura_pickaxe') || PICKAXE_TIERS[0],
+    specialItems: SHOP_SUPPLIES.filter(s => s.id === 'hanami_dango')
+  },
+  {
+    id: 'summer_solstice',
+    nameZh: '☀️ 盛夏蔚藍熱帶海灘',
+    nameEn: 'Tropical Summer Solstice',
+    icon: '🌊',
+    bannerTitle: '熱帶盛夏 • 冰鎮椰子回耐久炸礦脈',
+    descZh: '陽光金沙碧浪，海神三叉鎬破岩斬浪，暢飲冰鎮椰汁瞬間回血並炸碎礦脈！',
+    themeId: 'summer_solstice',
+    specialPickaxeId: 'summer_pickaxe',
+    activePeriodZh: '盛夏 • 熱帶浪花狂歡',
+    particleType: 'summer',
+    themeBg: THEME_BACKGROUNDS.find(t => t.id === 'summer_solstice') || THEME_BACKGROUNDS[0],
+    specialPickaxe: PICKAXE_TIERS.find(p => p.id === 'summer_pickaxe') || PICKAXE_TIERS[0],
+    specialItems: SHOP_SUPPLIES.filter(s => s.id === 'summer_coconut')
   }
 ];

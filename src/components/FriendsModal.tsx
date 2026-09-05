@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Friend } from '../types';
 import { sound } from '../utils/soundEffects';
 import { Users, Copy, Check, UserPlus, Gift, X, Sparkles, Wifi } from 'lucide-react';
+import { useLanguage } from '../utils/i18n';
 
 interface FriendsModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   onAddFriendByCode,
   onUpdateUsername
 }) => {
+  const { language, t } = useLanguage();
   const [copied, setCopied] = useState(false);
   const [inputCode, setInputCode] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
@@ -33,6 +35,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   const [nameInput, setNameInput] = useState(myUsername);
 
   if (!isOpen) return null;
+
+  const isEn = language === 'en';
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(myFriendCode).catch(() => {});
@@ -45,7 +49,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     const code = inputCode.trim().toUpperCase();
     if (!code) return;
     if (code === myFriendCode) {
-      setMsg('❌ 不能將自己加入為好友！');
+      setMsg(isEn ? '❌ You cannot add your own code as a friend!' : '❌ 不能將自己加入為好友！');
       setTimeout(() => setMsg(null), 2500);
       return;
     }
@@ -53,11 +57,11 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
     const success = onAddFriendByCode(code);
     if (success) {
       sound.playAchievementSound();
-      setMsg('✅ 成功加入好友！');
+      setMsg(isEn ? '✅ Friend added successfully!' : '✅ 成功加入好友！');
       setInputCode('');
     } else {
       sound.playHitSound(2);
-      setMsg('⚠️ 找不到該好友代碼或已在好友名單中！');
+      setMsg(isEn ? '⚠️ Friend code not found or already on your friends list!' : '⚠️ 找不到該好友代碼或已在好友名單中！');
     }
     setTimeout(() => setMsg(null), 3000);
   };
@@ -73,10 +77,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg sm:text-xl font-black text-amber-300 drop-shadow-[2px_2px_0_#000]">
-                好友社群中心 (Friends)
+                {t('friends.title')}
               </h3>
               <p className="text-xs text-zinc-400">
-                透過專屬好友代碼連結同伴，獲取豐厚好友獎勵！
+                {t('friends.subtitle')}
               </p>
             </div>
           </div>
@@ -86,7 +90,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               sound.playClickSound();
               onClose();
             }}
-            className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-2 border-black rounded"
+            className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-2 border-black rounded cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -103,13 +107,13 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                 </div>
                 <div>
                   <div className="font-black text-sm text-amber-300 flex items-center gap-1.5">
-                    <span>達成 1 位好友獎勵</span>
+                    <span>{isEn ? '1 Friend Milestone Reward' : '達成 1 位好友獎勵'}</span>
                     <span className="text-[10px] px-2 py-0.2 bg-amber-500 text-black font-black rounded-full">
-                      一次性 100 幣
+                      {isEn ? '100 Coins Bonus' : '一次性 100 幣'}
                     </span>
                   </div>
                   <p className="text-xs text-zinc-300 mt-0.5">
-                    條件：好友清單中擁有至少 1 位好友（當前：{friends.length} 位）
+                    {isEn ? `Requirement: Have at least 1 friend (Current: ${friends.length})` : `條件：好友清單中擁有至少 1 位好友（當前：${friends.length} 位）`}
                   </p>
                 </div>
               </div>
@@ -117,7 +121,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               <div>
                 {friendRewardClaimed ? (
                   <div className="px-3 py-1.5 bg-zinc-800 text-emerald-400 text-xs font-black border border-emerald-500 rounded flex items-center gap-1 font-mono">
-                    <Check className="w-3.5 h-3.5" /> 已領取
+                    <Check className="w-3.5 h-3.5" /> {isEn ? 'Claimed' : '已領取'}
                   </div>
                 ) : (
                   <button
@@ -126,7 +130,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                       if (friends.length >= 1) {
                         sound.playAchievementSound();
                         onClaimFriendReward();
-                        setMsg('🎉 恭喜領取「1 位好友里程碑獎勵」100 遊戲幣！');
+                        setMsg(isEn ? '🎉 Claimed 100 Coins for the 1 Friend milestone!' : '🎉 恭喜領取「1 位好友里程碑獎勵」100 遊戲幣！');
                       }
                     }}
                     className={`px-3.5 py-1.5 text-xs font-black rounded border-2 border-black flex items-center gap-1.5 transition-all ${
@@ -136,7 +140,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     }`}
                   >
                     <Gift className="w-4 h-4" />
-                    領取 100 幣
+                    {isEn ? 'Claim 100 Coins' : '領取 100 幣'}
                   </button>
                 )}
               </div>
@@ -170,9 +174,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         if (nameInput.trim()) onUpdateUsername(nameInput.trim());
                         setEditName(false);
                       }}
-                      className="text-xs px-2 py-0.5 bg-emerald-700 text-white rounded font-bold"
+                      className="text-xs px-2 py-0.5 bg-emerald-700 text-white rounded font-bold cursor-pointer"
                     >
-                      儲存
+                      {isEn ? 'Save' : '儲存'}
                     </button>
                   </div>
                 ) : (
@@ -180,9 +184,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     <span className="font-black text-sm text-white">{myUsername}</span>
                     <button
                       onClick={() => setEditName(true)}
-                      className="text-[10px] text-zinc-500 hover:text-zinc-300 underline"
+                      className="text-[10px] text-zinc-500 hover:text-zinc-300 underline cursor-pointer"
                     >
-                      編輯暱稱
+                      {isEn ? 'Edit Name' : '編輯暱稱'}
                     </button>
                   </div>
                 )}
@@ -190,14 +194,14 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
               <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-mono">
                 <Wifi className="w-3.5 h-3.5" />
-                <span>在線連線中</span>
+                <span>{isEn ? 'Online' : '在線連線中'}</span>
               </div>
             </div>
 
             {/* Friend code display box */}
             <div className="p-3 bg-zinc-900 border-2 border-dashed border-amber-400 rounded-lg flex items-center justify-between gap-3">
               <div>
-                <div className="text-[11px] text-zinc-400">你的專屬 6 碼好友代碼：</div>
+                <div className="text-[11px] text-zinc-400">{t('friends.myCode')}</div>
                 <div className="text-xl font-black text-emerald-400 tracking-widest font-mono drop-shadow-[1px_1px_0_#000]">
                   {myFriendCode}
                 </div>
@@ -205,10 +209,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
               <button
                 onClick={handleCopyCode}
-                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold border-2 border-black rounded flex items-center gap-1.5 transition-colors active:scale-95"
+                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold border-2 border-black rounded flex items-center gap-1.5 transition-colors active:scale-95 cursor-pointer"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? '已複製！' : '複製代碼'}
+                {copied ? (isEn ? 'Copied!' : '已複製！') : t('friends.copyCode')}
               </button>
             </div>
 
@@ -216,7 +220,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="輸入 6 碼好友代碼..."
+                placeholder={t('friends.inputPlaceholder')}
                 maxLength={6}
                 value={inputCode}
                 onChange={e => setInputCode(e.target.value)}
@@ -227,10 +231,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               />
               <button
                 onClick={handleAddFriend}
-                className="px-4 py-1.5 bg-blue-700 hover:bg-blue-600 text-white text-xs font-black border-2 border-black rounded shadow-[inset_-2px_-2px_0_#1e3a8a,inset_2px_2px_0_#60a5fa] active:scale-95 flex items-center gap-1"
+                className="px-4 py-1.5 bg-blue-700 hover:bg-blue-600 text-white text-xs font-black border-2 border-black rounded shadow-[inset_-2px_-2px_0_#1e3a8a,inset_2px_2px_0_#60a5fa] active:scale-95 flex items-center gap-1 cursor-pointer"
               >
                 <UserPlus className="w-3.5 h-3.5" />
-                新增好友
+                {t('friends.addFriend')}
               </button>
             </div>
           </div>
@@ -239,16 +243,16 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
           <div className="bg-zinc-950 p-4 border-2 border-black rounded-lg">
             <div className="flex items-center justify-between mb-3 border-b border-zinc-800 pb-2">
               <span className="text-xs font-black uppercase text-amber-300 tracking-wider">
-                好友名單 ({friends.length})
+                {isEn ? `Friends List (${friends.length})` : `好友名單 (${friends.length})`}
               </span>
               <span className="text-[11px] text-zinc-500 font-mono">
-                🟢 線上：{friends.filter(f => f.isOnline).length} 人
+                🟢 {isEn ? 'Online:' : '線上：'}{friends.filter(f => f.isOnline).length}
               </span>
             </div>
 
             {friends.length === 0 ? (
               <div className="text-center py-6 text-zinc-500 text-xs">
-                目前尚未加入任何好友！輸入同伴好友代碼新增好友，即可領取 100 遊戲幣！
+                {isEn ? 'No friends added yet! Enter a friend code above to connect and earn 100 Coins!' : '目前尚未加入任何好友！輸入同伴好友代碼新增好友，即可領取 100 遊戲幣！'}
               </div>
             ) : (
               <div className="space-y-2">
@@ -269,13 +273,13 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                           <span className="text-[10px] text-zinc-500 font-mono">#{friend.code}</span>
                         </div>
                         <span className="text-[10px] text-zinc-400 font-mono">
-                          {friend.isOnline ? '🟢 線上活躍' : '⚫ 離線'}
+                          {friend.isOnline ? (isEn ? '🟢 Online' : '🟢 線上活躍') : (isEn ? '⚫ Offline' : '⚫ 離線')}
                         </span>
                       </div>
                     </div>
 
                     <div className="text-[11px] text-zinc-400 font-mono">
-                      等級 {friend.level || 1}
+                      {isEn ? `Level ${friend.level || 1}` : `等級 ${friend.level || 1}`}
                     </div>
                   </div>
                 ))}
@@ -286,7 +290,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
 
         {/* Footer */}
         <div className="p-3 bg-zinc-900 border-t-2 border-black text-center text-xs text-zinc-400">
-          💡 好友代碼由 6 碼英數組成，複製發給夥伴即可輕鬆加為好友！
+          💡 {isEn ? 'Friend codes consist of 6 alphanumeric characters. Share yours with friends to connect!' : '好友代碼由 6 碼英數組成，複製發給夥伴即可輕鬆加為好友！'}
         </div>
       </div>
     </div>
