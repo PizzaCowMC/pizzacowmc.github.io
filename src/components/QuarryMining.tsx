@@ -6,6 +6,7 @@ import { BlockType, PickaxeState, ToolType, MonsterData } from '../types';
 import { BlockTexture } from './BlockTexture';
 import { sound } from '../utils/soundEffects';
 import { useLanguage } from '../utils/i18n';
+import { calculateBlockXp } from '../utils/levelSystem';
 import { Pickaxe, Wrench, Zap, Shield, Sparkles, Layers, Lock, CheckCircle2, ChevronRight, Flame, Sword, Crosshair, Skull } from 'lucide-react';
 
 interface QuarryMiningProps {
@@ -229,13 +230,17 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     const blockDisplayName = getName(activeBlock);
     const fortuneSuffix = isEn ? ' (Bonus!)' : ' (額外收穫!)';
     const textStr = amount > 1 ? `+${amount} ${blockDisplayName}${fortuneSuffix}` : `+${amount} ${blockDisplayName}`;
+    const xpGained = calculateBlockXp(activeBlock.category, activeBlock.hardness) * amount;
+    const xpId = Date.now() + Math.random() + 0.1;
+
     setFloatingTexts(prev => [
       ...prev.slice(-4),
-      { id: newId, text: textStr, x: 50 + (Math.random() * 20 - 10), y: 35, color: '#fde047' }
+      { id: newId, text: textStr, x: 50 + (Math.random() * 20 - 10), y: 35, color: '#fde047' },
+      { id: xpId, text: `+${xpGained} XP`, x: 50 + (Math.random() * 20 - 10), y: 15, color: '#4ade80' }
     ]);
 
     setTimeout(() => {
-      setFloatingTexts(prev => prev.filter(item => item.id !== newId));
+      setFloatingTexts(prev => prev.filter(item => item.id !== newId && item.id !== xpId));
     }, 900);
 
     // Give block to inventory & track stats and layer count

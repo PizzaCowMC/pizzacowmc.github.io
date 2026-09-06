@@ -34,6 +34,8 @@ interface GameMenuModalProps {
   onOpenChangelog: () => void;
   onOpenAuth: () => void;
   onOpenFestivals?: () => void;
+  onOpenLevel?: () => void;
+  playerLevel?: number;
   onResetProgress?: () => void;
   currentUser: { email: string | null; displayName: string | null } | null;
   soundEnabled: boolean;
@@ -52,6 +54,8 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
   onOpenChangelog,
   onOpenAuth,
   onOpenFestivals,
+  onOpenLevel,
+  playerLevel = 0,
   onResetProgress,
   currentUser,
   soundEnabled,
@@ -193,6 +197,19 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
               </button>
             )}
 
+            {onOpenLevel && (
+              <button
+                onClick={() => handleAction(onOpenLevel)}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-950/60 to-[#282828] hover:from-emerald-900/70 hover:to-[#323232] border border-emerald-500/40 rounded-xl flex items-center justify-between text-xs font-bold text-emerald-200 hover:text-white transition-all active:scale-98"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Trophy className="w-4 h-4 text-emerald-400" />
+                  <span>{isEn ? `Player Level (Lv.${playerLevel}) & Promotion Quests` : `玩家等級 (Lv.${playerLevel}) 與晉升特殊任務`}</span>
+                </div>
+                <span className="text-emerald-400 text-[10px] font-mono font-bold">Lv.{playerLevel} →</span>
+              </button>
+            )}
+
             <button
               onClick={() => handleAction(onOpenAchievements)}
               className="w-full px-4 py-2.5 bg-[#282828] hover:bg-[#323232] border border-[#383838] rounded-xl flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white transition-all active:scale-98"
@@ -234,10 +251,10 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
             >
               <div className="flex items-center gap-2.5">
                 <Scroll className="w-4 h-4 text-amber-300" />
-                <span>{isEn ? '📜 Release Notes (Changelog v2.2.6)' : '📜 版本更新日誌 (Changelog v2.2.6)'}</span>
+                <span>{isEn ? '📜 Release Notes (Changelog v2.2.7)' : '📜 版本更新日誌 (Changelog v2.2.7)'}</span>
               </div>
               <span className="text-emerald-400 font-mono text-[10px] bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
-                v2.2.6
+                v2.2.7
               </span>
             </button>
           </div>

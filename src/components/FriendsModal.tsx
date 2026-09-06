@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
 import { Friend } from '../types';
 import { sound } from '../utils/soundEffects';
-import { Users, Copy, Check, UserPlus, Gift, X, Sparkles, Wifi, Trash2 } from 'lucide-react';
+import { Users, Copy, Check, UserPlus, Gift, X, Sparkles, Wifi, Trash2, Trophy, Zap, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../utils/i18n';
+import { getLevelQuest, getLevelTitle } from '../utils/levelSystem';
 
 interface FriendsModalProps {
   isOpen: boolean;
   onClose: () => void;
   myUsername: string;
   myFriendCode: string;
+  playerLevel?: number;
+  playerXp?: number;
   friends: Friend[];
   friendRewardClaimed: boolean;
   onClaimFriendReward: () => void;
   onAddFriendByCode: (code: string) => boolean;
   onRemoveFriend?: (code: string) => void;
   onUpdateUsername?: (newName: string) => void;
+  onOpenLevelModal?: () => void;
 }
 
 export const FriendsModal: React.FC<FriendsModalProps> = ({
@@ -22,11 +26,14 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   onClose,
   myUsername,
   myFriendCode,
+  playerLevel = 0,
+  playerXp = 0,
   friends,
   friendRewardClaimed,
   onClaimFriendReward,
   onAddFriendByCode,
-  onRemoveFriend
+  onRemoveFriend,
+  onOpenLevelModal
 }) => {
   const { language, t } = useLanguage();
   const [copied, setCopied] = useState(false);
@@ -36,6 +43,9 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   if (!isOpen) return null;
 
   const isEn = language === 'en';
+  const currentQuest = getLevelQuest(playerLevel);
+  const currentRankTitle = getLevelTitle(playerLevel, isEn);
+  const xpPercent = Math.min(100, Math.round((playerXp / currentQuest.requiredXp) * 100));
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(myFriendCode).catch(() => {});
@@ -176,6 +186,65 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
               </div>
             </div>
 
+            {/* Real Player Level & XP Section */}
+            <div className="p-3 bg-zinc-900 border-2 border-emerald-500/40 rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-emerald-950 border border-emerald-500 text-emerald-300 font-mono text-xs font-black rounded">
+                    Lv. {playerLevel}
+                  </span>
+                  <span className="text-xs font-bold text-amber-300">
+                    {currentRankTitle}
+                  </span>
+                </div>
+                {onOpenLevelModal && (
+                  <button
+                    onClick={() => {
+                      sound.playClickSound();
+                      onOpenLevelModal();
+                    }}
+                    className="px-2 py-1 bg-emerald-950 hover:bg-emerald-900 border border-emerald-500 rounded text-[11px] text-emerald-300 font-bold flex items-center gap-1 cursor-pointer transition-colors active:scale-95"
+                  >
+                    <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{isEn ? 'Promotion Quests' : '晉升與特殊任務'}</span>
+                  </button>
+                )}
+              </div>
+
+              {/* XP Progress Bar */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-zinc-300 flex items-center gap-1">
+                    <Zap className="w-3 h-3 text-emerald-400 fill-emerald-400" />
+                    {isEn ? 'Current XP' : '真實經驗值'}
+                  </span>
+                  <span className="text-emerald-400 font-bold">
+                    {playerXp.toLocaleString()} / {currentQuest.requiredXp.toLocaleString()} XP ({xpPercent}%)
+                  </span>
+                </div>
+                <div className="w-full h-2.5 bg-zinc-950 border border-black rounded overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-emerald-600 via-green-500 to-lime-400 transition-all duration-300"
+                    style={{ width: `${xpPercent}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Quest preview summary */}
+              <div className="text-[11px] text-zinc-300 flex items-center justify-between bg-black/50 px-2.5 py-1.5 rounded border border-zinc-800">
+                <span className="truncate pr-2 text-zinc-300 font-medium">
+                  📜 {isEn ? currentQuest.titleEn : currentQuest.titleZh}
+                </span>
+                <span className={`shrink-0 font-bold font-mono text-[10px] px-1.5 py-0.5 rounded ${
+                  playerXp >= currentQuest.requiredXp
+                    ? 'bg-emerald-950 border border-emerald-500 text-emerald-300'
+                    : 'bg-zinc-800 text-amber-300 border border-amber-500/50'
+                }`}>
+                  {playerXp >= currentQuest.requiredXp ? (isEn ? 'XP Ready' : '經驗值達成') : (isEn ? 'Collecting XP' : '積累經驗中')}
+                </span>
+              </div>
+            </div>
+
             {/* Friend code display box */}
             <div className="p-3 bg-zinc-900 border-2 border-dashed border-amber-400 rounded-lg flex items-center justify-between gap-3">
               <div>
@@ -257,8 +326,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <div className="text-[11px] text-zinc-400 font-mono">
-                        {isEn ? `Level ${friend.level || 1}` : `等級 ${friend.level || 1}`}
+                      <div className="text-[11px] text-emerald-400 font-mono font-bold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
+                        Lv. {friend.level ?? 0}
                       </div>
                       {onRemoveFriend && (
                         <button

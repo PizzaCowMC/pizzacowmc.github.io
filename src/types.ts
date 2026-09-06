@@ -196,6 +196,21 @@ export interface Friend {
   level?: number;
 }
 
+export interface LevelQuest {
+  id: string;
+  level: number;
+  titleZh: string;
+  titleEn: string;
+  descZh: string;
+  descEn: string;
+  requiredXp: number;
+  coinReward: number;
+  rewardDescZh: string;
+  rewardDescEn: string;
+  targetType: 'mine_blocks' | 'place_blocks' | 'pickaxe_tier' | 'enchant_levels' | 'market_coins' | 'strata_layer' | 'auto_miner' | 'coins_held' | 'achievements';
+  targetValue: number;
+}
+
 export interface GameStats {
   totalClicks: number;
   totalBlocksMined: number;

@@ -16,6 +16,28 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
   const logs = [
     {
+      version: 'v2.2.7',
+      date: isEn ? 'Level & Progression Update' : '玩家等級與晉升任務更新',
+      badge: isEn ? 'Real Player Level, XP & Promotion Quests' : '真實玩家等級、經驗值與晉升特殊任務',
+      badgeColor: 'bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white shadow',
+      highlights: [
+        {
+          type: 'level',
+          title: isEn ? 'Player Level & Real XP Progression' : '玩家真實等級（初始Lv.0）與經驗值機制',
+          desc: isEn
+            ? 'Player level now starts from Lv.0. Earning XP from mining blocks, placing structures, defeating monsters, trading, and completing milestones. Friends list now reflects genuine player levels instead of randomized values.'
+            : '玩家等級正式上線！初始等級為 Lv.0，可藉由開採方塊、放置方塊、消滅怪物、市集交易與達成成就獲取經驗值。好友列表亦全面同步為真實等級。'
+        },
+        {
+          type: 'quests',
+          title: isEn ? 'Special Promotion Quests for Each Level' : '每級專屬晉升突破特殊任務',
+          desc: isEn
+            ? 'Leveling up requires fulfilling both the XP threshold and completing a dedicated Promotion Quest (e.g. mining milestones, tool upgrades, depth exploration, and economic targets) with massive coin ascension rewards.'
+            : '升等不僅需要累積充足的經驗值，更須達成該等級特定的「晉升特殊任務」（如累積開採量、工具階級突破、地層深潛探索與經濟目標），突破成功可領取巨額金幣與榮譽稱號！'
+        }
+      ]
+    },
+    {
       version: 'v2.2.6',
       date: isEn ? 'Latest Bugfix & Session Overhaul' : '最新修正與會話持久化',
       badge: isEn ? 'Session Persistence & Identity Menu' : '帳號身分持久化與自動登出修復',

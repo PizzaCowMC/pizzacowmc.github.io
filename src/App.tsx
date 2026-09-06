@@ -17,6 +17,8 @@ import { ChangeNameModal } from './components/ChangeNameModal';
 import { AvatarSelectModal } from './components/AvatarSelectModal';
 import { FestivalsModal } from './components/FestivalsModal';
 import { FestivalParticles } from './components/FestivalParticles';
+import { LevelModal } from './components/LevelModal';
+import { getLevelQuest, getLevelTitle, checkQuestProgress, calculateBlockXp } from './utils/levelSystem';
 import { sound } from './utils/soundEffects';
 import {
   ShoppingBag,
@@ -464,6 +466,28 @@ export default function App() {
   // Active zone filter in layout
   const [activeView, setActiveView] = useState<'all' | 'quarry' | 'building'>('all');
 
+  // Player Level & XP Progression System (Real Level, starts at 0)
+  const [playerLevel, setPlayerLevel] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_player_level`);
+      return saved !== null ? JSON.parse(saved) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  const [playerXp, setPlayerXp] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_player_xp`);
+      return saved !== null ? JSON.parse(saved) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  const [isLevelModalOpen, setIsLevelModalOpen] = useState(false);
+  const [levelUpToast, setLevelUpToast] = useState<string | null>(null);
+
   // Firebase Auth & Cloud Sync state
   const [currentUser, setCurrentUser] = useState<{ email: string | null; displayName: string | null; uid: string | null } | null>(null);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(() => {
@@ -518,7 +542,9 @@ export default function App() {
       friends,
       friendRewardClaimed,
       achievements: achievements.map(a => ({ id: a.id, unlocked: a.unlocked, rewardClaimed: a.rewardClaimed })),
-      stats
+      stats,
+      playerLevel,
+      playerXp
     };
 
     const res = await saveUserData(currentUser.uid, payload);
@@ -546,7 +572,9 @@ export default function App() {
     friends,
     friendRewardClaimed,
     achievements,
-    stats
+    stats,
+    playerLevel,
+    playerXp
   ]);
 
   // Cloud Load Handler
@@ -558,6 +586,8 @@ export default function App() {
     if (res.data) {
       const d = res.data;
       if (typeof d.coins === 'number') setCoins(d.coins);
+      if (typeof d.playerLevel === 'number') setPlayerLevel(d.playerLevel);
+      if (typeof d.playerXp === 'number') setPlayerXp(d.playerXp);
       if (d.inventory) setInventory(d.inventory);
       if (d.layerMinedCounts) setLayerMinedCounts(d.layerMinedCounts);
       if (d.selectedLayerId) setSelectedLayerId(d.selectedLayerId);
@@ -717,6 +747,76 @@ export default function App() {
       localStorage.setItem(`${STORAGE_KEY}_active_festival`, JSON.stringify(activeFestivalId));
     } catch {}
   }, [activeFestivalId]);
+
+  // Player Level & XP LocalStorage Sync
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_player_level`, JSON.stringify(playerLevel));
+  }, [playerLevel]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_player_xp`, JSON.stringify(playerXp));
+  }, [playerXp]);
+
+  // Current Promotion Quest and Evaluation
+  const currentLevelQuest = useMemo(() => getLevelQuest(playerLevel), [playerLevel]);
+  const levelQuestProgress = useMemo(() => {
+    const pickaxeTierIndex = PICKAXE_TIERS.findIndex(p => p.id === pickaxeState.currentTierId);
+    const totalEnchants = pickaxeState.efficiencyLevel + pickaxeState.unbreakingLevel + pickaxeState.fortuneLevel;
+    const currentStrataIndex = STRATA_LAYERS.findIndex(l => l.id === selectedLayerId);
+    const achievementsCount = achievements.filter(a => a.unlocked).length;
+
+    return checkQuestProgress(currentLevelQuest, {
+      totalBlocksMined: stats.totalBlocksMined,
+      totalBlocksPlaced: stats.totalBlocksPlaced,
+      totalCoinsEarned: stats.totalCoinsEarned,
+      coins,
+      pickaxeTier: Math.max(0, pickaxeTierIndex),
+      totalEnchants,
+      currentStrataIndex: Math.max(0, currentStrataIndex),
+      hasAutoMiner,
+      achievementsCount
+    });
+  }, [currentLevelQuest, stats, coins, pickaxeState, selectedLayerId, hasAutoMiner, achievements]);
+
+  const canLevelUp = playerXp >= currentLevelQuest.requiredXp && levelQuestProgress.isCompleted;
+
+  const handleLevelUp = useCallback(() => {
+    const pickaxeTierIndex = PICKAXE_TIERS.findIndex(p => p.id === pickaxeState.currentTierId);
+    const totalEnchants = pickaxeState.efficiencyLevel + pickaxeState.unbreakingLevel + pickaxeState.fortuneLevel;
+    const currentStrataIndex = STRATA_LAYERS.findIndex(l => l.id === selectedLayerId);
+    const achievementsCount = achievements.filter(a => a.unlocked).length;
+
+    const progress = checkQuestProgress(currentLevelQuest, {
+      totalBlocksMined: stats.totalBlocksMined,
+      totalBlocksPlaced: stats.totalBlocksPlaced,
+      totalCoinsEarned: stats.totalCoinsEarned,
+      coins,
+      pickaxeTier: Math.max(0, pickaxeTierIndex),
+      totalEnchants,
+      currentStrataIndex: Math.max(0, currentStrataIndex),
+      hasAutoMiner,
+      achievementsCount
+    });
+
+    if (playerXp < currentLevelQuest.requiredXp || !progress.isCompleted) {
+      sound.playHitSound(1);
+      return;
+    }
+
+    sound.playAchievementSound();
+    setCoins(c => c + currentLevelQuest.coinReward);
+    setPlayerXp(xp => Math.max(0, xp - currentLevelQuest.requiredXp));
+    setPlayerLevel(lvl => lvl + 1);
+
+    const nextLvl = playerLevel + 1;
+    const nextTitle = getLevelTitle(nextLvl, isEn);
+    setLevelUpToast(
+      isEn
+        ? `🎉 Level Up! Ascended to Lv.${nextLvl}「${nextTitle}」! Claimed +${currentLevelQuest.coinReward} Coins!`
+        : `🎉 恭喜突破升等！成功晉升至 Lv.${nextLvl}「${nextTitle}」！領取 +${currentLevelQuest.coinReward} 金幣突破獎勵！`
+    );
+    setTimeout(() => setLevelUpToast(null), 6000);
+  }, [currentLevelQuest, playerLevel, playerXp, pickaxeState, selectedLayerId, achievements, stats, coins, hasAutoMiner, isEn]);
 
   // Haste buff countdown
   useEffect(() => {
@@ -948,6 +1048,10 @@ export default function App() {
       [minedBlock.id]: (prev[minedBlock.id] || 0) + amount
     }));
 
+    // Award XP based on block category and hardness
+    const earnedXp = calculateBlockXp(minedBlock.category, minedBlock.hardness) * amount;
+    setPlayerXp(prev => prev + earnedXp);
+
     if (layerId) {
       setLayerMinedCounts(prev => {
         const current = prev[layerId] || 0;
@@ -1057,6 +1161,7 @@ export default function App() {
   // Monster Defeat & Loot Handler
   const handleDefeatMonster = useCallback((monster: MonsterData, coinReward: number) => {
     setCoins(prev => prev + coinReward);
+    setPlayerXp(prev => prev + 35);
     setStats(prev => ({
       ...prev,
       totalCoinsEarned: prev.totalCoinsEarned + coinReward
@@ -1088,6 +1193,7 @@ export default function App() {
       return updated;
     });
 
+    setPlayerXp(prev => prev + 3);
     setStats(prev => ({
       ...prev,
       totalBlocksPlaced: prev.totalBlocksPlaced + 1
@@ -1211,6 +1317,7 @@ export default function App() {
     }));
 
     setCoins(prev => prev + earned);
+    setPlayerXp(prev => prev + Math.max(1, Math.floor(earned / 20)));
 
     setStats(prev => ({
       ...prev,
@@ -1252,6 +1359,7 @@ export default function App() {
 
     setInventory(newInv);
     setCoins(prev => prev + finalEarned);
+    setPlayerXp(prev => prev + Math.max(1, Math.floor(finalEarned / 20)));
     setStats(prev => ({
       ...prev,
       totalCoinsEarned: prev.totalCoinsEarned + finalEarned,
@@ -1604,6 +1712,8 @@ export default function App() {
     setHasteRemainingSeconds(0);
     setFriends([]);
     setFriendRewardClaimed(false);
+    setPlayerLevel(0);
+    setPlayerXp(0);
 
     // 9. Clear all game localStorage keys
     const keysToRemove = [
@@ -1622,7 +1732,9 @@ export default function App() {
       `${STORAGE_KEY}_stats`,
       `${STORAGE_KEY}_auto_miner`,
       `${STORAGE_KEY}_friend_reward_claimed`,
-      `${STORAGE_KEY}_friends`
+      `${STORAGE_KEY}_friends`,
+      `${STORAGE_KEY}_player_level`,
+      `${STORAGE_KEY}_player_xp`
     ];
     keysToRemove.forEach(k => {
       try {
@@ -1652,7 +1764,7 @@ export default function App() {
       username: `Player_${code.slice(0, 4)}`,
       isOnline: Math.random() < 0.8,
       addedAt: Date.now(),
-      level: Math.floor(Math.random() * 20) + 1
+      level: 0
     };
 
     setFriends(prev => [...prev, newFriend]);
@@ -1670,6 +1782,7 @@ export default function App() {
       if (!ach || !ach.unlocked || ach.rewardClaimed || ach.coinReward <= 0) return prev;
 
       setCoins(c => c + ach.coinReward);
+      setPlayerXp(xp => xp + 50);
       return prev.map(a => (a.id === achId ? { ...a, rewardClaimed: true } : a));
     });
   }, []);
@@ -1689,6 +1802,7 @@ export default function App() {
 
     if (total > 0) {
       setCoins(c => c + total);
+      setPlayerXp(xp => xp + Math.round(total * 0.5));
     }
   }, []);
 
@@ -1896,6 +2010,36 @@ export default function App() {
               )}
             </button>
 
+            {/* Player Level & Promotion Quests Badge */}
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                setIsLevelModalOpen(true);
+              }}
+              title={isEn ? `Player Level ${playerLevel} (${playerXp} XP) - Click to view promotion quests` : `玩家真實等級 Lv.${playerLevel} (${playerXp} XP) - 點擊查看晉升特殊任務`}
+              className="relative px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-emerald-950 via-zinc-900 to-emerald-950 hover:from-emerald-900 hover:to-zinc-800 text-emerald-200 font-black text-xs rounded-lg border-2 border-emerald-500 shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#34d399] active:scale-95 flex items-center gap-1.5 transition-all cursor-pointer font-minecraft"
+            >
+              <Trophy className="w-3.5 h-3.5 text-amber-300" />
+              <div className="flex flex-col items-start leading-tight">
+                <div className="flex items-center gap-1 text-[11px]">
+                  <span className="text-emerald-400 font-mono font-bold">Lv.{playerLevel}</span>
+                  <span className="hidden md:inline text-zinc-300 font-normal">
+                    {getLevelTitle(playerLevel, isEn)}
+                  </span>
+                </div>
+                {/* XP mini bar */}
+                <div className="w-12 sm:w-16 h-1 bg-zinc-950 border border-black rounded-xs overflow-hidden mt-0.5">
+                  <div
+                    className="h-full bg-emerald-400 transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.round((playerXp / currentLevelQuest.requiredXp) * 100))}%` }}
+                  />
+                </div>
+              </div>
+              {canLevelUp && (
+                <span className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-emerald-400 rounded-full animate-ping" />
+              )}
+            </button>
+
             {/* Account / User Menu or Login/Register Button */}
             {currentUser ? (
               <div className="relative">
@@ -1936,11 +2080,31 @@ export default function App() {
                           <span className="text-amber-300">#{myFriendCode}</span>
                           <span className="text-emerald-400">• {isEn ? 'Online' : '已連線'}</span>
                         </div>
+                        <div className="text-[10px] text-emerald-300 font-bold font-mono mt-0.5 flex items-center justify-between">
+                          <span>Lv.{playerLevel} {getLevelTitle(playerLevel, isEn)}</span>
+                          <span className="text-zinc-400 font-normal">{playerXp}/{currentLevelQuest.requiredXp} XP</span>
+                        </div>
                       </div>
                     </div>
 
                     {/* Menu items */}
                     <div className="p-1.5 space-y-1">
+                      {/* 等級與晉升任務 */}
+                      <button
+                        onClick={() => {
+                          sound.playClickSound();
+                          setIsUserMenuOpen(false);
+                          setIsLevelModalOpen(true);
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs font-bold text-emerald-300 hover:text-white hover:bg-emerald-950/60 rounded flex items-center justify-between transition-colors cursor-pointer border border-emerald-500/30"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Trophy className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <span>{isEn ? 'Level & Quests' : '等級與晉升任務'}</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-emerald-400">Lv.{playerLevel}</span>
+                      </button>
+
                       {/* 變更名稱 */}
                       <button
                         onClick={() => {
@@ -2292,6 +2456,22 @@ export default function App() {
         </div>
       )}
 
+      {/* POPUP: Level Up Toast Notification */}
+      {levelUpToast && (
+        <div className="fixed top-20 right-5 z-50 p-4 bg-zinc-950 border-4 border-emerald-400 rounded-lg shadow-[inset_-3px_-3px_0_#064e3b,inset_3px_3px_0_#34d399,0_10px_25px_rgba(0,0,0,0.9)] max-w-sm flex items-center gap-3 animate-slide-in font-minecraft">
+          <div className="text-3xl p-2 bg-emerald-500/20 border-2 border-emerald-400 rounded shrink-0">
+            👑
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider font-mono text-emerald-300 font-bold flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              {isEn ? 'Level Up Promotion!' : '等級晉升突破！'}
+            </div>
+            <div className="font-black text-amber-300 text-xs mt-0.5">{levelUpToast}</div>
+          </div>
+        </div>
+      )}
+
       {/* MAIN GAME MENU MODAL */}
       <GameMenuModal
         isOpen={isMenuOpen}
@@ -2308,6 +2488,8 @@ export default function App() {
         onOpenChangelog={() => setIsChangelogOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenFestivals={() => setIsFestivalsOpen(true)}
+        onOpenLevel={() => setIsLevelModalOpen(true)}
+        playerLevel={playerLevel}
         currentUser={currentUser}
         soundEnabled={soundEnabled}
         onToggleSound={() => {
@@ -2454,6 +2636,9 @@ export default function App() {
         onClaimFriendReward={handleClaimFriendReward}
         onAddFriendByCode={handleAddFriendByCode}
         onRemoveFriend={handleRemoveFriend}
+        playerLevel={playerLevel}
+        playerXp={playerXp}
+        onOpenLevelModal={() => setIsLevelModalOpen(true)}
       />
 
       {/* ACHIEVEMENTS MODAL */}
@@ -2491,6 +2676,21 @@ export default function App() {
           doubleCoinsSeconds,
           extremeHasteSeconds
         }}
+      />
+
+      {/* PLAYER LEVEL & PROMOTION QUESTS MODAL */}
+      <LevelModal
+        isOpen={isLevelModalOpen}
+        onClose={() => setIsLevelModalOpen(false)}
+        playerLevel={playerLevel}
+        playerXp={playerXp}
+        onLevelUp={handleLevelUp}
+        stats={stats}
+        coins={coins}
+        pickaxeState={pickaxeState}
+        selectedLayerId={selectedLayerId}
+        hasAutoMiner={hasAutoMiner}
+        achievementsCount={achievements.filter(a => a.unlocked).length}
       />
     </div>
   );
