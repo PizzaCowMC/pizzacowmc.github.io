@@ -50,6 +50,67 @@ export interface PickaxeTier {
   desc: string;
 }
 
+export type ToolType = 'pickaxe' | 'axe' | 'shovel' | 'sword';
+
+export interface AxeTier {
+  id: string;
+  nameZh: string;
+  nameEn: string;
+  tier: number;
+  cost: number;
+  speedMultiplier: number; // For chopping wood/logs
+  attackDamage: number;
+  maxDurability: number;
+  color: string;
+  bgGradient: string;
+  desc: string;
+}
+
+export interface ShovelTier {
+  id: string;
+  nameZh: string;
+  nameEn: string;
+  tier: number;
+  cost: number;
+  speedMultiplier: number; // For digging dirt/sand/gravel
+  maxDurability: number;
+  color: string;
+  bgGradient: string;
+  desc: string;
+}
+
+export interface SwordTier {
+  id: string;
+  nameZh: string;
+  nameEn: string;
+  tier: number;
+  cost: number;
+  attackDamage: number;
+  critChance: number; // e.g. 0.15 = 15%
+  maxDurability: number;
+  color: string;
+  bgGradient: string;
+  desc: string;
+}
+
+export interface MonsterData {
+  id: string;
+  nameZh: string;
+  nameEn: string;
+  iconEmoji: string;
+  maxHp: number;
+  currentHp: number;
+  coinReward: number;
+  dropItemId?: string;
+  dropItemNameZh?: string;
+  dropItemNameEn?: string;
+  dropAmount?: number;
+  descZh: string;
+  descEn: string;
+  bgGradient: string;
+  rarity: 'common' | 'rare' | 'elite' | 'boss';
+}
+
 export interface PickaxeState {
   currentTierId: string;
   currentDurability: number;
@@ -57,7 +118,6 @@ export interface PickaxeState {
   unbreakingLevel: number; // durability loss reduction
   fortuneLevel: number; // bonus yield chance
   isBroken: boolean;
-  durabilities?: Record<string, number>;
 }
 
 export interface ThemeBackground {
@@ -113,11 +173,8 @@ export interface PlayerSkin {
   desc: string;
 }
 
-export type AchievementCategory = 'mining' | 'economy' | 'equipment' | 'building' | 'social' | 'collection' | 'combat';
+export type AchievementCategory = 'mining' | 'economy' | 'equipment' | 'building' | 'social' | 'collection';
 
-// Legacy shape kept for one-off (non-procedural) achievements defined directly
-// in code (e.g. "repair your pickaxe for the first time"). The 100,000
-// procedural achievements are NOT stored this way — see achievementEngine.ts.
 export interface Achievement {
   id: string;
   category: AchievementCategory;
@@ -131,23 +188,12 @@ export interface Achievement {
   rewardClaimed: boolean;
 }
 
-// A friend request/relationship must reference a REAL registered account
-// (Firebase Auth uid), not a locally-fabricated fake player.
 export interface Friend {
-  uid: string;
   code: string;
   username: string;
   isOnline: boolean;
   addedAt: number;
   level?: number;
-}
-
-export interface FriendRequest {
-  fromUid: string;
-  fromCode: string;
-  fromUsername: string;
-  toUid: string;
-  createdAt: number;
 }
 
 export interface GameStats {
@@ -161,31 +207,4 @@ export interface GameStats {
   upgradesPurchased: number;
   themesUnlocked: number;
   friendsCount: number;
-  blocksSoldDuringInflation?: number;
-  // Combat / Training Grounds
-  totalMonstersKilled: number;
-  totalCombatDamageDealt: number;
-  totalCombatCoinsEarned: number;
-}
-
-// ------------------------------------------------------------------
-// Training Grounds (Combat minigame)
-// ------------------------------------------------------------------
-export interface MonsterTemplate {
-  id: string;
-  nameZh: string;
-  nameEn: string;
-  icon: string;
-  maxHealth: number;
-  damagePerHit: number; // damage the player takes if they get hit back (passive tick)
-  coinDrop: number; // base coin value before the 0.001 scaling
-  xpTier: number; // difficulty tier, used for spawn weighting
-}
-
-export interface ActiveMonster {
-  instanceId: string;
-  templateId: string;
-  currentHealth: number;
-  maxHealth: number;
-  spawnedAt: number;
 }

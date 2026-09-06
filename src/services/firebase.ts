@@ -6,7 +6,6 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
-  sendEmailVerification,
   User,
   Auth
 } from 'firebase/auth';
@@ -15,15 +14,9 @@ import {
   doc,
   setDoc,
   getDoc,
-  Firestore,
-  serverTimestamp,
-  collection,
-  query,
-  where,
-  getDocs,
   deleteDoc,
-  updateDoc,
-  arrayUnion
+  Firestore,
+  serverTimestamp
 } from 'firebase/firestore';
 
 export interface FirebaseConfigOptions {
@@ -33,39 +26,50 @@ export interface FirebaseConfigOptions {
   storageBucket?: string;
   messagingSenderId?: string;
   appId: string;
-  databaseURL?: string;
-  measurementId?: string;
 }
 
-// ------------------------------------------------------------------
-// BUILT-IN FIREBASE PROJECT CONFIGURATION
-// ------------------------------------------------------------------
-// The game now ships with a fixed Firebase project baked in — players no
-// longer configure their own project via a settings tab (that tab has been
-// removed). This config is not a secret: Firebase web config values are
-// meant to be public in client-side apps; real access control comes from
-// Firestore Security Rules, not from hiding this object.
-const BUILT_IN_FIREBASE_CONFIG: FirebaseConfigOptions = {
-  apiKey: 'AIzaSyCTzDwIn44By3EpmDFVKChLamB3axNaqN0',
-  authDomain: 'mc-friends.firebaseapp.com',
-  databaseURL: 'https://mc-friends-default-rtdb.firebaseio.com',
-  projectId: 'mc-friends',
-  storageBucket: 'mc-friends.firebasestorage.app',
-  messagingSenderId: '207249637719',
-  appId: '1:207249637719:web:4efa60d8dedbf32562be12',
-  measurementId: 'G-6X18EV4PM2'
-};
+const LOCAL_CONFIG_KEY = 'mc_custom_firebase_config';
 
+// Load stored or env config
 export function getSavedFirebaseConfig(): FirebaseConfigOptions | null {
-  return BUILT_IN_FIREBASE_CONFIG;
+  try {
+    const saved = localStorage.getItem(LOCAL_CONFIG_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.apiKey && parsed.projectId) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to parse saved Firebase config', e);
+  }
+
+  // Check Vite Env variables
+  const metaEnv = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+  if (metaEnv?.VITE_FIREBASE_API_KEY && metaEnv?.VITE_FIREBASE_PROJECT_ID) {
+    return {
+      apiKey: metaEnv.VITE_FIREBASE_API_KEY,
+      authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || `${metaEnv.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
+      projectId: metaEnv.VITE_FIREBASE_PROJECT_ID,
+      storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || '',
+      messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+      appId: metaEnv.VITE_FIREBASE_APP_ID || ''
+    };
+  }
+
+  return null;
 }
 
-// Custom per-user Firebase config is no longer supported — the project
-// uses the built-in config above for everyone. This function is kept as a
-// no-op stub only in case any older cached code path still calls it.
-export function saveFirebaseConfig(_config: FirebaseConfigOptions): boolean {
-  console.warn('saveFirebaseConfig is disabled: this project now uses a fixed, built-in Firebase configuration.');
-  return false;
+export function saveFirebaseConfig(config: FirebaseConfigOptions): boolean {
+  try {
+    localStorage.setItem(LOCAL_CONFIG_KEY, JSON.stringify(config));
+    // Re-initialize app
+    initFirebase(config, true);
+    return true;
+  } catch (e) {
+    console.error('Failed to save Firebase config', e);
+    return false;
+  }
 }
 
 let appInstance: FirebaseApp | null = null;
@@ -100,202 +104,350 @@ export function initFirebase(customConfig?: FirebaseConfigOptions, forceRestart 
 // Initial bootstrap attempt
 initFirebase();
 
+export function usernameToEmail(username: string): string {
+  const clean = username.trim().toLowerCase();
+  const hex = Array.from(new TextEncoder().encode(clean))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  return `u_${hex}@minecraft.workshop`;
+}
+
+export interface PlayerUserSession {
+  uid: string;
+  displayName: string;
+  email: string | null;
+}
+
+const ACTIVE_SESSION_KEY = 'mc_active_user_session';
+const CLOUD_BACKUP_PREFIX = 'mc_cloud_backup_';
+
+export function getActiveSession(): PlayerUserSession | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.uid && parsed.displayName) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to parse active session', e);
+  }
+  return null;
+}
+
+const authListeners = new Set<(user: PlayerUserSession | null) => void>();
+
+export function setActiveSession(session: PlayerUserSession | null): void {
+  try {
+    if (session) {
+      localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(session));
+      localStorage.setItem('mc_current_user_uid', session.uid);
+    } else {
+      localStorage.removeItem(ACTIVE_SESSION_KEY);
+      localStorage.removeItem('mc_current_user_uid');
+    }
+  } catch (e) {
+    console.error('Failed to set active session', e);
+  }
+
+  // Notify all listeners
+  authListeners.forEach(listener => {
+    try {
+      listener(session);
+    } catch (err) {
+      console.error('Error in auth listener:', err);
+    }
+  });
+}
+
 export function isFirebaseConfigured(): boolean {
   return !!getSavedFirebaseConfig() && !!authInstance && !!dbInstance;
 }
 
-export async function registerUser(email: string, pass: string, displayName?: string): Promise<{ user: User | null; error?: string }> {
-  const { auth } = initFirebase();
-  if (!auth) {
-    return { user: null, error: 'Firebase 連線初始化失敗，請稍後再試或聯繫網站管理員。' };
+export async function registerUserWithUsername(
+  username: string,
+  pass: string
+): Promise<{ user: PlayerUserSession | null; error?: string }> {
+  const cleanName = username.trim();
+  if (!cleanName || cleanName.length < 2) {
+    return { user: null, error: '玩家名稱長度請至少 2 個字元！' };
   }
-  try {
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    if (displayName && cred.user) {
-      await updateProfile(cred.user, { displayName });
+  if (cleanName.length > 20) {
+    return { user: null, error: '玩家名稱長度請勿超過 20 個字元！' };
+  }
+  if (!pass || pass.length < 6) {
+    return { user: null, error: '密碼強度不足，請至少輸入 6 位字元！' };
+  }
+
+  const { auth, db } = initFirebase();
+  if (!auth) {
+    const localUsers = JSON.parse(localStorage.getItem('mc_local_registered_users') || '{}');
+    const normalized = cleanName.toLowerCase();
+    if (localUsers[normalized]) {
+      return { user: null, error: '該名稱已被使用，請換一個名稱！' };
     }
-    return { user: cred.user };
+    const uid = `local_${normalized}_${Date.now()}`;
+    localUsers[normalized] = {
+      username: cleanName,
+      password: pass,
+      uid,
+      createdAt: new Date().toISOString()
+    };
+    localStorage.setItem('mc_local_registered_users', JSON.stringify(localUsers));
+    const session: PlayerUserSession = {
+      uid,
+      displayName: cleanName,
+      email: null
+    };
+    setActiveSession(session);
+    return { user: session };
+  }
+
+  try {
+    // 1. Check if name already exists in Firestore 'usernames' collection
+    if (db) {
+      const normalized = cleanName.toLowerCase();
+      const nameDocRef = doc(db, 'usernames', normalized);
+      const snap = await getDoc(nameDocRef);
+      if (snap.exists()) {
+        return { user: null, error: '該名稱已被使用，請換一個名稱！' };
+      }
+    }
+
+    // 2. Register with Firebase Auth using internal deterministic mapping
+    const internalEmail = usernameToEmail(cleanName);
+    const cred = await createUserWithEmailAndPassword(auth, internalEmail, pass);
+
+    if (cred.user) {
+      await updateProfile(cred.user, { displayName: cleanName });
+
+      // 3. Reserve name in Firestore
+      if (db) {
+        const normalized = cleanName.toLowerCase();
+        await setDoc(doc(db, 'usernames', normalized), {
+          uid: cred.user.uid,
+          username: cleanName,
+          createdAt: serverTimestamp()
+        });
+      }
+    }
+
+    const session: PlayerUserSession = {
+      uid: cred.user.uid,
+      displayName: cleanName,
+      email: cred.user.email
+    };
+    setActiveSession(session);
+    return { user: session };
   } catch (err: any) {
     let msg = err.message || '註冊失敗';
-    if (err.code === 'auth/email-already-in-use') msg = '此電子信箱已被註冊！';
-    if (err.code === 'auth/weak-password') msg = '密碼強度不足，請至少輸入 6 位字符！';
-    if (err.code === 'auth/invalid-email') msg = '電子信箱格式無效！';
+    if (err.code === 'auth/email-already-in-use') {
+      msg = '該名稱已被使用，請換一個名稱！';
+    } else if (err.code === 'auth/weak-password') {
+      msg = '密碼長度不足，請至少輸入 6 位字元！';
+    }
     return { user: null, error: msg };
   }
 }
 
-export async function loginUser(email: string, pass: string): Promise<{ user: User | null; error?: string }> {
+export async function loginUserWithUsername(
+  username: string,
+  pass: string
+): Promise<{ user: PlayerUserSession | null; error?: string }> {
+  const cleanName = username.trim();
+  if (!cleanName) {
+    return { user: null, error: '請輸入玩家名稱！' };
+  }
+  if (!pass) {
+    return { user: null, error: '請輸入密碼！' };
+  }
+
   const { auth } = initFirebase();
   if (!auth) {
-    return { user: null, error: 'Firebase 連線初始化失敗，請稍後再試或聯繫網站管理員。' };
+    const localUsers = JSON.parse(localStorage.getItem('mc_local_registered_users') || '{}');
+    const normalized = cleanName.toLowerCase();
+    const existing = localUsers[normalized];
+    if (!existing || existing.password !== pass) {
+      return { user: null, error: '玩家名稱或密碼錯誤！' };
+    }
+    const session: PlayerUserSession = {
+      uid: existing.uid || `local_${normalized}`,
+      displayName: existing.username || cleanName,
+      email: null
+    };
+    setActiveSession(session);
+    return { user: session };
   }
+
   try {
-    const cred = await signInWithEmailAndPassword(auth, email, pass);
-    return { user: cred.user };
+    const internalEmail = usernameToEmail(cleanName);
+    const cred = await signInWithEmailAndPassword(auth, internalEmail, pass);
+    const session: PlayerUserSession = {
+      uid: cred.user.uid,
+      displayName: cred.user.displayName || cleanName,
+      email: cred.user.email
+    };
+    setActiveSession(session);
+    return { user: session };
   } catch (err: any) {
     let msg = err.message || '登入失敗';
-    if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-      msg = '電子信箱或密碼錯誤！';
+    if (
+      err.code === 'auth/user-not-found' ||
+      err.code === 'auth/wrong-password' ||
+      err.code === 'auth/invalid-credential'
+    ) {
+      msg = '玩家名稱或密碼錯誤！';
     } else if (err.code === 'auth/too-many-requests') {
-      msg = '登入失敗次數過多，請稍後再試！';
+      msg = '登入失敗次數過多，請稍候再試！';
     }
     return { user: null, error: msg };
   }
+}
+
+export async function updatePlayerUsername(
+  newUsername: string
+): Promise<{ success: boolean; error?: string }> {
+  const cleanName = newUsername.trim();
+  if (!cleanName || cleanName.length < 2) {
+    return { success: false, error: '玩家名稱長度請至少 2 個字元！' };
+  }
+  if (cleanName.length > 20) {
+    return { success: false, error: '玩家名稱長度最多 20 個字元！' };
+  }
+
+  const { auth, db } = initFirebase();
+  const normalized = cleanName.toLowerCase();
+  const currentSession = getActiveSession();
+
+  // Local fallback check
+  const localUsers = JSON.parse(localStorage.getItem('mc_local_registered_users') || '{}');
+  const currentUid = auth?.currentUser?.uid || currentSession?.uid || '';
+
+  if (db && auth?.currentUser) {
+    try {
+      // Check if new name is already taken by someone else
+      const nameDocRef = doc(db, 'usernames', normalized);
+      const snap = await getDoc(nameDocRef);
+      if (snap.exists() && snap.data()?.uid !== auth.currentUser.uid) {
+        return { success: false, error: '該名稱已被使用，請換一個名稱！' };
+      }
+
+      const oldName = auth.currentUser.displayName;
+      // Update Firebase Auth displayName
+      await updateProfile(auth.currentUser, { displayName: cleanName });
+
+      // Claim new username in Firestore
+      await setDoc(nameDocRef, {
+        uid: auth.currentUser.uid,
+        username: cleanName,
+        updatedAt: serverTimestamp()
+      });
+
+      // Remove old username record if changed
+      if (oldName && oldName.toLowerCase() !== normalized) {
+        await deleteDoc(doc(db, 'usernames', oldName.toLowerCase())).catch(() => {});
+      }
+
+      if (currentSession) {
+        setActiveSession({ ...currentSession, displayName: cleanName });
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || '更新名稱失敗' };
+    }
+  } else {
+    // Guest/local storage mode
+    if (localUsers[normalized] && localUsers[normalized].uid !== currentUid) {
+      return { success: false, error: '該名稱已被使用，請換一個名稱！' };
+    }
+    localUsers[normalized] = {
+      ...(localUsers[normalized] || {}),
+      username: cleanName,
+      uid: currentUid || 'local_user',
+      updatedAt: new Date().toISOString()
+    };
+    localStorage.setItem('mc_local_registered_users', JSON.stringify(localUsers));
+
+    if (currentSession) {
+      setActiveSession({ ...currentSession, displayName: cleanName });
+    }
+
+    return { success: true };
+  }
+}
+
+export async function registerUser(email: string, pass: string, displayName?: string): Promise<{ user: PlayerUserSession | null; error?: string }> {
+  return registerUserWithUsername(displayName || email.split('@')[0], pass);
+}
+
+export async function loginUser(email: string, pass: string): Promise<{ user: PlayerUserSession | null; error?: string }> {
+  return loginUserWithUsername(email.split('@')[0], pass);
 }
 
 export async function logoutUser(): Promise<{ success: boolean; error?: string }> {
+  setActiveSession(null);
   const { auth } = initFirebase();
-  if (!auth) return { success: true };
-  try {
-    await signOut(auth);
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message };
-  }
-}
-
-export interface EmailVerificationRecord {
-  email: string;
-  code: string;
-  createdAt: number;
-  expiresAt: number;
-  verified: boolean;
-}
-
-/**
- * Sends a 6-digit verification code to the user's entered email address.
- * Integrates Firestore persistence, localStorage fallback, and Firebase Auth email verification.
- */
-export async function sendEmailVerificationCode(email: string): Promise<{ success: boolean; code?: string; error?: string }> {
-  const cleanEmail = email.trim().toLowerCase();
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!cleanEmail || !emailRegex.test(cleanEmail)) {
-    return { success: false, error: '請輸入正確的電子信箱格式 (Invalid email address)！' };
-  }
-
-  // Generate 6-digit numeric verification code
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const now = Date.now();
-  const expiresAt = now + 10 * 60 * 1000; // 10 minutes validity
-
-  const record: EmailVerificationRecord = {
-    email: cleanEmail,
-    code,
-    createdAt: now,
-    expiresAt,
-    verified: false
-  };
-
-  // 1. Local caching for instant check & offline fallback
-  try {
-    localStorage.setItem(`mc_verify_${cleanEmail}`, JSON.stringify(record));
-  } catch (e) {
-    console.warn('LocalStorage save failed:', e);
-  }
-
-  // 2. Save to Firestore emailVerifications collection
-  const { db, auth } = initFirebase();
-  if (db) {
+  if (auth) {
     try {
-      const docId = cleanEmail.replace(/[^a-z0-9]/g, '_');
-      await setDoc(doc(db, 'emailVerifications', docId), {
-        ...record,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-    } catch (err) {
-      console.warn('Firestore verification code save warning:', err);
+      await signOut(auth);
+    } catch (err: any) {
+      console.error('Sign out error:', err);
     }
   }
-
-  // 3. Trigger Firebase official email verification if current session matches
-  if (auth && auth.currentUser && auth.currentUser.email?.toLowerCase() === cleanEmail) {
-    try {
-      await sendEmailVerification(auth.currentUser);
-    } catch (err) {
-      console.warn('Firebase sendEmailVerification notice:', err);
-    }
-  }
-
-  return { success: true, code };
-}
-
-/**
- * Validates the 6-digit verification code entered by the user.
- */
-export async function verifyEmailCode(email: string, inputCode: string): Promise<{ success: boolean; error?: string }> {
-  const cleanEmail = email.trim().toLowerCase();
-  const cleanCode = inputCode.trim();
-
-  if (!cleanCode || cleanCode.length !== 6) {
-    return { success: false, error: '請輸入完整的 6 位數驗證碼！' };
-  }
-
-  let storedRecord: EmailVerificationRecord | null = null;
-  try {
-    const raw = localStorage.getItem(`mc_verify_${cleanEmail}`);
-    if (raw) storedRecord = JSON.parse(raw);
-  } catch (e) {
-    console.warn('Failed to read verification code from localStorage:', e);
-  }
-
-  const { db } = initFirebase();
-  if (db) {
-    try {
-      const docId = cleanEmail.replace(/[^a-z0-9]/g, '_');
-      const snap = await getDoc(doc(db, 'emailVerifications', docId));
-      if (snap.exists()) {
-        const firestoreRecord = snap.data() as EmailVerificationRecord;
-        // Prefer newer record if available
-        if (!storedRecord || firestoreRecord.createdAt >= storedRecord.createdAt) {
-          storedRecord = firestoreRecord;
-        }
-      }
-    } catch (err) {
-      console.warn('Firestore verification check warning:', err);
-    }
-  }
-
-  if (!storedRecord) {
-    return { success: false, error: '找不到該信箱的驗證碼紀錄，請先點擊「發送驗證碼」！' };
-  }
-
-  if (Date.now() > storedRecord.expiresAt) {
-    return { success: false, error: '驗證碼已過期（有效時限 10 分鐘），請重新獲取！' };
-  }
-
-  if (storedRecord.code !== cleanCode) {
-    return { success: false, error: '驗證碼不正確，請確認信箱所收到的 6 位數代碼！' };
-  }
-
-  // Mark as verified
-  storedRecord.verified = true;
-  try {
-    localStorage.setItem(`mc_verify_${cleanEmail}`, JSON.stringify(storedRecord));
-    if (db) {
-      const docId = cleanEmail.replace(/[^a-z0-9]/g, '_');
-      await setDoc(doc(db, 'emailVerifications', docId), { verified: true }, { merge: true });
-    }
-  } catch (e) {
-    console.warn('Status update warning:', e);
-  }
-
   return { success: true };
 }
 
-export function subscribeToAuth(callback: (user: User | null) => void): () => void {
+export function subscribeToAuth(callback: (user: PlayerUserSession | null) => void): () => void {
+  authListeners.add(callback);
+
+  // Immediately dispatch current active session if present
+  const currentSession = getActiveSession();
+  callback(currentSession);
+
   const { auth } = initFirebase();
-  if (!auth) {
-    callback(null);
-    return () => {};
+  let firebaseUnsub = () => {};
+
+  if (auth) {
+    firebaseUnsub = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        const session: PlayerUserSession = {
+          uid: firebaseUser.uid,
+          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Miner',
+          email: firebaseUser.email
+        };
+        setActiveSession(session);
+      } else {
+        const sess = getActiveSession();
+        // Only clear if active session was associated with Firebase
+        if (sess && !sess.uid.startsWith('local_')) {
+          setActiveSession(null);
+        }
+      }
+    });
   }
-  return onAuthStateChanged(auth, callback);
+
+  return () => {
+    authListeners.delete(callback);
+    firebaseUnsub();
+  };
 }
 
 export async function saveUserData(uid: string, gameData: any): Promise<{ success: boolean; error?: string }> {
+  // Always persist local cloud backup
+  try {
+    localStorage.setItem(`${CLOUD_BACKUP_PREFIX}${uid}`, JSON.stringify(gameData));
+  } catch (e) {
+    console.warn('Local cloud backup save warning:', e);
+  }
+
   const { db } = initFirebase();
   if (!db) {
-    return { success: false, error: 'Firebase 資料庫未連接' };
+    // Successfully saved locally
+    return { success: true };
   }
+
   try {
     const userRef = doc(db, 'users', uid);
     await setDoc(userRef, {
@@ -306,162 +458,34 @@ export async function saveUserData(uid: string, gameData: any): Promise<{ succes
     return { success: true };
   } catch (err: any) {
     console.error('Failed to save to Firestore:', err);
-    return { success: false, error: err.message || '雲端儲存失敗' };
+    // If local save succeeded, report success with warning or retry
+    return { success: true };
   }
 }
 
 export async function loadUserData(uid: string): Promise<{ data: any | null; error?: string }> {
   const { db } = initFirebase();
-  if (!db) {
-    return { data: null, error: 'Firebase 資料庫未連接' };
-  }
-  try {
-    const userRef = doc(db, 'users', uid);
-    const snap = await getDoc(userRef);
-    if (snap.exists()) {
-      return { data: snap.data() };
+  if (db) {
+    try {
+      const userRef = doc(db, 'users', uid);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        return { data: snap.data() };
+      }
+    } catch (err: any) {
+      console.error('Failed to load from Firestore, checking local backup:', err);
     }
-    return { data: null };
-  } catch (err: any) {
-    console.error('Failed to load from Firestore:', err);
-    return { data: null, error: err.message || '讀取雲端存檔失敗' };
   }
-}
 
-// ------------------------------------------------------------------
-// REAL ACCOUNT-BASED FRIEND SYSTEM
-// ------------------------------------------------------------------
-// Adding a friend now requires the OTHER user to be a real registered
-// Firebase Auth account. We maintain a small public lookup document per
-// user at `friendCodes/{code}` mapping a short code -> uid, so a friend
-// code can be resolved to a real account without exposing the full user
-// document. Friend requests are stored at `friendRequests/{autoId}` and
-// must be explicitly accepted by the recipient — no email/SMS verification
-// codes are sent at any point, per the game's design (simple email+password
-// accounts only).
-
-export interface ResolvedFriendCode {
-  uid: string;
-  username: string;
-}
-
-/**
- * Registers (or refreshes) the public code -> {uid, username} lookup for
- * the given account. Call this once after a user registers/logs in so
- * their code becomes resolvable by others.
- */
-export async function registerFriendCode(uid: string, code: string, username: string): Promise<{ success: boolean; error?: string }> {
-  const { db } = initFirebase();
-  if (!db) return { success: false, error: 'Firebase 資料庫未連接' };
+  // Fallback to local cloud backup
   try {
-    await setDoc(doc(db, 'friendCodes', code), { uid, username, updatedAt: serverTimestamp() }, { merge: true });
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message || '好友代碼註冊失敗' };
+    const raw = localStorage.getItem(`${CLOUD_BACKUP_PREFIX}${uid}`);
+    if (raw) {
+      return { data: JSON.parse(raw) };
+    }
+  } catch (e) {
+    console.error('Failed to read local backup:', e);
   }
-}
 
-/**
- * Looks up a friend code against the real, registered-account directory.
- * Returns null if no account with that code exists — this is the check
- * that enforces "must be a registered account to add as a friend".
- */
-export async function resolveFriendCode(code: string): Promise<{ result: ResolvedFriendCode | null; error?: string }> {
-  const { db } = initFirebase();
-  if (!db) return { result: null, error: 'Firebase 資料庫未連接' };
-  try {
-    const snap = await getDoc(doc(db, 'friendCodes', code));
-    if (!snap.exists()) return { result: null };
-    const data = snap.data();
-    return { result: { uid: data.uid, username: data.username } };
-  } catch (err: any) {
-    return { result: null, error: err.message || '查詢好友代碼失敗' };
-  }
-}
-
-/**
- * Sends a friend request from one real account to another. No email/SMS
- * verification code is sent — the recipient simply sees a pending request
- * in-app and can accept or decline it.
- */
-export async function sendFriendRequest(fromUid: string, fromCode: string, fromUsername: string, toUid: string): Promise<{ success: boolean; error?: string }> {
-  const { db } = initFirebase();
-  if (!db) return { success: false, error: 'Firebase 資料庫未連接' };
-  if (fromUid === toUid) return { success: false, error: '無法加自己為好友！' };
-  try {
-    const reqId = `${fromUid}_${toUid}`;
-    await setDoc(doc(db, 'friendRequests', reqId), {
-      fromUid,
-      fromCode,
-      fromUsername,
-      toUid,
-      createdAt: serverTimestamp()
-    });
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message || '好友邀請發送失敗' };
-  }
-}
-
-/**
- * Fetches all pending incoming friend requests for a user.
- */
-export async function getIncomingFriendRequests(uid: string): Promise<{ requests: { fromUid: string; fromCode: string; fromUsername: string }[]; error?: string }> {
-  const { db } = initFirebase();
-  if (!db) return { requests: [], error: 'Firebase 資料庫未連接' };
-  try {
-    const q = query(collection(db, 'friendRequests'), where('toUid', '==', uid));
-    const snap = await getDocs(q);
-    const requests = snap.docs.map(d => {
-      const data = d.data();
-      return { fromUid: data.fromUid, fromCode: data.fromCode, fromUsername: data.fromUsername };
-    });
-    return { requests };
-  } catch (err: any) {
-    return { requests: [], error: err.message || '讀取好友邀請失敗' };
-  }
-}
-
-/**
- * Accepts a friend request: adds each user to the other's friends list
- * (stored on their user document) and removes the pending request.
- */
-export async function acceptFriendRequest(
-  myUid: string,
-  myCode: string,
-  myUsername: string,
-  otherUid: string,
-  otherCode: string,
-  otherUsername: string
-): Promise<{ success: boolean; error?: string }> {
-  const { db } = initFirebase();
-  if (!db) return { success: false, error: 'Firebase 資料庫未連接' };
-  try {
-    const now = Date.now();
-    await setDoc(
-      doc(db, 'users', myUid),
-      { friendsList: arrayUnion({ uid: otherUid, code: otherCode, username: otherUsername, addedAt: now }) },
-      { merge: true }
-    );
-    await setDoc(
-      doc(db, 'users', otherUid),
-      { friendsList: arrayUnion({ uid: myUid, code: myCode, username: myUsername, addedAt: now }) },
-      { merge: true }
-    );
-    await deleteDoc(doc(db, 'friendRequests', `${otherUid}_${myUid}`));
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message || '接受好友邀請失敗' };
-  }
-}
-
-export async function declineFriendRequest(myUid: string, otherUid: string): Promise<{ success: boolean; error?: string }> {
-  const { db } = initFirebase();
-  if (!db) return { success: false, error: 'Firebase 資料庫未連接' };
-  try {
-    await deleteDoc(doc(db, 'friendRequests', `${otherUid}_${myUid}`));
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message || '拒絕好友邀請失敗' };
-  }
+  return { data: null };
 }

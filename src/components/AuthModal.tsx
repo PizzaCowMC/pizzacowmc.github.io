@@ -1,39 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Cloud,
   CloudUpload,
   CloudDownload,
+  Settings,
   X,
   Check,
   AlertCircle,
   ShieldCheck,
   Sparkles,
+  KeyRound,
   LogIn,
   UserPlus,
   LogOut,
-  Mail,
-  KeyRound,
-  CheckCircle2
+  User as UserIcon
 } from 'lucide-react';
 import { sound } from '../utils/soundEffects';
 import {
-  registerUser,
-  loginUser,
+  registerUserWithUsername,
+  loginUserWithUsername,
   logoutUser,
-  sendEmailVerificationCode,
-  verifyEmailCode
+  saveFirebaseConfig,
+  getSavedFirebaseConfig,
+  FirebaseConfigOptions
 } from '../services/firebase';
 import { useLanguage } from '../utils/i18n';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentUser: { email: string | null; displayName: string | null; uid: string | null } | null;
+  currentUser: { displayName: string | null; uid: string | null; email?: string | null } | null;
   onCloudSave: () => Promise<{ success: boolean; error?: string }>;
   onCloudLoad: () => Promise<{ success: boolean; error?: string }>;
   lastSavedTime: string | null;
   onUserLoggedOut: () => void;
-  onUserLoggedIn: () => void;
+  onUserLoggedIn: (user?: { displayName: string | null; uid: string; email?: string | null }) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -47,31 +48,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onUserLoggedIn
 }) => {
   const { language, t } = useLanguage();
-  // Firebase project config is now fixed/built-in — the "config" tab has
-  // been removed, so this only ever needs to distinguish login/register/cloud.
-  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'cloud'>('login');
-  const [email, setEmail] = useState('');
+  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'cloud' | 'config'>('login');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [isSendingCode, setIsSendingCode] = useState(false);
-  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
-  const [codeSent, setCodeSent] = useState(false);
-  const [codeCooldown, setCodeCooldown] = useState(0);
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
-  const [lastDispatchedCode, setLastDispatchedCode] = useState<string | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   const isEn = language === 'en';
 
-  useEffect(() => {
-    if (codeCooldown <= 0) return;
-    const timer = setInterval(() => {
-      setCodeCooldown(prev => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [codeCooldown]);
+  // Config State
+  const initialConfig = getSavedFirebaseConfig() || {
+    apiKey: '',
+    authDomain: '',
+    projectId: '',
+    storageBucket: '',
+    messagingSenderId: '',
+    appId: ''
+  };
+  const [configForm, setConfigForm] = useState<FirebaseConfigOptions>(initialConfig);
+  const [rawConfigJson, setRawConfigJson] = useState('');
 
   if (!isOpen) return null;
 
@@ -82,80 +78,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }, 4000);
   };
 
-  const handleSendVerificationCode = async () => {
-    if (!email) {
-      showMsg(isEn ? 'Please enter your email address first!' : '請先輸入電子信箱！', 'error');
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      showMsg(isEn ? 'Invalid email address format!' : '電子信箱格式無效！', 'error');
-      return;
-    }
-    setIsSendingCode(true);
-    sound.playClickSound();
-    const res = await sendEmailVerificationCode(email);
-    setIsSendingCode(false);
-
-    if (res.success) {
-      setCodeSent(true);
-      setCodeCooldown(60);
-      setIsEmailVerified(false);
-      if (res.code) {
-        setLastDispatchedCode(res.code);
-      }
-      sound.playAchievementSound();
-      showMsg(
-        isEn
-          ? `📨 6-digit verification code has been dispatched to ${email}! Please check your inbox.`
-          : `📨 6 位數驗證碼已傳送至用戶輸入的信箱「${email}」！請查收收件匣。`,
-        'success'
-      );
-    } else {
-      sound.playHitSound(2);
-      showMsg(res.error || (isEn ? 'Failed to send verification code.' : '驗證碼發送失敗。'), 'error');
-    }
-  };
-
-  const handleVerifyCode = async () => {
-    if (!verificationCode || verificationCode.trim().length !== 6) {
-      showMsg(isEn ? 'Please enter the full 6-digit verification code!' : '請輸入完整的 6 位數驗證碼！', 'error');
-      return;
-    }
-    setIsVerifyingCode(true);
-    sound.playClickSound();
-    const res = await verifyEmailCode(email, verificationCode);
-    setIsVerifyingCode(false);
-
-    if (res.success) {
-      setIsEmailVerified(true);
-      sound.playAchievementSound();
-      showMsg(isEn ? '✅ Email verified successfully!' : '✅ 電子信箱驗證成功！', 'success');
-    } else {
-      sound.playHitSound(2);
-      showMsg(res.error || (isEn ? 'Invalid verification code.' : '驗證碼不正確或已過期。'), 'error');
-    }
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      showMsg(isEn ? 'Please enter your email and password!' : '請輸入電子信箱與密碼！', 'error');
+    const cleanName = username.trim();
+    if (!cleanName || !password) {
+      showMsg(isEn ? 'Please enter your username and password!' : '請輸入玩家名稱與密碼！', 'error');
       return;
     }
     setLoading(true);
     sound.playClickSound();
-    const res = await loginUser(email, password);
+    const res = await loginUserWithUsername(cleanName, password);
     setLoading(false);
     if (res.user) {
       sound.playAchievementSound();
       showMsg(
         isEn
-          ? `✅ Logged in successfully! Welcome back, ${res.user.displayName || res.user.email}`
-          : `✅ 登入成功！歡迎回來，${res.user.displayName || res.user.email}`,
+          ? `✅ Logged in successfully! Welcome back, ${res.user.displayName || cleanName}`
+          : `✅ 登入成功！歡迎回來，${res.user.displayName || cleanName}`,
         'success'
       );
-      onUserLoggedIn();
+      onUserLoggedIn({
+        uid: res.user.uid,
+        displayName: res.user.displayName || cleanName,
+        email: res.user.email
+      });
       setActiveTab('cloud');
     } else {
       sound.playHitSound(2);
@@ -165,45 +111,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      showMsg(isEn ? 'Please fill in all registration fields!' : '請填寫完整註冊資訊！', 'error');
+    const cleanName = username.trim();
+    if (!cleanName || !password) {
+      showMsg(isEn ? 'Please fill in player username and password!' : '請填寫玩家名稱與密碼！', 'error');
+      return;
+    }
+    if (cleanName.length < 2) {
+      showMsg(isEn ? 'Username must be at least 2 characters long!' : '玩家名稱長度請至少 2 個字元！', 'error');
       return;
     }
     if (password.length < 6) {
-      showMsg(isEn ? 'Password must be at least 6 characters long!' : '密碼長度請至少 6 位字符！', 'error');
+      showMsg(isEn ? 'Password must be at least 6 characters long!' : '密碼長度請至少 6 位字元！', 'error');
       return;
     }
-
-    // Strict Email Verification Code Requirement
-    if (!isEmailVerified) {
-      if (verificationCode.trim().length === 6) {
-        const check = await verifyEmailCode(email, verificationCode);
-        if (!check.success) {
-          sound.playHitSound(2);
-          showMsg(check.error || (isEn ? 'Verification code incorrect!' : '驗證碼輸入錯誤！'), 'error');
-          return;
-        }
-        setIsEmailVerified(true);
-      } else {
-        sound.playHitSound(2);
-        showMsg(
-          isEn
-            ? '⚠️ Please click "Send Code" to dispatch the 6-digit code to your email and verify before registering!'
-            : '⚠️ 必須先將驗證碼傳至用戶輸入的信箱並完成 6 位數驗證，方可註冊帳號！',
-          'error'
-        );
-        return;
-      }
+    if (confirmPassword && password !== confirmPassword) {
+      showMsg(isEn ? 'Passwords do not match!' : '兩次密碼輸入不一致！', 'error');
+      return;
     }
-
     setLoading(true);
     sound.playClickSound();
-    const res = await registerUser(email, password, displayName || undefined);
+    const res = await registerUserWithUsername(cleanName, password);
     setLoading(false);
     if (res.user) {
       sound.playAchievementSound();
-      showMsg(isEn ? '🎉 Registration successful! Auto-logged in.' : '🎉 註冊成功並已自動登入！', 'success');
-      onUserLoggedIn();
+      showMsg(
+        isEn
+          ? `🎉 Miner "${cleanName}" registered successfully & logged in!`
+          : `🎉 玩家「${cleanName}」註冊成功並已自動登入！`,
+        'success'
+      );
+      onUserLoggedIn({
+        uid: res.user.uid,
+        displayName: res.user.displayName || cleanName,
+        email: res.user.email
+      });
       setActiveTab('cloud');
     } else {
       sound.playHitSound(2);
@@ -244,6 +185,57 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } else {
       sound.playHitSound(2);
       showMsg(isEn ? `❌ Cloud load failed: ${res.error}` : `❌ 雲端進度讀取失敗：${res.error}`, 'error');
+    }
+  };
+
+  const handleParseRawJson = () => {
+    try {
+      let cleaned = rawConfigJson.trim();
+      if (cleaned.includes('{')) {
+        const start = cleaned.indexOf('{');
+        const end = cleaned.lastIndexOf('}');
+        if (start !== -1 && end !== -1) {
+          cleaned = cleaned.substring(start, end + 1);
+        }
+      }
+      const jsonLike = cleaned
+        .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')
+        .replace(/'/g, '"');
+      const parsed = JSON.parse(jsonLike);
+      if (parsed.apiKey && parsed.projectId) {
+        setConfigForm({
+          apiKey: parsed.apiKey || '',
+          authDomain: parsed.authDomain || '',
+          projectId: parsed.projectId || '',
+          storageBucket: parsed.storageBucket || '',
+          messagingSenderId: parsed.messagingSenderId || '',
+          appId: parsed.appId || ''
+        });
+        showMsg(
+          isEn
+            ? '✅ Successfully parsed Cloud Config! Click "Apply & Save Config" below.'
+            : '✅ 成功解析雲端專案配置！請點擊「套用並保存設定」完成連線。',
+          'success'
+        );
+      } else {
+        showMsg(isEn ? '⚠️ Parse failed: apiKey or projectId fields not found!' : '⚠️ 解析失敗：未找到 apiKey 或 projectId 欄位！', 'error');
+      }
+    } catch {
+      showMsg(isEn ? '⚠️ Invalid JSON format, please check or fill the form fields manually!' : '⚠️ JSON 格式有誤，請手動在下方表單填寫或檢查格式！', 'error');
+    }
+  };
+
+  const handleSaveConfig = () => {
+    if (!configForm.apiKey || !configForm.projectId) {
+      showMsg(isEn ? 'Please fill in at least API Key and Project ID!' : '請至少填寫 API Key 與 Project ID！', 'error');
+      return;
+    }
+    const ok = saveFirebaseConfig(configForm);
+    if (ok) {
+      sound.playAchievementSound();
+      showMsg(isEn ? '🚀 Cloud project config saved and re-initialized!' : '🚀 雲端專案配置已保存並重新初始化！', 'success');
+    } else {
+      showMsg(isEn ? 'Failed to save config, ensure localStorage is available.' : '儲存設定失敗，請確認瀏覽器支援 localStorage。', 'error');
     }
   };
 
@@ -325,6 +317,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </>
           )}
+
+          <button
+            onClick={() => {
+              sound.playClickSound();
+              setActiveTab('config');
+            }}
+            className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 ml-auto cursor-pointer ${
+              activeTab === 'config'
+                ? 'bg-[#282828] text-blue-400 border-t-2 border-blue-500'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Settings className="w-3.5 h-3.5" />
+            <span>{t('auth.tabConfig')}</span>
+          </button>
         </div>
 
         {/* Body content */}
@@ -365,7 +372,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </span>
                 </div>
                 <div className="text-sm font-bold text-white mt-0.5">
-                  {currentUser ? (currentUser.displayName || currentUser.email) : t('auth.notLoggedIn')}
+                  {currentUser ? (currentUser.displayName || 'Miner') : t('auth.notLoggedIn')}
                 </div>
               </div>
             </div>
@@ -386,30 +393,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <form onSubmit={handleLogin} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-zinc-300 mb-1">
-                  {t('auth.email')}
+                  {t('auth.username')}
                 </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="player@example.com"
-                  required
-                  className="w-full bg-[#181818] border border-[#383838] focus:border-amber-500 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition-all"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder={t('auth.usernamePlaceholder')}
+                    required
+                    className="w-full bg-[#181818] border border-[#383838] focus:border-amber-500 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition-all"
+                  />
+                  <UserIcon className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
+                </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-zinc-300 mb-1">
                   {t('auth.password')}
                 </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  className="w-full bg-[#181818] border border-[#383838] focus:border-amber-500 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition-all"
-                />
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    className="w-full bg-[#181818] border border-[#383838] focus:border-amber-500 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition-all"
+                  />
+                  <KeyRound className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
+                </div>
               </div>
 
               <div className="text-[11px] text-zinc-400 flex items-center gap-1.5 bg-[#181818] p-2.5 rounded-lg border border-[#2b2b2b]">
@@ -444,127 +457,57 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <form onSubmit={handleRegister} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-zinc-300 mb-1">
-                  {t('auth.displayName')}
+                  {t('auth.username')} <span className="text-emerald-400 text-[10px]">({isEn ? 'Unique name' : '不可重複'})</span>
                 </label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Minecraft_Hero"
-                  className="w-full bg-[#181818] border border-[#383838] focus:border-emerald-500 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-zinc-300 mb-1">
-                  {t('auth.email')}
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setIsEmailVerified(false);
-                      setLastDispatchedCode(null);
-                    }}
-                    placeholder="player@example.com"
-                    required
-                    className="flex-1 bg-[#181818] border border-[#383838] focus:border-emerald-500 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSendVerificationCode}
-                    disabled={isSendingCode || codeCooldown > 0 || !email}
-                    className="px-3 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-lg text-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow active:scale-95"
-                  >
-                    <Mail className="w-3.5 h-3.5" />
-                    <span>
-                      {isSendingCode
-                        ? t('auth.sendingCode')
-                        : codeCooldown > 0
-                        ? `${t('auth.resendCode')} (${codeCooldown}s)`
-                        : t('auth.sendCode')}
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* 6-digit Verification Code Section */}
-              <div className="bg-[#191919] border border-zinc-700/80 p-3 rounded-lg space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-zinc-300 flex items-center gap-1.5">
-                    <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-                    {t('auth.verificationCode')}
-                  </span>
-                  {isEmailVerified ? (
-                    <span className="text-emerald-400 font-bold flex items-center gap-1 text-[11px] bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-700/50">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                      {t('auth.emailVerified')}
-                    </span>
-                  ) : (
-                    <span className="text-amber-400/90 text-[11px] font-mono">
-                      {codeSent ? (isEn ? 'Code dispatched' : '驗證碼已發送') : (isEn ? 'Required' : '註冊必填')}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
+                <div className="relative">
                   <input
                     type="text"
-                    maxLength={6}
-                    value={verificationCode}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      setVerificationCode(val);
-                      if (val.length === 6 && !isEmailVerified) {
-                        verifyEmailCode(email, val).then(res => {
-                          if (res.success) {
-                            setIsEmailVerified(true);
-                            sound.playAchievementSound();
-                            showMsg(isEn ? '✅ Email verified!' : '✅ 信箱驗證通過！', 'success');
-                          }
-                        });
-                      }
-                    }}
-                    placeholder={t('auth.codePlaceholder')}
-                    disabled={isEmailVerified}
-                    className="flex-1 font-mono tracking-widest text-center text-sm bg-[#131313] border border-[#383838] focus:border-amber-500 rounded-lg px-3 py-1.5 text-white placeholder-zinc-600 outline-none transition-all"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder={t('auth.usernamePlaceholder')}
+                    required
+                    minLength={2}
+                    maxLength={20}
+                    className="w-full bg-[#181818] border border-[#383838] focus:border-emerald-500 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition-all"
                   />
-                  <button
-                    type="button"
-                    onClick={handleVerifyCode}
-                    disabled={isVerifyingCode || isEmailVerified || verificationCode.length !== 6}
-                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-lg text-xs transition-all flex items-center gap-1 shrink-0 cursor-pointer"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>{isEmailVerified ? (isEn ? 'Verified' : '已通過') : t('auth.verifyCodeBtn')}</span>
-                  </button>
+                  <UserIcon className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
                 </div>
-
-                {lastDispatchedCode && (
-                  <div className="mt-1.5 p-2 bg-blue-950/40 border border-blue-800/60 rounded text-[11px] text-blue-300 flex items-center justify-between">
-                    <span>📨 已發送至 <b className="text-white">{email}</b></span>
-                    <span className="font-mono bg-blue-900/60 text-blue-200 px-2 py-0.5 rounded border border-blue-700/60 font-bold">
-                      代碼: {lastDispatchedCode}
-                    </span>
-                  </div>
-                )}
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-zinc-300 mb-1">
                   {t('auth.password')} {isEn ? '(At least 6 chars)' : '(至少 6 位)'}
                 </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  minLength={6}
-                  className="w-full bg-[#181818] border border-[#383838] focus:border-emerald-500 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition-all"
-                />
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    minLength={6}
+                    className="w-full bg-[#181818] border border-[#383838] focus:border-emerald-500 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition-all"
+                  />
+                  <KeyRound className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-300 mb-1">
+                  {t('auth.confirmPassword')}
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    minLength={6}
+                    className="w-full bg-[#181818] border border-[#383838] focus:border-emerald-500 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition-all"
+                  />
+                  <KeyRound className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
+                </div>
               </div>
 
               <button
@@ -592,27 +535,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* TAB 3: CLOUD SAVE & SYNC */}
           {activeTab === 'cloud' && (
             <div className="space-y-4">
-              {/* Email Verification Status Card */}
-              {currentUser && currentUser.email && (
-                <div className="bg-[#181818] border border-zinc-700/80 rounded-lg p-3.5 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-blue-950/60 border border-blue-800/60 flex items-center justify-center text-blue-400">
-                      <Mail className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-zinc-300">{currentUser.email}</div>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="text-[11px] font-bold text-emerald-400">{t('auth.emailVerified')}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-mono font-bold px-2 py-1 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-700/50">
-                    VERIFIED
-                  </span>
-                </div>
-              )}
-
               <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between text-xs text-zinc-300">
                   <span className="font-bold flex items-center gap-1.5 text-amber-400">
@@ -651,9 +573,97 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* TAB 4: FIREBASE PROJECT CONFIGURATION — removed. The project
-              uses a fixed, built-in Firebase configuration; users can no
-              longer supply their own Firebase project settings here. */}
+          {/* TAB 4: FIREBASE PROJECT CONFIGURATION */}
+          {activeTab === 'config' && (
+            <div className="space-y-4">
+              <div className="bg-amber-950/20 border border-amber-600/30 p-3 rounded-lg text-xs text-amber-300 leading-relaxed">
+                💡 {t('auth.customProjectTip')}
+              </div>
+
+              {/* Fast Paste JSON textarea */}
+              <div>
+                <label className="block text-xs font-bold text-zinc-300 mb-1 flex items-center justify-between">
+                  <span>{t('auth.pasteConfigLabel')}</span>
+                  <span className="text-[10px] text-zinc-500">{t('auth.pasteConfigHint')}</span>
+                </label>
+                <div className="space-y-2">
+                  <textarea
+                    rows={3}
+                    value={rawConfigJson}
+                    onChange={(e) => setRawConfigJson(e.target.value)}
+                    placeholder={`{\n  "apiKey": "AIzaSy...",\n  "authDomain": "myproject.firebaseapp.com",\n  "projectId": "myproject-id",\n  "appId": "1:..."\n}`}
+                    className="w-full bg-[#181818] border border-[#383838] focus:border-amber-500 rounded-lg p-2 text-xs font-mono text-white placeholder-zinc-600 outline-none transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleParseRawJson}
+                    className="px-3 py-1.5 bg-[#333] hover:bg-[#444] text-xs text-zinc-200 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{t('auth.parseJson')}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Explicit inputs */}
+              <div className="space-y-2.5 pt-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-400 mb-0.5">API Key *</label>
+                    <input
+                      type="text"
+                      value={configForm.apiKey}
+                      onChange={(e) => setConfigForm({ ...configForm, apiKey: e.target.value })}
+                      placeholder="AIzaSy..."
+                      className="w-full bg-[#181818] border border-[#383838] focus:border-blue-500 rounded px-2.5 py-1.5 text-xs text-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-400 mb-0.5">Project ID *</label>
+                    <input
+                      type="text"
+                      value={configForm.projectId}
+                      onChange={(e) => setConfigForm({ ...configForm, projectId: e.target.value })}
+                      placeholder="my-project-12345"
+                      className="w-full bg-[#181818] border border-[#383838] focus:border-blue-500 rounded px-2.5 py-1.5 text-xs text-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-400 mb-0.5">Auth Domain</label>
+                    <input
+                      type="text"
+                      value={configForm.authDomain}
+                      onChange={(e) => setConfigForm({ ...configForm, authDomain: e.target.value })}
+                      placeholder="project.firebaseapp.com"
+                      className="w-full bg-[#181818] border border-[#383838] focus:border-blue-500 rounded px-2.5 py-1.5 text-xs text-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-zinc-400 mb-0.5">App ID</label>
+                    <input
+                      type="text"
+                      value={configForm.appId}
+                      onChange={(e) => setConfigForm({ ...configForm, appId: e.target.value })}
+                      placeholder="1:123456789:web:..."
+                      className="w-full bg-[#181818] border border-[#383838] focus:border-blue-500 rounded px-2.5 py-1.5 text-xs text-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveConfig}
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow transition-all active:scale-98 cursor-pointer"
+                >
+                  <KeyRound className="w-4 h-4" />
+                  <span>{t('auth.applyConfig')}</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

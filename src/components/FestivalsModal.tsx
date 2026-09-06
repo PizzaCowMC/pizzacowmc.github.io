@@ -338,11 +338,6 @@ export const FestivalsModal: React.FC<FestivalsModalProps> = ({
               const isOwned = ownedPickaxes.includes(pick.id);
               const isEquipped = pickaxeState.currentTierId === pick.id;
               const pickName = getName(pick);
-              const curDurability = isEquipped
-                ? pickaxeState.currentDurability
-                : (pickaxeState.durabilities?.[pick.id] !== undefined
-                    ? pickaxeState.durabilities[pick.id]
-                    : pick.maxDurability);
 
               return (
                 <div className="bg-zinc-900 border-2 border-black p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
@@ -357,7 +352,7 @@ export const FestivalsModal: React.FC<FestivalsModalProps> = ({
                           {pick.speedMultiplier}x {isEn ? 'Speed' : '採礦速'}
                         </span>
                         <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-cyan-300 border border-zinc-700 font-mono">
-                          {isEn ? 'Durability:' : '耐久:'} {isOwned ? `${curDurability.toLocaleString()} / ${pick.maxDurability.toLocaleString()}` : pick.maxDurability.toLocaleString()}
+                          {isEn ? 'Durability:' : '耐久:'} {pick.maxDurability.toLocaleString()}
                         </span>
                       </div>
                       <p className="text-xs text-zinc-300 mt-1">{getDesc(pick)}</p>

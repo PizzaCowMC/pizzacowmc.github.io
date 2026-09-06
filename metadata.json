@@ -1,6 +1,6 @@
 {
   "name": "Minecraft 挖掘場與建築工坊",
-  "description": "Minecraft風格的挖掘場採礦、8大礦脈層與10萬格解鎖機制、1000格建築創作區、隨機市場通膨經濟、商店與100,000個成就系統。",
+  "description": "Minecraft風格的挖掘場採礦、8大礦脈層與5萬格解鎖機制、100格建築創作區、隨機市場通膨經濟、商店與1000個成就系統。",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

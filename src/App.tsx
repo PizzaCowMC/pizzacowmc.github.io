@@ -1,22 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { BLOCK_TYPES, PICKAXE_TIERS, THEME_BACKGROUNDS, PLAYER_SKINS, STRATA_LAYERS, MARKET_INFLATION_TEMPLATES, SHOP_SUPPLIES } from './data/gameData';
-import { ONE_OFF_ACHIEVEMENTS } from './data/achievementsData';
-import {
-  AchievementEngineState,
-  ACHIEVEMENT_GROUPS,
-  computeUnlockedCounts,
-  unlockedTierCount,
-  getGroupById,
-  parseAchievementId,
-  buildDisplayAchievement,
-  makeAchievementId,
-  DisplayAchievement,
-  TOTAL_ACHIEVEMENT_COUNT
-} from './data/achievementEngine';
-import { BlockType, PickaxeState, ThemeBackground, PlayerSkin, Friend, FriendRequest, Achievement, MarketInflationEvent, ShopSupplyItem } from './types';
+import { INITIAL_ACHIEVEMENTS } from './data/achievementsData';
+import { BlockType, PickaxeState, ThemeBackground, PlayerSkin, Friend, Achievement, MarketInflationEvent, ShopSupplyItem, ToolType, MonsterData } from './types';
+import { AXE_TIERS, SHOVEL_TIERS, SWORD_TIERS } from './data/toolsData';
 import { QuarryMining } from './components/QuarryMining';
-import { BuildingZone, BUILDING_GRID_TOTAL, BUILDING_GRID_COLS } from './components/BuildingZone';
-import { CombatArena } from './components/CombatArena';
+import { BuildingZone } from './components/BuildingZone';
 import { Hotbar } from './components/Hotbar';
 import { MarketModal } from './components/MarketModal';
 import { ShopModal } from './components/ShopModal';
@@ -25,6 +13,8 @@ import { AchievementsModal } from './components/AchievementsModal';
 import { GameMenuModal } from './components/GameMenuModal';
 import { ChangelogModal } from './components/ChangelogModal';
 import { AuthModal } from './components/AuthModal';
+import { ChangeNameModal } from './components/ChangeNameModal';
+import { AvatarSelectModal } from './components/AvatarSelectModal';
 import { FestivalsModal } from './components/FestivalsModal';
 import { FestivalParticles } from './components/FestivalParticles';
 import { sound } from './utils/soundEffects';
@@ -47,22 +37,41 @@ import {
   CheckCircle2,
   TrendingUp,
   Flame,
-  Sword
+  User as UserIcon,
+  ChevronDown,
+  Edit3,
+  LogOut,
+  Settings
 } from 'lucide-react';
 import {
   subscribeToAuth,
   saveUserData,
   loadUserData,
-  registerFriendCode,
-  resolveFriendCode,
-  sendFriendRequest,
-  acceptFriendRequest,
-  declineFriendRequest
+  logoutUser,
+  isFirebaseConfigured
 } from './services/firebase';
 import { useLanguage } from './utils/i18n';
-import { BLUEPRINT_PRESETS, generatePresetGrid, getPresetMaterialRequirements } from './data/buildingPresets';
 
 const STORAGE_KEY = 'mc_mining_workshop_v1';
+
+// Helper to filter out any legacy default 'alex-crafter' friend
+const isAlexCrafterFriend = (f: Friend): boolean => {
+  if (!f) return false;
+  const username = (f.username || '').toLowerCase();
+  const code = (f.code || '').toLowerCase();
+  return (
+    username.includes('alex-crafter') ||
+    username.includes('alexcrafter') ||
+    (username.includes('alex') && username.includes('crafter')) ||
+    code.includes('alex-crafter') ||
+    code.includes('alexcrafter') ||
+    (code.includes('alex') && code.includes('crafter')) ||
+    username === 'alex-crafter' ||
+    code === 'alex-crafter' ||
+    username === 'alex' ||
+    code === 'alex'
+  );
+};
 
 export default function App() {
   const { language, toggleLanguage, t, getName, getDesc } = useLanguage();
@@ -113,24 +122,7 @@ export default function App() {
   const [pickaxeState, setPickaxeState] = useState<PickaxeState>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_pickaxe`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') {
-          const durabilities: Record<string, number> = parsed.durabilities ? { ...parsed.durabilities } : {};
-          if (parsed.currentTierId && parsed.currentDurability !== undefined) {
-            durabilities[parsed.currentTierId] = parsed.currentDurability;
-          }
-          return {
-            currentTierId: parsed.currentTierId || 'bare_hand',
-            currentDurability: parsed.currentDurability ?? 999999,
-            efficiencyLevel: parsed.efficiencyLevel ?? 0,
-            unbreakingLevel: parsed.unbreakingLevel ?? 0,
-            fortuneLevel: parsed.fortuneLevel ?? 0,
-            isBroken: !!parsed.isBroken,
-            durabilities
-          };
-        }
-      }
+      if (saved) return JSON.parse(saved);
     } catch {
       // Fallback
     }
@@ -140,10 +132,7 @@ export default function App() {
       efficiencyLevel: 0,
       unbreakingLevel: 0,
       fortuneLevel: 0,
-      isBroken: false,
-      durabilities: {
-        bare_hand: 999999
-      }
+      isBroken: false
     };
   });
 
@@ -153,6 +142,76 @@ export default function App() {
       return saved ? JSON.parse(saved) : ['bare_hand'];
     } catch {
       return ['bare_hand'];
+    }
+  });
+
+  // Tools & Combat States (Axes, Shovels, Swords)
+  const [activeTool, setActiveTool] = useState<ToolType>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_active_tool`);
+      return (saved ? JSON.parse(saved) : 'pickaxe') as ToolType;
+    } catch {
+      return 'pickaxe';
+    }
+  });
+
+  const [autoSwitchTool, setAutoSwitchTool] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_auto_switch`);
+      return saved ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [axeState, setAxeState] = useState<{ currentTierId: string; currentDurability: number }>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_axe_state`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { currentTierId: 'bare_hand_axe', currentDurability: 999999 };
+  });
+
+  const [ownedAxes, setOwnedAxes] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_owned_axes`);
+      return saved ? JSON.parse(saved) : ['bare_hand_axe'];
+    } catch {
+      return ['bare_hand_axe'];
+    }
+  });
+
+  const [shovelState, setShovelState] = useState<{ currentTierId: string; currentDurability: number }>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_shovel_state`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { currentTierId: 'bare_hand_shovel', currentDurability: 999999 };
+  });
+
+  const [ownedShovels, setOwnedShovels] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_owned_shovels`);
+      return saved ? JSON.parse(saved) : ['bare_hand_shovel'];
+    } catch {
+      return ['bare_hand_shovel'];
+    }
+  });
+
+  const [swordState, setSwordState] = useState<{ currentTierId: string; currentDurability: number }>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_sword_state`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { currentTierId: 'wood_sword', currentDurability: 80 };
+  });
+
+  const [ownedSwords, setOwnedSwords] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_owned_swords`);
+      return saved ? JSON.parse(saved) : ['wood_sword'];
+    } catch {
+      return ['wood_sword'];
     }
   });
 
@@ -192,23 +251,15 @@ export default function App() {
     }
   });
 
-  // 1000-slot building canvas (25 x 40). Older saves may still have a
-  // 100-length grid from before the expansion — pad them out so existing
-  // placed blocks are preserved and new slots are simply empty.
+  // 100-slot building canvas
   const [buildGrid, setBuildGrid] = useState<(string | null)[]>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_grid`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          if (parsed.length >= BUILDING_GRID_TOTAL) return parsed.slice(0, BUILDING_GRID_TOTAL);
-          return [...parsed, ...Array(BUILDING_GRID_TOTAL - parsed.length).fill(null)];
-        }
-      }
+      if (saved) return JSON.parse(saved);
     } catch {
       // Fallback
     }
-    return Array(BUILDING_GRID_TOTAL).fill(null);
+    return Array(100).fill(null);
   });
 
   // Friends & social state
@@ -238,16 +289,28 @@ export default function App() {
   const [friends, setFriends] = useState<Friend[]>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_friends`);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(f => !isAlexCrafterFriend(f));
+        }
+      }
     } catch {
       // Fallback
     }
-    // Clean initial state with no test placeholders
+    // Clean initial state with no default placeholders
     return [];
   });
 
   const [friendRewardClaimed, setFriendRewardClaimed] = useState<boolean>(() => {
     try {
+      const friendsSaved = localStorage.getItem(`${STORAGE_KEY}_friends`);
+      const parsedFriends = friendsSaved ? JSON.parse(friendsSaved) : [];
+      const realFriends = Array.isArray(parsedFriends) ? parsedFriends.filter((f: any) => !isAlexCrafterFriend(f)) : [];
+      if (realFriends.length === 0) {
+        localStorage.removeItem(`${STORAGE_KEY}_friend_reward_claimed`);
+        return false;
+      }
       const saved = localStorage.getItem(`${STORAGE_KEY}_friend_reward_claimed`);
       return saved ? JSON.parse(saved) : false;
     } catch {
@@ -255,14 +318,14 @@ export default function App() {
     }
   });
 
-  // One-off (hardcoded, non-procedural) achievements — small in number,
-  // stored the old way since there are only a few dozen of them.
-  const [oneOffAchievements, setOneOffAchievements] = useState<Achievement[]>(() => {
+  // 150 Achievements state
+  const [achievements, setAchievements] = useState<Achievement[]>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_achievements`);
       if (saved) {
         const parsed = JSON.parse(saved) as Achievement[];
-        return ONE_OFF_ACHIEVEMENTS.map(initial => {
+        // Merge with initial list in case count expanded
+        return INITIAL_ACHIEVEMENTS.map(initial => {
           const found = parsed.find(p => p.id === initial.id);
           return found
             ? { ...initial, unlocked: found.unlocked, rewardClaimed: found.rewardClaimed }
@@ -272,21 +335,7 @@ export default function App() {
     } catch {
       // Fallback
     }
-    return ONE_OFF_ACHIEVEMENTS;
-  });
-
-  // 100,000-tier PROCEDURAL achievements: we never store per-tier unlock
-  // state. Only the (much smaller) set of "reward claimed" IDs needs
-  // persisting — unlocked status is recomputed live from game stats via
-  // computeUnlockedCounts(), which is O(log n) per group, not O(100,000).
-  const [claimedProceduralIds, setClaimedProceduralIds] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_KEY}_claimed_proc_ach`);
-      if (saved) return new Set(JSON.parse(saved) as string[]);
-    } catch {
-      // Fallback
-    }
-    return new Set();
+    return INITIAL_ACHIEVEMENTS;
   });
 
   // Strata mining layer tracking (50,000 blocks each to unlock next)
@@ -336,9 +385,6 @@ export default function App() {
     totalBlocksSold: number;
     blocksSoldDuringInflation: number;
     blockTypeMinedCounts: Record<string, number>;
-    totalMonstersKilled: number;
-    totalCombatDamageDealt: number;
-    totalCombatCoinsEarned: number;
   }>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_stats`);
@@ -351,10 +397,7 @@ export default function App() {
           totalBlocksPlaced: parsed.totalBlocksPlaced || 0,
           totalBlocksSold: parsed.totalBlocksSold || 0,
           blocksSoldDuringInflation: parsed.blocksSoldDuringInflation || 0,
-          blockTypeMinedCounts: parsed.blockTypeMinedCounts || {},
-          totalMonstersKilled: parsed.totalMonstersKilled || 0,
-          totalCombatDamageDealt: parsed.totalCombatDamageDealt || 0,
-          totalCombatCoinsEarned: parsed.totalCombatCoinsEarned || 0
+          blockTypeMinedCounts: parsed.blockTypeMinedCounts || {}
         };
       }
     } catch {
@@ -367,10 +410,7 @@ export default function App() {
       totalBlocksPlaced: 0,
       totalBlocksSold: 0,
       blocksSoldDuringInflation: 0,
-      blockTypeMinedCounts: {},
-      totalMonstersKilled: 0,
-      totalCombatDamageDealt: 0,
-      totalCombatCoinsEarned: 0
+      blockTypeMinedCounts: {}
     };
   });
 
@@ -381,6 +421,9 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState<boolean>(false);
+  const [isChangeNameOpen, setIsChangeNameOpen] = useState<boolean>(false);
+  const [isAvatarSelectOpen, setIsAvatarSelectOpen] = useState<boolean>(false);
   const [isMarketOpen, setIsMarketOpen] = useState<boolean>(false);
   const [isShopOpen, setIsShopOpen] = useState<boolean>(false);
   const [isFriendsOpen, setIsFriendsOpen] = useState<boolean>(false);
@@ -404,7 +447,7 @@ export default function App() {
   const [extremeHasteSeconds, setExtremeHasteSeconds] = useState<number>(0);
   const [zeroDurabilitySeconds, setZeroDurabilitySeconds] = useState<number>(0);
   const [doubleCoinsSeconds, setDoubleCoinsSeconds] = useState<number>(0);
-  const [shopInitialTab, setShopInitialTab] = useState<'pickaxes' | 'themes' | 'skins' | 'supplies'>('pickaxes');
+  const [shopInitialTab, setShopInitialTab] = useState<'pickaxes' | 'axes' | 'shovels' | 'swords' | 'themes' | 'skins' | 'supplies'>('pickaxes');
 
   // Supplies & Automations
   const [hasAutoMiner, setHasAutoMiner] = useState<boolean>(() => {
@@ -419,7 +462,7 @@ export default function App() {
   const [supplyToastMsg, setSupplyToastMsg] = useState<string | null>(null);
 
   // Active zone filter in layout
-  const [activeView, setActiveView] = useState<'all' | 'quarry' | 'building' | 'combat'>('all');
+  const [activeView, setActiveView] = useState<'all' | 'quarry' | 'building'>('all');
 
   // Firebase Auth & Cloud Sync state
   const [currentUser, setCurrentUser] = useState<{ email: string | null; displayName: string | null; uid: string | null } | null>(null);
@@ -429,7 +472,7 @@ export default function App() {
   const [cloudToast, setCloudToast] = useState<string | null>(null);
 
   // Achievement unlock popup toast
-  const [popupAchievement, setPopupAchievement] = useState<Achievement | DisplayAchievement | null>(null);
+  const [popupAchievement, setPopupAchievement] = useState<Achievement | null>(null);
 
   // Subscribe to Firebase Auth state change (Auto-Login)
   useEffect(() => {
@@ -446,22 +489,17 @@ export default function App() {
         // Notify
         setCloudToast(`☁️ 已自動登入：${user.displayName || user.email}`);
         setTimeout(() => setCloudToast(null), 3500);
-        // Register/refresh this account's public friend-code lookup so
-        // others can resolve it and send real friend requests.
-        registerFriendCode(user.uid, myFriendCode, user.displayName || user.email?.split('@')[0] || 'Miner');
       } else {
         setCurrentUser(null);
       }
     });
     return () => unsubscribe();
-    // myFriendCode is generated once on mount and never changes, so it's
-    // safe to omit from deps here.
   }, []);
 
   // Cloud Save Handler
   const handleCloudSave = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     if (!currentUser?.uid) {
-      return { success: false, error: '請先登入 Firebase 帳號！' };
+      return { success: false, error: '請先登入帳號！' };
     }
     const payload = {
       coins,
@@ -479,8 +517,7 @@ export default function App() {
       myFriendCode,
       friends,
       friendRewardClaimed,
-      oneOffAchievements: oneOffAchievements.map(a => ({ id: a.id, unlocked: a.unlocked, rewardClaimed: a.rewardClaimed })),
-      claimedProceduralIds: Array.from(claimedProceduralIds),
+      achievements: achievements.map(a => ({ id: a.id, unlocked: a.unlocked, rewardClaimed: a.rewardClaimed })),
       stats
     };
 
@@ -508,15 +545,14 @@ export default function App() {
     myFriendCode,
     friends,
     friendRewardClaimed,
-    oneOffAchievements,
-    claimedProceduralIds,
+    achievements,
     stats
   ]);
 
   // Cloud Load Handler
   const handleCloudLoad = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     if (!currentUser?.uid) {
-      return { success: false, error: '請先登入 Firebase 帳號！' };
+      return { success: false, error: '請先登入帳號！' };
     }
     const res = await loadUserData(currentUser.uid);
     if (res.data) {
@@ -525,43 +561,18 @@ export default function App() {
       if (d.inventory) setInventory(d.inventory);
       if (d.layerMinedCounts) setLayerMinedCounts(d.layerMinedCounts);
       if (d.selectedLayerId) setSelectedLayerId(d.selectedLayerId);
-      if (d.pickaxeState) {
-        const p = d.pickaxeState;
-        const durabilities: Record<string, number> = p.durabilities ? { ...p.durabilities } : {};
-        if (p.currentTierId && p.currentDurability !== undefined) {
-          durabilities[p.currentTierId] = p.currentDurability;
-        }
-        setPickaxeState({ ...p, durabilities });
-      }
+      if (d.pickaxeState) setPickaxeState(d.pickaxeState);
       if (Array.isArray(d.ownedPickaxes)) setOwnedPickaxes(d.ownedPickaxes);
       if (d.currentThemeId) setCurrentThemeId(d.currentThemeId);
       if (Array.isArray(d.ownedThemes)) setOwnedThemes(d.ownedThemes);
       if (d.currentSkinId) setCurrentSkinId(d.currentSkinId);
       if (Array.isArray(d.ownedSkins)) setOwnedSkins(d.ownedSkins);
-      if (Array.isArray(d.buildGrid)) {
-        const g = d.buildGrid;
-        setBuildGrid(
-          g.length >= BUILDING_GRID_TOTAL
-            ? g.slice(0, BUILDING_GRID_TOTAL)
-            : [...g, ...Array(BUILDING_GRID_TOTAL - g.length).fill(null)]
-        );
-      }
+      if (Array.isArray(d.buildGrid)) setBuildGrid(d.buildGrid);
       if (d.myUsername) setMyUsername(d.myUsername);
-      if (Array.isArray(d.friends)) setFriends(d.friends);
+      if (Array.isArray(d.friends)) setFriends(d.friends.filter(f => !isAlexCrafterFriend(f)));
       if (typeof d.friendRewardClaimed === 'boolean') setFriendRewardClaimed(d.friendRewardClaimed);
-      if (Array.isArray(d.oneOffAchievements)) {
-        setOneOffAchievements(prev =>
-          prev.map(item => {
-            const cloudAch = d.oneOffAchievements.find((c: any) => c.id === item.id);
-            return cloudAch
-              ? { ...item, unlocked: cloudAch.unlocked, rewardClaimed: cloudAch.rewardClaimed }
-              : item;
-          })
-        );
-      } else if (Array.isArray(d.achievements)) {
-        // Backward compatibility with older cloud saves from before the
-        // 100,000-achievement engine migration.
-        setOneOffAchievements(prev =>
+      if (Array.isArray(d.achievements)) {
+        setAchievements(prev =>
           prev.map(item => {
             const cloudAch = d.achievements.find((c: any) => c.id === item.id);
             return cloudAch
@@ -569,9 +580,6 @@ export default function App() {
               : item;
           })
         );
-      }
-      if (Array.isArray(d.claimedProceduralIds)) {
-        setClaimedProceduralIds(new Set(d.claimedProceduralIds as string[]));
       }
       if (d.stats) setStats(d.stats);
       if (d.lastSavedLocalTime) {
@@ -599,6 +607,38 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_owned_picks`, JSON.stringify(ownedPickaxes));
   }, [ownedPickaxes]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_active_tool`, JSON.stringify(activeTool));
+  }, [activeTool]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_auto_switch`, JSON.stringify(autoSwitchTool));
+  }, [autoSwitchTool]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_axe_state`, JSON.stringify(axeState));
+  }, [axeState]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_owned_axes`, JSON.stringify(ownedAxes));
+  }, [ownedAxes]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_shovel_state`, JSON.stringify(shovelState));
+  }, [shovelState]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_owned_shovels`, JSON.stringify(ownedShovels));
+  }, [ownedShovels]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_sword_state`, JSON.stringify(swordState));
+  }, [swordState]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_owned_swords`, JSON.stringify(ownedSwords));
+  }, [ownedSwords]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_theme`, JSON.stringify(currentThemeId));
@@ -629,16 +669,32 @@ export default function App() {
   }, [friends]);
 
   useEffect(() => {
+    // Purge any legacy 'alex-crafter' default friend from active state & localStorage
+    setFriends(prev => {
+      const cleaned = prev.filter(f => !isAlexCrafterFriend(f));
+      if (cleaned.length === 0) {
+        setFriendRewardClaimed(false);
+        try {
+          localStorage.removeItem(`${STORAGE_KEY}_friend_reward_claimed`);
+        } catch {}
+      }
+      if (cleaned.length !== prev.length) {
+        try {
+          localStorage.setItem(`${STORAGE_KEY}_friends`, JSON.stringify(cleaned));
+        } catch {}
+        return cleaned;
+      }
+      return prev;
+    });
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_friend_reward_claimed`, JSON.stringify(friendRewardClaimed));
   }, [friendRewardClaimed]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_achievements`, JSON.stringify(oneOffAchievements));
-  }, [oneOffAchievements]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_claimed_proc_ach`, JSON.stringify(Array.from(claimedProceduralIds)));
-  }, [claimedProceduralIds]);
+    localStorage.setItem(`${STORAGE_KEY}_achievements`, JSON.stringify(achievements));
+  }, [achievements]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_stats`, JSON.stringify(stats));
@@ -750,114 +806,140 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Unlock a ONE-OFF (non-procedural) achievement by id.
-  const unlockAchievement = useCallback((achId: string) => {
-    setOneOffAchievements(prev => {
-      const ach = prev.find(a => a.id === achId);
-      if (!ach || ach.unlocked) return prev;
+  // Unlock achievement helper (supports single or batch unlock)
+  const unlockAchievementsBatch = useCallback((achIds: string[]) => {
+    if (!achIds || achIds.length === 0) return;
+    const idSet = new Set(achIds);
+
+    setAchievements(prev => {
+      let lastUnlocked: Achievement | null = null;
+      let hasChange = false;
+
+      const updated = prev.map(a => {
+        if (idSet.has(a.id) && !a.unlocked) {
+          lastUnlocked = { ...a, unlocked: true };
+          hasChange = true;
+          return lastUnlocked;
+        }
+        return a;
+      });
+
+      if (!hasChange) return prev;
 
       sound.playAchievementSound();
-      const updated = prev.map(a => (a.id === achId ? { ...a, unlocked: true } : a));
-
-      // Show toast
-      setPopupAchievement(ach);
-      setTimeout(() => setPopupAchievement(null), 3800);
+      if (lastUnlocked) {
+        setPopupAchievement(lastUnlocked);
+        setTimeout(() => setPopupAchievement(null), 3800);
+      }
 
       return updated;
     });
   }, []);
 
-  // Track last-seen unlocked tier count per procedural group so we can
-  // detect newly-crossed tiers (for the toast popup) without ever storing
-  // or iterating all 100,000 individual achievement items.
-  const lastUnlockedCountsRef = useRef<Record<string, number>>({});
+  const unlockAchievement = useCallback((achId: string) => {
+    unlockAchievementsBatch([achId]);
+  }, [unlockAchievementsBatch]);
 
-  // Live-computed unlocked counts for all procedural achievement groups.
-  // This is O(groups * log(tiersPerGroup)) — a few hundred ops total,
-  // regardless of the 100,000 total achievement tiers.
-  const engineState: AchievementEngineState = useMemo(() => ({
-    totalBlocksMined: stats.totalBlocksMined,
-    totalClicks: stats.totalClicks,
-    totalCoinsEarned: stats.totalCoinsEarned,
+  // Check achievements against current state & stats across all 1000 achievements
+  useEffect(() => {
+    const newlyUnlockedIds: string[] = [];
+
+    achievements.forEach(ach => {
+      if (ach.unlocked) return;
+
+      // 1. Mine total blocks: mine_total_{X}
+      if (ach.id.startsWith('mine_total_')) {
+        const target = parseInt(ach.id.replace('mine_total_', ''), 10);
+        if (!isNaN(target) && stats.totalBlocksMined >= target) {
+          newlyUnlockedIds.push(ach.id);
+        }
+      }
+      // 2. Click milestones: click_milestone_{X}
+      else if (ach.id.startsWith('click_milestone_')) {
+        const idx = parseInt(ach.id.replace('click_milestone_', ''), 10);
+        if (!isNaN(idx) && stats.totalClicks >= idx * 250) {
+          newlyUnlockedIds.push(ach.id);
+        }
+      }
+      // 3. Strata layer milestones: layer_{layerId}_{target}
+      else if (ach.id.startsWith('layer_')) {
+        const parts = ach.id.split('_');
+        const target = parseInt(parts[parts.length - 1], 10);
+        const layerId = parts.slice(1, parts.length - 1).join('_');
+        if (!isNaN(target) && (layerMinedCounts[layerId] || 0) >= target) {
+          newlyUnlockedIds.push(ach.id);
+        }
+      }
+      // 4. Cumulative revenue: coin_earned_{target}
+      else if (ach.id.startsWith('coin_earned_')) {
+        const target = parseInt(ach.id.replace('coin_earned_', ''), 10);
+        if (!isNaN(target) && stats.totalCoinsEarned >= target) {
+          newlyUnlockedIds.push(ach.id);
+        }
+      }
+      // 5. Wallet holdings: wallet_tier_{idx}
+      else if (ach.id.startsWith('wallet_tier_')) {
+        const idx = parseInt(ach.id.replace('wallet_tier_', ''), 10);
+        if (!isNaN(idx) && coins >= idx * 2000) {
+          newlyUnlockedIds.push(ach.id);
+        }
+      }
+      // 6. Blocks sold: sold_blocks_{target}
+      else if (ach.id.startsWith('sold_blocks_')) {
+        const target = parseInt(ach.id.replace('sold_blocks_', ''), 10);
+        if (!isNaN(target) && stats.totalBlocksSold >= target) {
+          newlyUnlockedIds.push(ach.id);
+        }
+      }
+      // 7. Inflation trading: inflation_trader_{idx}
+      else if (ach.id.startsWith('inflation_trader_')) {
+        const idx = parseInt(ach.id.replace('inflation_trader_', ''), 10);
+        if (!isNaN(idx) && (stats.blocksSoldDuringInflation || 0) >= idx * 50) {
+          newlyUnlockedIds.push(ach.id);
+        }
+      }
+      // 8. Building placed: build_placed_{idx}
+      else if (ach.id.startsWith('build_placed_')) {
+        const idx = parseInt(ach.id.replace('build_placed_', ''), 10);
+        if (!isNaN(idx) && stats.totalBlocksPlaced >= idx * 20) {
+          newlyUnlockedIds.push(ach.id);
+        }
+      }
+      // 9. Equipment mastery: equip_mastery_{idx}
+      else if (ach.id.startsWith('equip_mastery_')) {
+        const idx = parseInt(ach.id.replace('equip_mastery_', ''), 10);
+        const equipScore = ownedPickaxes.length * 5 + pickaxeState.efficiencyLevel + pickaxeState.unbreakingLevel + pickaxeState.fortuneLevel;
+        if (!isNaN(idx) && equipScore >= idx) {
+          newlyUnlockedIds.push(ach.id);
+        }
+      }
+      // 10. Collection and social: collection_social_{idx}
+      else if (ach.id.startsWith('collection_social_')) {
+        const idx = parseInt(ach.id.replace('collection_social_', ''), 10);
+        const colScore = ownedThemes.length * 3 + ownedSkins.length * 3 + friends.length * 5;
+        if (!isNaN(idx) && colScore >= idx) {
+          newlyUnlockedIds.push(ach.id);
+        }
+      }
+    });
+
+    if (newlyUnlockedIds.length > 0) {
+      unlockAchievementsBatch(newlyUnlockedIds);
+    }
+  }, [
     coins,
-    totalBlocksSold: stats.totalBlocksSold,
-    blocksSoldDuringInflation: stats.blocksSoldDuringInflation || 0,
-    totalBlocksPlaced: stats.totalBlocksPlaced,
-    equipScore: ownedPickaxes.length * 5 + pickaxeState.efficiencyLevel + pickaxeState.unbreakingLevel + pickaxeState.fortuneLevel,
-    collectionScore: ownedThemes.length * 3 + ownedSkins.length * 3 + friends.length * 5,
-    layerMinedCounts,
-    totalMonstersKilled: stats.totalMonstersKilled,
-    totalCombatDamageDealt: stats.totalCombatDamageDealt,
-    totalCombatCoinsEarned: stats.totalCombatCoinsEarned
-  }), [
     stats,
-    coins,
     ownedPickaxes,
     pickaxeState,
+    buildGrid,
+    friends,
+    friendRewardClaimed,
     ownedThemes,
     ownedSkins,
-    friends,
-    layerMinedCounts
+    layerMinedCounts,
+    achievements,
+    unlockAchievementsBatch
   ]);
-
-  const unlockedCounts = useMemo(() => computeUnlockedCounts(engineState), [engineState]);
-
-  // Detect newly-unlocked procedural tiers and show a toast for the
-  // highest newly-crossed tier per group (avoids a toast storm if many
-  // tiers unlock at once, e.g. right after a cloud-load).
-  useEffect(() => {
-    for (const group of ACHIEVEMENT_GROUPS) {
-      const newCount = unlockedCounts[group.groupId] || 0;
-      const prevCount = lastUnlockedCountsRef.current[group.groupId] ?? newCount; // don't toast on first mount
-      if (newCount > prevCount) {
-        sound.playAchievementSound();
-        const displayAch = buildDisplayAchievement(group, newCount, true, claimedProceduralIds);
-        setPopupAchievement(displayAch);
-        setTimeout(() => setPopupAchievement(null), 3800);
-      }
-      lastUnlockedCountsRef.current[group.groupId] = newCount;
-    }
-  }, [unlockedCounts, claimedProceduralIds]);
-
-  // First-visit / first-kill combat one-off achievements
-  useEffect(() => {
-    if (stats.totalMonstersKilled >= 1) {
-      unlockAchievement('combat_first_kill');
-    }
-  }, [stats.totalMonstersKilled, unlockAchievement]);
-
-  // Attack power in the Training Grounds derives from the equipped
-  // pickaxe's tier and efficiency enchant level — a stronger pickaxe means
-  // a stronger fighter, without introducing a fully separate gear system.
-  const combatAttackPower = useMemo(() => {
-    const currentTier = PICKAXE_TIERS.find(p => p.id === pickaxeState.currentTierId);
-    const tierBonus = currentTier ? currentTier.tier : 0;
-    return Math.max(1, 1 + tierBonus + pickaxeState.efficiencyLevel);
-  }, [pickaxeState.currentTierId, pickaxeState.efficiencyLevel]);
-
-  useEffect(() => {
-    if (activeView === 'combat' || activeView === 'all') {
-      unlockAchievement('combat_arena_visit');
-    }
-  }, [activeView, unlockAchievement]);
-
-  const handleMonsterKilled = useCallback((coinDrop: number, damageDealt: number) => {
-    setCoins(c => Math.round((c + coinDrop) * 1000) / 1000);
-    setStats(prev => ({
-      ...prev,
-      totalMonstersKilled: prev.totalMonstersKilled + 1,
-      totalCombatCoinsEarned: Math.round((prev.totalCombatCoinsEarned + coinDrop) * 1000) / 1000,
-      totalCoinsEarned: Math.round((prev.totalCoinsEarned + coinDrop) * 1000) / 1000
-    }));
-  }, []);
-
-  const handleCombatDamageDealt = useCallback((damage: number) => {
-    setStats(prev => ({
-      ...prev,
-      totalCombatDamageDealt: prev.totalCombatDamageDealt + damage
-    }));
-  }, []);
-
 
   // --- Handlers: Mining ---
   const handleMineSuccess = useCallback((minedBlock: BlockType, amount: number, layerId?: string) => {
@@ -914,37 +996,79 @@ export default function App() {
     const unbChance = pickaxeState.unbreakingLevel * 0.10;
     if (Math.random() < unbChance) return; // Saved!
 
-    const willBreak = pickaxeState.currentDurability <= 1;
-    if (willBreak) {
-      sound.playToolBreakSound();
-      unlockAchievement('pick_break_recovery');
-    }
-
     setPickaxeState(prev => {
       const newDura = prev.currentDurability - 1;
       if (newDura <= 0) {
+        sound.playToolBreakSound();
+        unlockAchievement('pick_break_recovery');
         return {
           ...prev,
           currentTierId: 'bare_hand',
           currentDurability: 999999,
-          durabilities: {
-            ...(prev.durabilities || {}),
-            [prev.currentTierId]: 0,
-            bare_hand: 999999
-          },
           isBroken: true
         };
       }
       return {
         ...prev,
-        currentDurability: newDura,
-        durabilities: {
-          ...(prev.durabilities || {}),
-          [prev.currentTierId]: newDura
-        }
+        currentDurability: newDura
       };
     });
   }, [zeroDurabilitySeconds, pickaxeState.currentTierId, pickaxeState.unbreakingLevel, unlockAchievement]);
+
+  const handleToolDurabilityLoss = useCallback((tool: ToolType) => {
+    if (zeroDurabilitySeconds > 0) return;
+
+    if (tool === 'pickaxe') {
+      handleDurabilityLoss();
+    } else if (tool === 'axe') {
+      const currentAxe = AXE_TIERS.find(a => a.id === axeState.currentTierId) || AXE_TIERS[0];
+      if (currentAxe.tier === 0) return;
+      setAxeState(prev => {
+        const nextDur = Math.max(0, prev.currentDurability - 1);
+        if (nextDur === 0) {
+          sound.playToolBreakSound();
+          return { currentTierId: 'bare_hand_axe', currentDurability: 999999 };
+        }
+        return { ...prev, currentDurability: nextDur };
+      });
+    } else if (tool === 'shovel') {
+      const currentShovel = SHOVEL_TIERS.find(s => s.id === shovelState.currentTierId) || SHOVEL_TIERS[0];
+      if (currentShovel.tier === 0) return;
+      setShovelState(prev => {
+        const nextDur = Math.max(0, prev.currentDurability - 1);
+        if (nextDur === 0) {
+          sound.playToolBreakSound();
+          return { currentTierId: 'bare_hand_shovel', currentDurability: 999999 };
+        }
+        return { ...prev, currentDurability: nextDur };
+      });
+    } else if (tool === 'sword') {
+      setSwordState(prev => {
+        const nextDur = Math.max(0, prev.currentDurability - 1);
+        if (nextDur === 0) {
+          sound.playToolBreakSound();
+          return { ...prev, currentDurability: 0 };
+        }
+        return { ...prev, currentDurability: nextDur };
+      });
+    }
+  }, [axeState.currentTierId, handleDurabilityLoss, shovelState.currentTierId, zeroDurabilitySeconds]);
+
+  // Monster Defeat & Loot Handler
+  const handleDefeatMonster = useCallback((monster: MonsterData, coinReward: number) => {
+    setCoins(prev => prev + coinReward);
+    setStats(prev => ({
+      ...prev,
+      totalCoinsEarned: prev.totalCoinsEarned + coinReward
+    }));
+
+    if (monster.dropItemId) {
+      setInventory(prev => ({
+        ...prev,
+        [monster.dropItemId!]: (prev[monster.dropItemId!] || 0) + 1
+      }));
+    }
+  }, []);
 
   // --- Handlers: Building Zone ---
   const handlePlaceBlock = useCallback((index: number) => {
@@ -1011,82 +1135,62 @@ export default function App() {
       return updated;
     });
 
-    setBuildGrid(Array(BUILDING_GRID_TOTAL).fill(null));
+    setBuildGrid(Array(100).fill(null));
     unlockAchievement('build_clear_all');
   }, [buildGrid, unlockAchievement]);
 
-  // Presets for building (25 columns x 40 rows = 1,000 cells)
-  // CRITICAL FIX: Blueprints MUST consume actual player inventory blocks!
-  // Prevents the "free block exploit" by calculating requirements, validating stock, and deducting blocks.
+  // Presets for building
   const handleLoadPreset = useCallback((presetName: string) => {
-    const preset = BLUEPRINT_PRESETS.find(p => p.id === presetName);
-    const required = getPresetMaterialRequirements(presetName);
-    const isEn = language === 'en';
-
-    // 1. Calculate all available blocks (inventory + blocks currently placed on the grid)
-    const available: Record<string, number> = { ...inventory };
-    buildGrid.forEach(blockId => {
-      if (blockId) {
-        available[blockId] = (available[blockId] || 0) + 1;
-      }
-    });
-
-    // 2. Check whether user has sufficient blocks for all requirements
-    const missingList: { name: string; needed: number; has: number; missing: number }[] = [];
-    for (const [blockId, needed] of Object.entries(required)) {
-      const has = available[blockId] || 0;
-      if (has < needed) {
-        const blockObj = BLOCK_TYPES.find(b => b.id === blockId);
-        const name = blockObj ? (isEn ? blockObj.nameEn : blockObj.nameZh) : blockId;
-        missingList.push({
-          name,
-          needed,
-          has,
-          missing: needed - has
-        });
-      }
-    }
-
-    if (missingList.length > 0) {
-      sound.playHitSound(2);
-      const missingDetails = missingList
-        .map(m => `${m.name} x${m.missing} (庫存:${m.has}/需:${m.needed})`)
-        .join('、');
-      setCloudToast(
-        isEn
-          ? `❌ Insufficient Materials! Blueprints strictly consume inventory blocks. Missing: ${missingDetails}`
-          : `❌ 背包材料不足！藍圖嚴格消耗背包方塊（杜絕免費方塊）。缺少：${missingDetails}`
-      );
-      setTimeout(() => setCloudToast(null), 5000);
-      return;
-    }
-
-    // 3. User has enough blocks! Deduct required blocks from available pool
-    for (const [blockId, needed] of Object.entries(required)) {
-      available[blockId] = (available[blockId] || 0) - needed;
-    }
-
-    // 4. Generate new grid and apply
-    const newGrid = generatePresetGrid(presetName);
-    setInventory(available);
-    setBuildGrid(newGrid);
-
-    // 5. Update stats and trigger sounds
-    const totalBlocksUsed = Object.values(required).reduce((a, b) => a + b, 0);
-    setStats(prev => ({
-      ...prev,
-      totalBlocksPlaced: prev.totalBlocksPlaced + totalBlocksUsed
-    }));
-
     sound.playAchievementSound();
-    setCloudToast(
-      isEn
-        ? `🎉 Blueprint "${preset?.nameEn || presetName}" constructed! Deducted ${totalBlocksUsed} blocks from inventory.`
-        : `🎉 成功扣除背包材料搭建「${preset?.nameZh || presetName}」！共消耗 ${totalBlocksUsed} 個方塊。`
-    );
-    setTimeout(() => setCloudToast(null), 4000);
-    unlockAchievement('build_first_block');
-  }, [inventory, buildGrid, language, unlockAchievement]);
+    const newGrid = Array(100).fill(null);
+
+    if (presetName === 'creeper') {
+      // 10x10 Creeper face
+      // Rows 0-9, Cols 0-9
+      const creeperMask = [
+        [0,0,0,0,0,0,0,0,0,0],
+        [0,1,1,1,1,1,1,1,1,0],
+        [0,1,0,0,1,1,0,0,1,0],
+        [0,1,0,0,1,1,0,0,1,0],
+        [0,1,1,1,0,0,1,1,1,0],
+        [0,1,1,0,0,0,0,1,1,0],
+        [0,1,1,0,0,0,0,1,1,0],
+        [0,1,1,0,1,1,0,1,1,0],
+        [0,1,1,1,1,1,1,1,1,0],
+        [0,0,0,0,0,0,0,0,0,0]
+      ];
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 10; c++) {
+          const idx = r * 10 + c;
+          if (creeperMask[r][c] === 1) newGrid[idx] = 'emerald_ore';
+          else if (r >= 1 && r <= 8 && c >= 1 && c <= 8) newGrid[idx] = 'coal_ore';
+        }
+      }
+    } else if (presetName === 'heart') {
+      const heartIdxs = [
+        12, 13, 16, 17,
+        21, 22, 23, 24, 25, 26, 27, 28,
+        31, 32, 33, 34, 35, 36, 37, 38,
+        41, 42, 43, 44, 45, 46, 47, 48,
+        52, 53, 54, 55, 56, 57,
+        63, 64, 65, 66,
+        74, 75
+      ];
+      heartIdxs.forEach(i => {
+        newGrid[i] = 'redstone_ore';
+      });
+    } else if (presetName === 'sword') {
+      const swordIdxs = [
+        9, 18, 27, 36, 45, 54,
+        63, 64, 72, 73, 81, 90
+      ];
+      swordIdxs.forEach((idx, step) => {
+        newGrid[idx] = step > 7 ? 'wood' : 'diamond_ore';
+      });
+    }
+
+    setBuildGrid(newGrid);
+  }, []);
 
   // --- Handlers: Market Selling ---
   const handleSellBlock = useCallback((blockId: string, amount: number, customUnitPrice?: number) => {
@@ -1172,11 +1276,6 @@ export default function App() {
       ...prev,
       currentTierId: tierId,
       currentDurability: targetPick.maxDurability,
-      durabilities: {
-        ...(prev.durabilities || {}),
-        [prev.currentTierId]: prev.currentDurability,
-        [tierId]: targetPick.maxDurability
-      },
       isBroken: false
     }));
   }, [coins]);
@@ -1185,51 +1284,25 @@ export default function App() {
     const targetPick = PICKAXE_TIERS.find(p => p.id === tierId);
     if (!targetPick) return;
 
-    setPickaxeState(prev => {
-      // 1. Preserve current tool's durability before equipping
-      const updatedDurabilities: Record<string, number> = {
-        ...(prev.durabilities || {}),
-        [prev.currentTierId]: prev.currentDurability
-      };
-
-      // 2. Retrieve target tool's saved durability
-      const savedDura = updatedDurabilities[tierId];
-      const targetDurability = targetPick.tier === 0
-        ? 999999
-        : (savedDura !== undefined ? savedDura : targetPick.maxDurability);
-
-      return {
-        ...prev,
-        currentTierId: tierId,
-        currentDurability: targetDurability,
-        durabilities: {
-          ...updatedDurabilities,
-          [tierId]: targetDurability
-        },
-        isBroken: targetPick.tier !== 0 && targetDurability <= 0
-      };
-    });
+    setPickaxeState(prev => ({
+      ...prev,
+      currentTierId: tierId,
+      currentDurability: targetPick.tier === 0 ? 999999 : targetPick.maxDurability,
+      isBroken: false
+    }));
   }, []);
 
-  const handleRepairPickaxe = useCallback((cost: number, targetTierId?: string) => {
+  const handleRepairPickaxe = useCallback((cost: number) => {
     if (coins < cost) return;
-    const tierToRepair = targetTierId || pickaxeState.currentTierId;
-    const targetPick = PICKAXE_TIERS.find(p => p.id === tierToRepair) || PICKAXE_TIERS[0];
-    if (targetPick.tier === 0) return;
+    const currentPick = PICKAXE_TIERS.find(p => p.id === pickaxeState.currentTierId) || PICKAXE_TIERS[0];
+    if (currentPick.tier === 0) return;
 
     setCoins(prev => prev - cost);
-    setPickaxeState(prev => {
-      const isEquipped = prev.currentTierId === tierToRepair;
-      return {
-        ...prev,
-        currentDurability: isEquipped ? targetPick.maxDurability : prev.currentDurability,
-        durabilities: {
-          ...(prev.durabilities || {}),
-          [tierToRepair]: targetPick.maxDurability
-        },
-        isBroken: isEquipped ? false : prev.isBroken
-      };
-    });
+    setPickaxeState(prev => ({
+      ...prev,
+      currentDurability: currentPick.maxDurability,
+      isBroken: false
+    }));
 
     unlockAchievement('repair_pick_1');
   }, [coins, pickaxeState.currentTierId, unlockAchievement]);
@@ -1245,6 +1318,85 @@ export default function App() {
       return prev;
     });
   }, [coins]);
+
+  // --- Handlers: Axes, Shovels, Swords ---
+  const handleBuyAxe = useCallback((tierId: string, cost: number) => {
+    if (coins < cost) return;
+    const tier = AXE_TIERS.find(a => a.id === tierId);
+    if (!tier) return;
+    setCoins(prev => prev - cost);
+    setOwnedAxes(prev => (prev.includes(tierId) ? prev : [...prev, tierId]));
+    setAxeState({ currentTierId: tierId, currentDurability: tier.maxDurability });
+  }, [coins]);
+
+  const handleEquipAxe = useCallback((tierId: string) => {
+    const tier = AXE_TIERS.find(a => a.id === tierId);
+    if (!tier) return;
+    setAxeState(prev => ({
+      currentTierId: tierId,
+      currentDurability: tier.tier === 0 ? 999999 : (prev.currentTierId === tierId ? prev.currentDurability : tier.maxDurability)
+    }));
+    setActiveTool('axe');
+  }, []);
+
+  const handleRepairAxe = useCallback((cost: number) => {
+    if (coins < cost) return;
+    const tier = AXE_TIERS.find(a => a.id === axeState.currentTierId) || AXE_TIERS[0];
+    setCoins(prev => prev - cost);
+    setAxeState(prev => ({ ...prev, currentDurability: tier.maxDurability }));
+  }, [axeState.currentTierId, coins]);
+
+  const handleBuyShovel = useCallback((tierId: string, cost: number) => {
+    if (coins < cost) return;
+    const tier = SHOVEL_TIERS.find(s => s.id === tierId);
+    if (!tier) return;
+    setCoins(prev => prev - cost);
+    setOwnedShovels(prev => (prev.includes(tierId) ? prev : [...prev, tierId]));
+    setShovelState({ currentTierId: tierId, currentDurability: tier.maxDurability });
+  }, [coins]);
+
+  const handleEquipShovel = useCallback((tierId: string) => {
+    const tier = SHOVEL_TIERS.find(s => s.id === tierId);
+    if (!tier) return;
+    setShovelState(prev => ({
+      currentTierId: tierId,
+      currentDurability: tier.tier === 0 ? 999999 : (prev.currentTierId === tierId ? prev.currentDurability : tier.maxDurability)
+    }));
+    setActiveTool('shovel');
+  }, []);
+
+  const handleRepairShovel = useCallback((cost: number) => {
+    if (coins < cost) return;
+    const tier = SHOVEL_TIERS.find(s => s.id === shovelState.currentTierId) || SHOVEL_TIERS[0];
+    setCoins(prev => prev - cost);
+    setShovelState(prev => ({ ...prev, currentDurability: tier.maxDurability }));
+  }, [coins, shovelState.currentTierId]);
+
+  const handleBuySword = useCallback((tierId: string, cost: number) => {
+    if (coins < cost) return;
+    const tier = SWORD_TIERS.find(s => s.id === tierId);
+    if (!tier) return;
+    setCoins(prev => prev - cost);
+    setOwnedSwords(prev => (prev.includes(tierId) ? prev : [...prev, tierId]));
+    setSwordState({ currentTierId: tierId, currentDurability: tier.maxDurability });
+  }, [coins]);
+
+  const handleEquipSword = useCallback((tierId: string) => {
+    const tier = SWORD_TIERS.find(s => s.id === tierId);
+    if (!tier) return;
+    setSwordState(prev => ({
+      currentTierId: tierId,
+      currentDurability: prev.currentTierId === tierId ? prev.currentDurability : tier.maxDurability
+    }));
+    setActiveTool('sword');
+  }, []);
+
+  const handleRepairSword = useCallback((cost: number) => {
+    if (coins < cost) return;
+    const tier = SWORD_TIERS.find(s => s.id === swordState.currentTierId) || SWORD_TIERS[0];
+    setCoins(prev => prev - cost);
+    setSwordState(prev => ({ ...prev, currentDurability: tier.maxDurability }));
+  }, [coins, swordState.currentTierId]);
 
   const handleBuyTheme = useCallback((theme: ThemeBackground) => {
     if (coins < theme.cost) return;
@@ -1270,10 +1422,6 @@ export default function App() {
       setPickaxeState(prev => ({
         ...prev,
         currentDurability: currentPick.tier === 0 ? 999999 : currentPick.maxDurability,
-        durabilities: {
-          ...(prev.durabilities || {}),
-          [prev.currentTierId]: currentPick.tier === 0 ? 999999 : currentPick.maxDurability
-        },
         isBroken: false
       }));
       sound.playUpgradeSound();
@@ -1411,10 +1559,7 @@ export default function App() {
       efficiencyLevel: 0,
       unbreakingLevel: 0,
       fortuneLevel: 0,
-      isBroken: false,
-      durabilities: {
-        bare_hand: 999999
-      }
+      isBroken: false
     });
     setOwnedPickaxes(['bare_hand']);
 
@@ -1425,7 +1570,7 @@ export default function App() {
     setOwnedSkins(['steve']);
 
     // 4. Reset building canvas
-    setBuildGrid(Array(BUILDING_GRID_TOTAL).fill(null));
+    setBuildGrid(Array(100).fill(null));
 
     // 5. Reset strata layers progression
     setLayerMinedCounts({
@@ -1440,11 +1585,8 @@ export default function App() {
     });
     setSelectedLayerId('surface');
 
-    // 6. Reset achievements: one-off list back to locked, and clear all
-    // claimed procedural reward IDs (unlocked status itself is derived live
-    // from stats, which are also reset below, so it naturally goes back to 0).
-    setOneOffAchievements(ONE_OFF_ACHIEVEMENTS.map(a => ({ ...a, unlocked: false, rewardClaimed: false })));
-    setClaimedProceduralIds(new Set());
+    // 6. Reset all 1,000 achievements
+    setAchievements(INITIAL_ACHIEVEMENTS.map(a => ({ ...a, unlocked: false, rewardClaimed: false })));
 
     // 7. Reset stats
     setStats({
@@ -1454,15 +1596,14 @@ export default function App() {
       totalBlocksPlaced: 0,
       totalBlocksSold: 0,
       blocksSoldDuringInflation: 0,
-      blockTypeMinedCounts: {},
-      totalMonstersKilled: 0,
-      totalCombatDamageDealt: 0,
-      totalCombatCoinsEarned: 0
+      blockTypeMinedCounts: {}
     });
 
     // 8. Reset supplies and buffs
     setHasAutoMiner(false);
     setHasteRemainingSeconds(0);
+    setFriends([]);
+    setFriendRewardClaimed(false);
 
     // 9. Clear all game localStorage keys
     const keysToRemove = [
@@ -1479,7 +1620,9 @@ export default function App() {
       `${STORAGE_KEY}_layer_mined`,
       `${STORAGE_KEY}_selected_layer`,
       `${STORAGE_KEY}_stats`,
-      `${STORAGE_KEY}_auto_miner`
+      `${STORAGE_KEY}_auto_miner`,
+      `${STORAGE_KEY}_friend_reward_claimed`,
+      `${STORAGE_KEY}_friends`
     ];
     keysToRemove.forEach(k => {
       try {
@@ -1500,82 +1643,40 @@ export default function App() {
     unlockAchievement('social_friend_reward_claim');
   }, [friends.length, friendRewardClaimed, unlockAchievement]);
 
-  // Sends a real friend request. Resolves the code against the registered
-  // account directory (Firestore `friendCodes`) — if no account with that
-  // code exists, the request fails and no fake friend is fabricated.
-  const handleSendFriendRequest = useCallback(async (code: string): Promise<{ success: boolean; error?: string }> => {
-    if (!currentUser?.uid) {
-      return { success: false, error: isEn ? 'You must be logged in to send friend requests.' : '請先登入才能送出好友邀請。' };
-    }
-    if (friends.some(f => f.code === code)) {
-      return { success: false, error: isEn ? 'Already on your friends list.' : '對方已經在你的好友名單中。' };
-    }
-    const { result, error } = await resolveFriendCode(code);
-    if (error) return { success: false, error };
-    if (!result) {
-      return { success: false, error: isEn ? 'No registered account found with that code.' : '找不到使用該代碼的註冊帳號。' };
-    }
-    const sendResult = await sendFriendRequest(currentUser.uid, myFriendCode, myUsername, result.uid);
-    return sendResult;
-  }, [currentUser, friends, myFriendCode, myUsername, isEn]);
+  const handleAddFriendByCode = useCallback((code: string) => {
+    if (friends.some(f => f.code === code)) return false;
 
-  const handleAcceptFriendRequest = useCallback(async (req: FriendRequest): Promise<boolean> => {
-    if (!currentUser?.uid) return false;
-    const result = await acceptFriendRequest(currentUser.uid, myFriendCode, myUsername, req.fromUid, req.fromCode, req.fromUsername);
-    if (result.success) {
-      setFriends(prev => [...prev, { uid: req.fromUid, code: req.fromCode, username: req.fromUsername, isOnline: true, addedAt: Date.now() }]);
-    }
-    return result.success;
-  }, [currentUser, myFriendCode, myUsername]);
+    // Add friend
+    const newFriend: Friend = {
+      code,
+      username: `Player_${code.slice(0, 4)}`,
+      isOnline: Math.random() < 0.8,
+      addedAt: Date.now(),
+      level: Math.floor(Math.random() * 20) + 1
+    };
 
-  const handleDeclineFriendRequest = useCallback(async (req: FriendRequest): Promise<boolean> => {
-    if (!currentUser?.uid) return false;
-    const result = await declineFriendRequest(currentUser.uid, req.fromUid);
-    return result.success;
-  }, [currentUser]);
+    setFriends(prev => [...prev, newFriend]);
+    return true;
+  }, [friends]);
+
+  const handleRemoveFriend = useCallback((code: string) => {
+    setFriends(prev => prev.filter(f => f.code !== code));
+  }, []);
 
   // --- Handlers: Achievements ---
-  // Claim a single achievement's reward. Works for both one-off achievements
-  // (stored directly) and procedural achievements (id format "group__idx",
-  // unlocked status derived live from unlockedCounts).
   const handleClaimAchReward = useCallback((achId: string) => {
-    const parsed = parseAchievementId(achId);
-    if (parsed) {
-      const group = getGroupById(parsed.groupId);
-      if (!group) return;
-      const currentUnlocked = unlockedCounts[parsed.groupId] || 0;
-      if (parsed.idx > currentUnlocked) return; // not actually unlocked
-      if (claimedProceduralIds.has(achId)) return; // already claimed
-      const target = group.target(parsed.idx);
-      const reward = group.reward(parsed.idx, target);
-      if (reward <= 0) return;
-      setClaimedProceduralIds(prev => {
-        const next = new Set(prev);
-        next.add(achId);
-        return next;
-      });
-      setCoins(c => c + reward);
-      return;
-    }
-
-    setOneOffAchievements(prev => {
+    setAchievements(prev => {
       const ach = prev.find(a => a.id === achId);
       if (!ach || !ach.unlocked || ach.rewardClaimed || ach.coinReward <= 0) return prev;
 
       setCoins(c => c + ach.coinReward);
       return prev.map(a => (a.id === achId ? { ...a, rewardClaimed: true } : a));
     });
-  }, [unlockedCounts, claimedProceduralIds]);
+  }, []);
 
-  // Claim every currently-unlocked, not-yet-claimed reward across BOTH
-  // one-off achievements and all procedural groups. For procedural groups
-  // this sums rewards for [1..unlockedCount] tiers not already claimed —
-  // still bounded by how many tiers are actually unlocked (never the full
-  // 100,000), which in practice is a small number even for dedicated players.
   const handleClaimAllAchRewards = useCallback(() => {
     let total = 0;
-
-    setOneOffAchievements(prev => {
+    setAchievements(prev => {
       const updated = prev.map(a => {
         if (a.unlocked && a.coinReward > 0 && !a.rewardClaimed) {
           total += a.coinReward;
@@ -1586,33 +1687,10 @@ export default function App() {
       return updated;
     });
 
-    const newlyClaimedProceduralIds: string[] = [];
-    for (const group of ACHIEVEMENT_GROUPS) {
-      const unlockedCount = unlockedCounts[group.groupId] || 0;
-      for (let idx = 1; idx <= unlockedCount; idx++) {
-        const id = makeAchievementId(group.groupId, idx);
-        if (claimedProceduralIds.has(id)) continue;
-        const target = group.target(idx);
-        const reward = group.reward(idx, target);
-        if (reward > 0) {
-          total += reward;
-          newlyClaimedProceduralIds.push(id);
-        }
-      }
-    }
-    if (newlyClaimedProceduralIds.length > 0) {
-      setClaimedProceduralIds(prev => {
-        const next = new Set(prev);
-        newlyClaimedProceduralIds.forEach(id => next.add(id));
-        return next;
-      });
-    }
-
     if (total > 0) {
       setCoins(c => c + total);
     }
-  }, [unlockedCounts, claimedProceduralIds]);
-
+  }, []);
 
   // Theme styling
   const activeTheme = useMemo(() => {
@@ -1734,20 +1812,6 @@ export default function App() {
               <Box className="w-3.5 h-3.5 text-blue-400" />
               <span>{t('nav.building')}</span>
             </button>
-            <button
-              onClick={() => {
-                sound.playClickSound();
-                setActiveView('combat');
-              }}
-              className={`px-3 py-1 rounded flex items-center gap-1 transition-all cursor-pointer ${
-                activeView === 'combat'
-                  ? 'bg-red-900/60 text-red-300 border border-red-600/50 shadow'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Sword className="w-3.5 h-3.5 text-red-400" />
-              <span>{t('nav.combat')}</span>
-            </button>
           </div>
 
           {/* Right: Actions, Modals & Cloud State */}
@@ -1832,23 +1896,125 @@ export default function App() {
               )}
             </button>
 
-            {/* Firebase Auth & Cloud Sync Button */}
-            <button
-              onClick={() => {
-                sound.playClickSound();
-                setIsAuthOpen(true);
-              }}
-              title={isEn ? 'Firebase Account & Cloud Save' : 'Firebase 帳號登入與雲端存檔'}
-              className={`px-2.5 sm:px-3 py-1.5 font-black text-xs rounded-lg border-2 border-black active:scale-95 flex items-center gap-1.5 transition-all cursor-pointer ${
-                currentUser
-                  ? 'bg-emerald-900/80 hover:bg-emerald-800 text-emerald-200 border-emerald-500 shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#34d399]'
-                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
-              }`}
-            >
-              <Cloud className={`w-3.5 h-3.5 ${currentUser ? 'text-emerald-400' : 'text-zinc-400'}`} />
-              <span>{currentUser ? (isEn ? 'Cloud Online' : '雲端已連線') : 'Firebase'}</span>
-              {currentUser && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />}
-            </button>
+            {/* Account / User Menu or Login/Register Button */}
+            {currentUser ? (
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    sound.playClickSound();
+                    setIsUserMenuOpen(prev => !prev);
+                  }}
+                  title={isEn ? 'User Profile & Menu' : '玩家選單 (變更名稱/頭像/設定/登出)'}
+                  className="px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-emerald-950 via-zinc-900 to-emerald-950 hover:from-emerald-900 hover:to-zinc-800 text-emerald-200 font-black text-xs rounded-lg border-2 border-emerald-500 shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#34d399] active:scale-95 flex items-center gap-1.5 transition-all cursor-pointer font-minecraft"
+                >
+                  <span className="text-base leading-none drop-shadow-[1px_1px_0_#000]">{activeSkin.avatarEmoji}</span>
+                  <span className="max-w-[80px] sm:max-w-[120px] truncate">{currentUser.displayName || myUsername}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-emerald-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu Backdrop */}
+                {isUserMenuOpen && (
+                  <div
+                    className="fixed inset-0 z-40 cursor-default"
+                    onClick={() => setIsUserMenuOpen(false)}
+                  />
+                )}
+
+                {/* Dropdown Menu Box */}
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-[#242424] border-4 border-black rounded-lg shadow-[inset_-4px_-4px_0_#111,inset_4px_4px_0_#444,0_12px_30px_rgba(0,0,0,0.95)] z-50 overflow-hidden font-minecraft animate-in fade-in zoom-in-95 duration-100">
+                    {/* Header info */}
+                    <div className="p-3 bg-zinc-900 border-b-2 border-black flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-lg bg-zinc-950 border-2 border-emerald-500/80 flex items-center justify-center text-2xl shrink-0 shadow-[inset_1px_1px_0_#34d399]">
+                        {activeSkin.avatarEmoji}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-black text-white truncate">
+                          {currentUser.displayName || myUsername}
+                        </div>
+                        <div className="text-[10px] text-zinc-400 font-mono flex items-center gap-1 mt-0.5">
+                          <span className="text-amber-300">#{myFriendCode}</span>
+                          <span className="text-emerald-400">• {isEn ? 'Online' : '已連線'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Menu items */}
+                    <div className="p-1.5 space-y-1">
+                      {/* 變更名稱 */}
+                      <button
+                        onClick={() => {
+                          sound.playClickSound();
+                          setIsUserMenuOpen(false);
+                          setIsChangeNameOpen(true);
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs font-bold text-zinc-200 hover:text-white hover:bg-zinc-800 rounded flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <Edit3 className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>{isEn ? 'Change Name' : '變更名稱'}</span>
+                      </button>
+
+                      {/* 頭像 */}
+                      <button
+                        onClick={() => {
+                          sound.playClickSound();
+                          setIsUserMenuOpen(false);
+                          setIsAvatarSelectOpen(true);
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs font-bold text-zinc-200 hover:text-white hover:bg-zinc-800 rounded flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
+                        <span>{isEn ? 'Avatar' : '頭像'}</span>
+                      </button>
+
+                      {/* 設定 */}
+                      <button
+                        onClick={() => {
+                          sound.playClickSound();
+                          setIsUserMenuOpen(false);
+                          setIsMenuOpen(true);
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs font-bold text-zinc-200 hover:text-white hover:bg-zinc-800 rounded flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <Settings className="w-4 h-4 text-blue-400 shrink-0" />
+                        <span>{isEn ? 'Settings' : '設定'}</span>
+                      </button>
+
+                      <div className="my-1 border-t border-zinc-800" />
+
+                      {/* 登出 */}
+                      <button
+                        onClick={async () => {
+                          sound.playClickSound();
+                          setIsUserMenuOpen(false);
+                          await logoutUser();
+                          setCurrentUser(null);
+                          setCloudToast(isEn ? '👋 Successfully logged out' : '👋 已成功登出帳號');
+                          setTimeout(() => setCloudToast(null), 3000);
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs font-bold text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 rounded flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4 text-rose-400 shrink-0" />
+                        <span>{isEn ? 'Logout' : '登出'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Not logged in: Show 登入 / 註冊 */
+              <button
+                onClick={() => {
+                  sound.playClickSound();
+                  setIsAuthOpen(true);
+                }}
+                title={isEn ? 'Account Login & Register' : '帳號登入與註冊'}
+                className="px-2.5 sm:px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#27272a,inset_2px_2px_0_#52525b] active:scale-95 flex items-center gap-1.5 transition-all cursor-pointer font-minecraft"
+              >
+                <UserIcon className="w-3.5 h-3.5 text-amber-400" />
+                <span>{isEn ? 'Login / Register' : '登入 / 註冊'}</span>
+              </button>
+            )}
 
             {/* Changelog Button */}
             <button
@@ -1857,11 +2023,9 @@ export default function App() {
                 setIsChangelogOpen(true);
               }}
               title={isEn ? 'View Version Changelog' : '查看版本更新日誌'}
-              className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-amber-300 border-2 border-black rounded-lg active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow"
+              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-amber-300 border-2 border-black rounded-lg active:scale-95 cursor-pointer"
             >
-              <Scroll className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">{isEn ? 'Changelog' : '更新日誌'}</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 bg-amber-950 text-amber-300 rounded border border-amber-700 font-bold">v2.2.4</span>
+              <Scroll className="w-4 h-4" />
             </button>
 
             {/* Quick Language Toggle */}
@@ -2005,9 +2169,15 @@ export default function App() {
             layerMinedCounts={layerMinedCounts}
             onMineSuccess={handleMineSuccess}
             onDurabilityLoss={handleDurabilityLoss}
+            onToolDurabilityLoss={handleToolDurabilityLoss}
             onOpenShopToPickaxes={() => {
               sound.playClickSound();
               setShopInitialTab('pickaxes');
+              setIsShopOpen(true);
+            }}
+            onOpenShopTab={(tab) => {
+              sound.playClickSound();
+              setShopInitialTab(tab);
               setIsShopOpen(true);
             }}
             totalBlocksMined={stats.totalBlocksMined}
@@ -2016,10 +2186,22 @@ export default function App() {
             extremeHasteSeconds={extremeHasteSeconds}
             doubleCoinsSeconds={doubleCoinsSeconds}
             zeroDurabilitySeconds={zeroDurabilitySeconds}
+            activeTool={activeTool}
+            onChangeTool={setActiveTool}
+            autoSwitchTool={autoSwitchTool}
+            onToggleAutoSwitch={() => setAutoSwitchTool(prev => !prev)}
+            axeState={axeState}
+            shovelState={shovelState}
+            swordState={swordState}
+            onDefeatMonster={handleDefeatMonster}
+            onEarnExtraCoins={(c) => {
+              setCoins(prev => prev + c);
+              setStats(prev => ({ ...prev, totalCoinsEarned: prev.totalCoinsEarned + c }));
+            }}
           />
         )}
 
-        {/* SECTION 2: 1000 格建築創作區 (Building Zone) */}
+        {/* SECTION 2: 100 格建築創作區 (Building Zone) */}
         {(activeView === 'all' || activeView === 'building') && (
           <BuildingZone
             grid={buildGrid}
@@ -2029,15 +2211,6 @@ export default function App() {
             onReclaimBlock={handleReclaimBlock}
             onClearAll={handleClearAllBlocks}
             onLoadPreset={handleLoadPreset}
-          />
-        )}
-
-        {/* SECTION 3: 打怪練習場 (Training Grounds / Combat Arena) */}
-        {(activeView === 'all' || activeView === 'combat') && (
-          <CombatArena
-            attackPower={combatAttackPower}
-            onMonsterKilled={handleMonsterKilled}
-            onDamageDealt={handleCombatDamageDealt}
           />
         )}
       </main>
@@ -2055,7 +2228,7 @@ export default function App() {
             }}
             className="text-amber-400 hover:underline flex items-center gap-1 font-mono cursor-pointer"
           >
-            <span>{isEn ? 'v2.2.4 (Changelog)' : 'v2.2.4 (更新日誌)'}</span>
+            <span>{isEn ? 'v2.2.6 (Changelog)' : 'v2.2.6 (更新日誌)'}</span>
           </button>
         </div>
 
@@ -2152,7 +2325,45 @@ export default function App() {
         onClose={() => setIsChangelogOpen(false)}
       />
 
-      {/* FIREBASE AUTH & CLOUD SAVE MODAL */}
+      {/* CHANGE NAME MODAL */}
+      <ChangeNameModal
+        isOpen={isChangeNameOpen}
+        onClose={() => setIsChangeNameOpen(false)}
+        currentUsername={currentUser?.displayName || myUsername}
+        onNameUpdated={(newName) => {
+          setMyUsername(newName);
+          if (currentUser) {
+            setCurrentUser(prev => prev ? { ...prev, displayName: newName } : null);
+          }
+          setCloudToast(isEn ? `✅ Name updated to: ${newName}` : `✅ 玩家名稱已成功變更為：${newName}`);
+          setTimeout(() => setCloudToast(null), 3500);
+          handleCloudSave();
+        }}
+        isLoggedIn={!!currentUser}
+      />
+
+      {/* AVATAR SELECT MODAL */}
+      <AvatarSelectModal
+        isOpen={isAvatarSelectOpen}
+        onClose={() => setIsAvatarSelectOpen(false)}
+        currentSkinId={currentSkinId}
+        ownedSkins={ownedSkins}
+        coins={coins}
+        onEquipSkin={(skinId) => {
+          setCurrentSkinId(skinId);
+          setCloudToast(isEn ? '🎭 Avatar equipped!' : '🎭 頭像已裝備！');
+          setTimeout(() => setCloudToast(null), 2500);
+          handleCloudSave();
+        }}
+        onBuySkin={(skin) => {
+          handleBuySkin(skin);
+          setCloudToast(isEn ? '🎉 New avatar unlocked & equipped!' : '🎉 新頭像造型已解鎖並裝備！');
+          setTimeout(() => setCloudToast(null), 2500);
+          handleCloudSave();
+        }}
+      />
+
+      {/* ACCOUNT & CLOUD SAVE MODAL */}
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
@@ -2165,8 +2376,18 @@ export default function App() {
           setCloudToast('已登出帳號');
           setTimeout(() => setCloudToast(null), 3000);
         }}
-        onUserLoggedIn={() => {
-          setCloudToast('🎉 登入成功！');
+        onUserLoggedIn={(user) => {
+          if (user) {
+            setCurrentUser({
+              email: user.email,
+              displayName: user.displayName || user.email?.split('@')[0] || 'Miner',
+              uid: user.uid
+            });
+            if (user.displayName) {
+              setMyUsername(user.displayName);
+            }
+          }
+          setCloudToast(isEn ? '🎉 Logged in successfully!' : '🎉 登入成功！');
           setTimeout(() => setCloudToast(null), 3000);
         }}
       />
@@ -2197,6 +2418,21 @@ export default function App() {
         onEquipPickaxe={handleEquipPickaxe}
         onRepairPickaxe={handleRepairPickaxe}
         onUpgradePickaxe={handleUpgradePickaxe}
+        axeState={axeState}
+        ownedAxes={ownedAxes}
+        onBuyAxe={handleBuyAxe}
+        onEquipAxe={handleEquipAxe}
+        onRepairAxe={handleRepairAxe}
+        shovelState={shovelState}
+        ownedShovels={ownedShovels}
+        onBuyShovel={handleBuyShovel}
+        onEquipShovel={handleEquipShovel}
+        onRepairShovel={handleRepairShovel}
+        swordState={swordState}
+        ownedSwords={ownedSwords}
+        onBuySword={handleBuySword}
+        onEquipSword={handleEquipSword}
+        onRepairSword={handleRepairSword}
         onBuyTheme={handleBuyTheme}
         onEquipTheme={setCurrentThemeId}
         onBuySkin={handleBuySkin}
@@ -2211,31 +2447,25 @@ export default function App() {
       <FriendsModal
         isOpen={isFriendsOpen}
         onClose={() => setIsFriendsOpen(false)}
-        isLoggedIn={!!currentUser?.uid}
-        myUid={currentUser?.uid || null}
-        myUsername={myUsername}
+        myUsername={currentUser?.displayName || myUsername}
         myFriendCode={myFriendCode}
         friends={friends}
         friendRewardClaimed={friendRewardClaimed}
         onClaimFriendReward={handleClaimFriendReward}
-        onSendFriendRequest={handleSendFriendRequest}
-        onAcceptFriendRequest={handleAcceptFriendRequest}
-        onDeclineFriendRequest={handleDeclineFriendRequest}
-        onUpdateUsername={setMyUsername}
-        onOpenAuth={() => { setIsFriendsOpen(false); setIsAuthOpen(true); }}
+        onAddFriendByCode={handleAddFriendByCode}
+        onRemoveFriend={handleRemoveFriend}
       />
 
       {/* ACHIEVEMENTS MODAL */}
-      <AchievementsModal
-        isOpen={isAchievementsOpen}
-        onClose={() => setIsAchievementsOpen(false)}
-        oneOffAchievements={oneOffAchievements}
-        unlockedCounts={unlockedCounts}
-        claimedProceduralIds={claimedProceduralIds}
-        totalAchievementCount={TOTAL_ACHIEVEMENT_COUNT}
-        onClaimReward={handleClaimAchReward}
-        onClaimAllRewards={handleClaimAllAchRewards}
-      />
+      {isAchievementsOpen && (
+        <AchievementsModal
+          isOpen={isAchievementsOpen}
+          onClose={() => setIsAchievementsOpen(false)}
+          achievements={achievements}
+          onClaimReward={handleClaimAchReward}
+          onClaimAllRewards={handleClaimAllAchRewards}
+        />
+      )}
 
       {/* FESTIVALS MODAL */}
       <FestivalsModal
