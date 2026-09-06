@@ -53,7 +53,6 @@ import {
   subscribeToAuth,
   saveUserData,
   loadUserData,
-  isFirebaseConfigured,
   registerFriendCode,
   resolveFriendCode,
   sendFriendRequest,

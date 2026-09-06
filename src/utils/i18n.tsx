@@ -196,7 +196,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'auth.tabCloud': 'Cloud Save',
     'auth.tabLogin': 'Account Login',
     'auth.tabRegister': 'Register New Player',
-    'auth.tabConfig': 'Firebase Project Config',
     'auth.email': 'Email Address',
     'auth.password': 'Password',
     'auth.displayName': 'Player Nickname (Display Name)',
@@ -220,11 +219,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'auth.syncDesc': 'Cloud save preserves coins, inventory blocks, pickaxe tier, durability, 100-cell building plots, all 1,000 achievements, and all statistics.',
     'auth.uploadProgress': 'Upload Current Progress to Cloud',
     'auth.downloadProgress': 'Download & Load Cloud Progress',
-    'auth.customProjectTip': 'Use your own Firebase project: Paste your web config object below, or define env variables in .env.',
-    'auth.pasteConfigLabel': 'Quick-Paste Firebase Config (JSON / JS Object)',
-    'auth.pasteConfigHint': 'Firebase Console > Project Settings > General',
-    'auth.parseJson': 'Parse JSON into form fields',
-    'auth.applyConfig': 'Apply & Save Config',
     'auth.ready': 'Cloud Save Ready',
 
     // Common / Notifications
@@ -443,7 +437,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'auth.tabCloud': '雲端存檔',
     'auth.tabLogin': '帳號登入',
     'auth.tabRegister': '註冊新帳號',
-    'auth.tabConfig': 'Firebase 專案設定',
     'auth.email': '電子信箱 (Email)',
     'auth.password': '密碼 (Password)',
     'auth.displayName': '玩家暱稱 (顯示名稱)',
@@ -467,11 +460,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'auth.syncDesc': '雲端存檔會儲存您的金幣、方塊庫存、鎬子階級、耐久度、100 格建築區、1,000 個成就狀態與所有統計資料。',
     'auth.uploadProgress': '上傳目前進度至雲端',
     'auth.downloadProgress': '下載並載入雲端進度',
-    'auth.customProjectTip': '使用您自己的 Firebase 專案：可在下方直接貼上 Firebase Web Config 設定物件，或於 .env 填入環境變數。儲存後立即生效！',
-    'auth.pasteConfigLabel': '快速貼上 Firebase Config (JSON / JS 物件)',
-    'auth.pasteConfigHint': 'Firebase 控制台 > 專案設定 > 一般',
-    'auth.parseJson': '解析上方 JSON 填入表單',
-    'auth.applyConfig': '套用並保存設定',
     'auth.ready': '雲端存檔就緒',
 
     // Common / Notifications

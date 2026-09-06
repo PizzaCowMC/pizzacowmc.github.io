@@ -3,13 +3,11 @@ import {
   Cloud,
   CloudUpload,
   CloudDownload,
-  Settings,
   X,
   Check,
   AlertCircle,
   ShieldCheck,
   Sparkles,
-  KeyRound,
   LogIn,
   UserPlus,
   LogOut
@@ -18,10 +16,7 @@ import { sound } from '../utils/soundEffects';
 import {
   registerUser,
   loginUser,
-  logoutUser,
-  saveFirebaseConfig,
-  getSavedFirebaseConfig,
-  FirebaseConfigOptions
+  logoutUser
 } from '../services/firebase';
 import { useLanguage } from '../utils/i18n';
 
@@ -47,7 +42,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onUserLoggedIn
 }) => {
   const { language, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'cloud' | 'config'>('login');
+  // Firebase project config is now fixed/built-in — the "config" tab has
+  // been removed, so this only ever needs to distinguish login/register/cloud.
+  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'cloud'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -55,18 +52,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   const isEn = language === 'en';
-
-  // Config State
-  const initialConfig = getSavedFirebaseConfig() || {
-    apiKey: '',
-    authDomain: '',
-    projectId: '',
-    storageBucket: '',
-    messagingSenderId: '',
-    appId: ''
-  };
-  const [configForm, setConfigForm] = useState<FirebaseConfigOptions>(initialConfig);
-  const [rawConfigJson, setRawConfigJson] = useState('');
 
   if (!isOpen) return null;
 
@@ -164,57 +149,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleParseRawJson = () => {
-    try {
-      let cleaned = rawConfigJson.trim();
-      if (cleaned.includes('{')) {
-        const start = cleaned.indexOf('{');
-        const end = cleaned.lastIndexOf('}');
-        if (start !== -1 && end !== -1) {
-          cleaned = cleaned.substring(start, end + 1);
-        }
-      }
-      const jsonLike = cleaned
-        .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')
-        .replace(/'/g, '"');
-      const parsed = JSON.parse(jsonLike);
-      if (parsed.apiKey && parsed.projectId) {
-        setConfigForm({
-          apiKey: parsed.apiKey || '',
-          authDomain: parsed.authDomain || '',
-          projectId: parsed.projectId || '',
-          storageBucket: parsed.storageBucket || '',
-          messagingSenderId: parsed.messagingSenderId || '',
-          appId: parsed.appId || ''
-        });
-        showMsg(
-          isEn
-            ? '✅ Successfully parsed Firebase Config! Click "Apply & Save Config" below.'
-            : '✅ 成功解析 Firebase 配置！請點擊「套用並保存設定」完成連線。',
-          'success'
-        );
-      } else {
-        showMsg(isEn ? '⚠️ Parse failed: apiKey or projectId fields not found!' : '⚠️ 解析失敗：未找到 apiKey 或 projectId 欄位！', 'error');
-      }
-    } catch {
-      showMsg(isEn ? '⚠️ Invalid JSON format, please check or fill the form fields manually!' : '⚠️ JSON 格式有誤，請手動在下方表單填寫或檢查格式！', 'error');
-    }
-  };
-
-  const handleSaveConfig = () => {
-    if (!configForm.apiKey || !configForm.projectId) {
-      showMsg(isEn ? 'Please fill in at least API Key and Project ID!' : '請至少填寫 API Key 與 Project ID！', 'error');
-      return;
-    }
-    const ok = saveFirebaseConfig(configForm);
-    if (ok) {
-      sound.playAchievementSound();
-      showMsg(isEn ? '🚀 Firebase project config saved and re-initialized!' : '🚀 Firebase 專案配置已保存並重新初始化！', 'success');
-    } else {
-      showMsg(isEn ? 'Failed to save config, ensure localStorage is available.' : '儲存設定失敗，請確認瀏覽器支援 localStorage。', 'error');
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-[#222] border-4 border-[#3c3c3c] rounded-xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-white font-sans">
@@ -293,21 +227,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </>
           )}
-
-          <button
-            onClick={() => {
-              sound.playClickSound();
-              setActiveTab('config');
-            }}
-            className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 ml-auto cursor-pointer ${
-              activeTab === 'config'
-                ? 'bg-[#282828] text-blue-400 border-t-2 border-blue-500'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span>{t('auth.tabConfig')}</span>
-          </button>
         </div>
 
         {/* Body content */}
@@ -530,97 +449,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* TAB 4: FIREBASE PROJECT CONFIGURATION */}
-          {activeTab === 'config' && (
-            <div className="space-y-4">
-              <div className="bg-amber-950/20 border border-amber-600/30 p-3 rounded-lg text-xs text-amber-300 leading-relaxed">
-                💡 {t('auth.customProjectTip')}
-              </div>
-
-              {/* Fast Paste JSON textarea */}
-              <div>
-                <label className="block text-xs font-bold text-zinc-300 mb-1 flex items-center justify-between">
-                  <span>{t('auth.pasteConfigLabel')}</span>
-                  <span className="text-[10px] text-zinc-500">{t('auth.pasteConfigHint')}</span>
-                </label>
-                <div className="space-y-2">
-                  <textarea
-                    rows={3}
-                    value={rawConfigJson}
-                    onChange={(e) => setRawConfigJson(e.target.value)}
-                    placeholder={`{\n  "apiKey": "AIzaSy...",\n  "authDomain": "myproject.firebaseapp.com",\n  "projectId": "myproject-id",\n  "appId": "1:..."\n}`}
-                    className="w-full bg-[#181818] border border-[#383838] focus:border-amber-500 rounded-lg p-2 text-xs font-mono text-white placeholder-zinc-600 outline-none transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleParseRawJson}
-                    className="px-3 py-1.5 bg-[#333] hover:bg-[#444] text-xs text-zinc-200 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{t('auth.parseJson')}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Explicit inputs */}
-              <div className="space-y-2.5 pt-1">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[11px] font-bold text-zinc-400 mb-0.5">API Key *</label>
-                    <input
-                      type="text"
-                      value={configForm.apiKey}
-                      onChange={(e) => setConfigForm({ ...configForm, apiKey: e.target.value })}
-                      placeholder="AIzaSy..."
-                      className="w-full bg-[#181818] border border-[#383838] focus:border-blue-500 rounded px-2.5 py-1.5 text-xs text-white outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-zinc-400 mb-0.5">Project ID *</label>
-                    <input
-                      type="text"
-                      value={configForm.projectId}
-                      onChange={(e) => setConfigForm({ ...configForm, projectId: e.target.value })}
-                      placeholder="my-project-12345"
-                      className="w-full bg-[#181818] border border-[#383838] focus:border-blue-500 rounded px-2.5 py-1.5 text-xs text-white outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[11px] font-bold text-zinc-400 mb-0.5">Auth Domain</label>
-                    <input
-                      type="text"
-                      value={configForm.authDomain}
-                      onChange={(e) => setConfigForm({ ...configForm, authDomain: e.target.value })}
-                      placeholder="project.firebaseapp.com"
-                      className="w-full bg-[#181818] border border-[#383838] focus:border-blue-500 rounded px-2.5 py-1.5 text-xs text-white outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-zinc-400 mb-0.5">App ID</label>
-                    <input
-                      type="text"
-                      value={configForm.appId}
-                      onChange={(e) => setConfigForm({ ...configForm, appId: e.target.value })}
-                      placeholder="1:123456789:web:..."
-                      className="w-full bg-[#181818] border border-[#383838] focus:border-blue-500 rounded px-2.5 py-1.5 text-xs text-white outline-none"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSaveConfig}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow transition-all active:scale-98 cursor-pointer"
-                >
-                  <KeyRound className="w-4 h-4" />
-                  <span>{t('auth.applyConfig')}</span>
-                </button>
-              </div>
-            </div>
-          )}
+          {/* TAB 4: FIREBASE PROJECT CONFIGURATION — removed. The project
+              uses a fixed, built-in Firebase configuration; users can no
+              longer supply their own Firebase project settings here. */}
         </div>
 
         {/* Footer */}
