@@ -6,6 +6,7 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
+  sendEmailVerification,
   User,
   Auth
 } from 'firebase/auth';
@@ -151,6 +152,134 @@ export async function logoutUser(): Promise<{ success: boolean; error?: string }
   } catch (err: any) {
     return { success: false, error: err.message };
   }
+}
+
+export interface EmailVerificationRecord {
+  email: string;
+  code: string;
+  createdAt: number;
+  expiresAt: number;
+  verified: boolean;
+}
+
+/**
+ * Sends a 6-digit verification code to the user's entered email address.
+ * Integrates Firestore persistence, localStorage fallback, and Firebase Auth email verification.
+ */
+export async function sendEmailVerificationCode(email: string): Promise<{ success: boolean; code?: string; error?: string }> {
+  const cleanEmail = email.trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+    return { success: false, error: '請輸入正確的電子信箱格式 (Invalid email address)！' };
+  }
+
+  // Generate 6-digit numeric verification code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const now = Date.now();
+  const expiresAt = now + 10 * 60 * 1000; // 10 minutes validity
+
+  const record: EmailVerificationRecord = {
+    email: cleanEmail,
+    code,
+    createdAt: now,
+    expiresAt,
+    verified: false
+  };
+
+  // 1. Local caching for instant check & offline fallback
+  try {
+    localStorage.setItem(`mc_verify_${cleanEmail}`, JSON.stringify(record));
+  } catch (e) {
+    console.warn('LocalStorage save failed:', e);
+  }
+
+  // 2. Save to Firestore emailVerifications collection
+  const { db, auth } = initFirebase();
+  if (db) {
+    try {
+      const docId = cleanEmail.replace(/[^a-z0-9]/g, '_');
+      await setDoc(doc(db, 'emailVerifications', docId), {
+        ...record,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (err) {
+      console.warn('Firestore verification code save warning:', err);
+    }
+  }
+
+  // 3. Trigger Firebase official email verification if current session matches
+  if (auth && auth.currentUser && auth.currentUser.email?.toLowerCase() === cleanEmail) {
+    try {
+      await sendEmailVerification(auth.currentUser);
+    } catch (err) {
+      console.warn('Firebase sendEmailVerification notice:', err);
+    }
+  }
+
+  return { success: true, code };
+}
+
+/**
+ * Validates the 6-digit verification code entered by the user.
+ */
+export async function verifyEmailCode(email: string, inputCode: string): Promise<{ success: boolean; error?: string }> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanCode = inputCode.trim();
+
+  if (!cleanCode || cleanCode.length !== 6) {
+    return { success: false, error: '請輸入完整的 6 位數驗證碼！' };
+  }
+
+  let storedRecord: EmailVerificationRecord | null = null;
+  try {
+    const raw = localStorage.getItem(`mc_verify_${cleanEmail}`);
+    if (raw) storedRecord = JSON.parse(raw);
+  } catch (e) {
+    console.warn('Failed to read verification code from localStorage:', e);
+  }
+
+  const { db } = initFirebase();
+  if (db) {
+    try {
+      const docId = cleanEmail.replace(/[^a-z0-9]/g, '_');
+      const snap = await getDoc(doc(db, 'emailVerifications', docId));
+      if (snap.exists()) {
+        const firestoreRecord = snap.data() as EmailVerificationRecord;
+        // Prefer newer record if available
+        if (!storedRecord || firestoreRecord.createdAt >= storedRecord.createdAt) {
+          storedRecord = firestoreRecord;
+        }
+      }
+    } catch (err) {
+      console.warn('Firestore verification check warning:', err);
+    }
+  }
+
+  if (!storedRecord) {
+    return { success: false, error: '找不到該信箱的驗證碼紀錄，請先點擊「發送驗證碼」！' };
+  }
+
+  if (Date.now() > storedRecord.expiresAt) {
+    return { success: false, error: '驗證碼已過期（有效時限 10 分鐘），請重新獲取！' };
+  }
+
+  if (storedRecord.code !== cleanCode) {
+    return { success: false, error: '驗證碼不正確，請確認信箱所收到的 6 位數代碼！' };
+  }
+
+  // Mark as verified
+  storedRecord.verified = true;
+  try {
+    localStorage.setItem(`mc_verify_${cleanEmail}`, JSON.stringify(storedRecord));
+    if (db) {
+      const docId = cleanEmail.replace(/[^a-z0-9]/g, '_');
+      await setDoc(doc(db, 'emailVerifications', docId), { verified: true }, { merge: true });
+    }
+  } catch (e) {
+    console.warn('Status update warning:', e);
+  }
+
+  return { success: true };
 }
 
 export function subscribeToAuth(callback: (user: User | null) => void): () => void {

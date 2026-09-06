@@ -16,6 +16,129 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
   const logs = [
     {
+      version: 'v2.2.4',
+      date: isEn ? 'Latest Release' : '最新版本發布',
+      badge: isEn ? 'Rendering Engine Stability & Blueprint Anti-Exploit' : '開採渲染衝突修復與藍圖防刷方塊機制',
+      badgeColor: 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-500 text-white shadow',
+      highlights: [
+        {
+          type: 'stability',
+          title: isEn ? 'Component State-in-Render Collision Fix' : '徹底修復開採場組件跨級渲染狀態衝突 (setState-in-render)',
+          desc: isEn
+            ? 'Eliminated the React runtime warning "Cannot update a component (App) while rendering a different component (QuarryMining)". Decoupled block drop completions, durability wear triggers, and tool breakage routines from React state setter callbacks using synchronized mutable refs.'
+            : '徹底修復了 React 運行時警告「Cannot update a component (`App`) while rendering a different component (`QuarryMining`)」！將開採敲擊進度與連續長按計時器完全解耦至 Mutable Ref 同步管理，杜絕在 setState 回呼函式中直接觸發父組件更新，保證極致流暢且零報錯。'
+        },
+        {
+          type: 'blueprint',
+          title: isEn ? 'Strict Inventory Deduction for Blueprints (No Free Blocks!)' : '1000格藍圖材料嚴格扣除・全面杜絕免費刷取方塊',
+          desc: isEn
+            ? 'Resolved the exploit where players could load blueprints without owning materials. Every 1,000-cell pixel blueprint strictly validates inventory counts, blocks construction if resources are deficient with exact deficit breakdowns, and deducts the consumed blocks from inventory.'
+            : '全面修復並嚴格堵塞「切換藍圖可免費取得方塊」之平衡性漏洞！套用苦力怕、像素心、傳奇鑽石劍、黑曜要塞與光芒星辰等任何 1000 格藍圖時，系統即刻強制驗證背包材料；若材料不足將阻斷搭建並列出缺額明細，材料齊全則如實從背包扣除，徹底杜絕免費複製方塊。'
+        },
+        {
+          type: 'inspector',
+          title: isEn ? 'Interactive Blueprint Material Breakdown Inspector' : '內建藍圖材料清單檢視儀（ℹ️ 按鈕）',
+          desc: isEn
+            ? 'Added an inspector popover next to every preset in the Building Zone. Players can preview all required block types, required quantities vs current inventory counts, and deficit indicators before constructing.'
+            : '於建築工坊藍圖按鈕旁全新新增「材料需求清單（ℹ️）」檢視儀，讓玩家在正式鋪設前，一鍵預覽各藍圖所需方塊種類、需求數量與背包現有庫存比對。'
+        },
+        {
+          type: 'email',
+          title: isEn ? 'Email Verification Code Security on Registration' : '註冊用戶信箱 6 位數安全驗證碼直接傳送',
+          desc: isEn
+            ? 'Integrated 6-digit verification code dispatch directly to the user-entered email address during registration. Includes 60s resend cooldown, instant formatting checks, and persistent verification status across cloud sync.'
+            : '註冊帳號流程升級：用戶填寫電子信箱後點擊「發送驗證碼」，系統即時將 6 位數專屬驗證碼傳送至該用戶信箱，具備 60 秒冷卻倒數防刷、格式自動校驗，未通過驗證者無法完成註冊。'
+        }
+      ]
+    },
+    {
+      version: 'v2.2.3',
+      date: isEn ? 'Previous Release' : '前次版本更新',
+      badge: isEn ? 'Combat Balance & Precision Engine' : '戰鬥練習場平衡與極致效能優化',
+      badgeColor: 'bg-gradient-to-r from-red-600 via-amber-500 to-emerald-500 text-white shadow',
+      highlights: [
+        {
+          type: 'combat',
+          title: isEn ? 'Monster Balance & Combat Loot System' : '練習場怪物數值調教與戰鬥戰利品體系',
+          desc: isEn
+            ? 'Rebalanced attack, health, and coin drop formulas for all 8 training monsters (Zombies, Skeletons, Creepers, Spiders, Endermen, and the Wither Boss). Monsters defeated and damage dealt scale smoothly into combat coin rewards and dedicated combat achievement tiers.'
+            : '全面微調 8 大訓練場經典怪物（殭屍、骷髏、苦力怕、洞穴蜘蛛、終界使者與凋零首領）之生命防禦與擊殺掉落曲線，將擊敗數量與傷害輸出無縫連動金幣戰利品與戰鬥專屬成就！'
+        },
+        {
+          type: 'drag',
+          title: isEn ? 'Fluid Drag-Painting & Eraser Mode in 1,000-Cell Studio' : '1000格工坊連續拖曳塗繪與抹除模式',
+          desc: isEn
+            ? 'Enhanced the building canvas with continuous drag-painting (Paint mode) and continuous reclamation (Eraser mode). Global event listeners prevent drag-sticking and ensure high-FPS interaction across the entire 1,000-cell grid.'
+            : '建築工坊全新導入滑鼠按住連續拖曳放置（塗繪模式）與連續抹除（回收模式）！全局事件監聽確保跨瀏覽器邊界的穩定手感，在 1000 格大畫布上實現高幀率滑順鋪設。'
+        },
+        {
+          type: 'save',
+          title: isEn ? 'Cloud Save & Local Storage Resilience' : '雲端存檔與本地數據校驗加固',
+          desc: isEn
+            ? 'Strengthened bidirectional synchronization between Firebase Firestore and localStorage. Automatic boundary padding, schema migrations, and per-pickaxe durability fallback prevent data loss across sessions and device switches.'
+            : '大幅強化 Firebase Firestore 與本地端存檔雙向同步防護機制，自動相容早期 100 格建築存檔並補齊至 1000 格，確保裝備、成就與統計數據跨裝置切換時萬無一失。'
+        }
+      ]
+    },
+    {
+      version: 'v2.2.2',
+      date: isEn ? 'Feature Update' : '功能修復與優化',
+      badge: isEn ? 'Independent Durability & Anvil Quick-Repair' : '獨立鎬具耐久記憶與商店鐵砧修復',
+      badgeColor: 'bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 text-white shadow',
+      highlights: [
+        {
+          type: 'durability',
+          title: isEn ? 'Independent Durability Tracking per Tool' : '每把鎬具獨立耐久度記錄系統',
+          desc: isEn
+            ? 'Fixed the issue where switching pickaxes reset damaged tools to full durability. Every owned pickaxe (wood, stone, iron, gold, diamond, netherite, and seasonal festival picks) now maintains its exact wear state independently in save files.'
+            : '徹底修復切換鎬具時耐久度異常回滿的問題！玩家所持有的每把鎬具（木、石、鐵、金、鑽石、獄髓與節慶限定款）均具備獨立持久度狀態表，換裝時精準記憶並自動保存當前磨損狀況。'
+        },
+        {
+          type: 'shop',
+          title: isEn ? 'In-Shop Direct Repair Buttons & Status Badges' : '商店陳列庫即時獨立修復與損毀警示',
+          desc: isEn
+            ? 'The pickaxe catalog now renders live durability percentages, warning tags (Damaged in amber, Broken in red), and direct one-click repair buttons next to each damaged tool without requiring players to equip them first.'
+            : '商店鎬具陳列庫即時顯示每把工具的剩餘耐久數值與百分比（受損顯示黃字、損毀顯示紅字警報），並提供「直接快速修復」按鈕，無需換裝即可一鍵保養整備！'
+        },
+        {
+          type: 'alarm',
+          title: isEn ? 'Tool Breakage Audio & Safety Warning' : '鎬具損毀音效警報與低速防護機制',
+          desc: isEn
+            ? 'Added custom tool breakage sound cues and pulsing visual tags. When durability reaches zero, the miner speed safely throttles with an on-screen repair prompt, preventing wasted mining actions.'
+            : '加入鎬具耐久歸零損毀時的專案破碎警報音效與呼吸警示標籤，採礦時自動保護降速並提醒玩家前往鐵砧或商店修復，大幅提升生存真實感與裝備管理樂趣。'
+        }
+      ]
+    },
+    {
+      version: 'v2.2.1',
+      date: isEn ? 'Milestone Expansion' : '重大里程碑擴充',
+      badge: isEn ? '100k Trophies & 1,000-Cell Studio' : '10萬終極成就與1000格超大建築區',
+      badgeColor: 'bg-gradient-to-r from-amber-600 via-emerald-600 to-teal-500 text-white shadow',
+      highlights: [
+        {
+          type: 'achievements',
+          title: isEn ? 'Scalable 100,000 Milestone Achievement Engine' : '100,000 個終極成就引擎全面上線',
+          desc: isEn
+            ? 'Expanded the achievement system to 100,000 individual milestones across 12 categories: Stratum excavation, coin titans, equipment mastery, 1,000-block architecture, social bonds, and training monsters. Built with O(log N) binary search for zero UI latency.'
+            : '成就榮耀殿堂正式擴充至十萬個（100,000）終極里程碑！涵蓋 8 大地層深探、金庫儲備、鍛造鐵匠、建築藝術家、名錄收藏與怪物狩獵等 12 組成就組，結合二分搜尋算法保持極致零延遲！'
+        },
+        {
+          type: 'building',
+          title: isEn ? '1,000-Cell Creative Studio (25x40 Grid)' : '1000 格超大平面建築創作工坊',
+          desc: isEn
+            ? 'Expanded the creative canvas from 100 cells to 25 columns × 40 rows (1,000 cells total). Added Compact, Normal, and Large multi-level zoom controls with live occupancy percentages and full inventory recycling.'
+            : '建築創作畫布由原先的 100 格巨幅升級至 25 列 × 40 行（全域共 1,000 格）！全新配備「小（緊湊全覽）」、「中（標準）」、「大（特大精準）」三段縮放視角與即時使用率進度條。'
+        },
+        {
+          type: 'blueprints',
+          title: isEn ? '1,000-Cell Pixel Art Blueprint Presets' : '1000 格精選像素藍圖一鍵鋪設',
+          desc: isEn
+            ? 'Introduced 5 high-definition pixel blueprints crafted specifically for the 1,000-cell grid: Giant Creeper Face, Classic Pixel Heart, Legendary Diamond Sword, Obsidian Fortress Castle, and Glowing Star of Destiny.'
+            : '內建 5 款專為 1000 格畫布量身打造的大型像素藍圖：巨型苦力怕肖像、經典像素心、傳奇鑽石劍、雄偉黑曜石要塞與光芒星辰，一鍵套用且支援 100% 完整回收背包！'
+        }
+      ]
+    },
+    {
       version: 'v2.2.0',
       date: isEn ? 'Latest Flagship Update' : '最新旗艦盛典',
       badge: isEn ? 'Festivals & English Support' : '萬國節慶與預設英文雙語',
@@ -296,7 +419,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
         {/* Footer */}
         <div className="bg-[#181818] px-6 py-3 border-t-2 border-[#333] flex items-center justify-between text-xs text-zinc-400">
-          <span>{isEn ? 'Minecraft Quarry & Workshop v2.2.0' : 'Minecraft 挖掘場與建築工坊 v2.2.0'}</span>
+          <span>{isEn ? 'Minecraft Quarry & Workshop v2.2.4' : 'Minecraft 挖掘場與建築工坊 v2.2.4'}</span>
           <button
             onClick={() => {
               sound.playClickSound();

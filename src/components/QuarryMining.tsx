@@ -56,6 +56,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   const [floatingTexts, setFloatingTexts] = useState<{ id: number; text: string; x: number; y: number }[]>([]);
 
   const holdIntervalRef = useRef<number | null>(null);
+  const progressRef = useRef<number>(0);
 
   const activeBlock = fallbackBlocks[currentBlockIndex % fallbackBlocks.length] || BLOCK_TYPES[0];
   const currentPickaxe = PICKAXE_TIERS.find(p => p.id === pickaxeState.currentTierId) || PICKAXE_TIERS[0];
@@ -70,6 +71,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   const pickNewBlock = useCallback(() => {
     const nextIdx = Math.floor(Math.random() * fallbackBlocks.length);
     setCurrentBlockIndex(nextIdx);
+    progressRef.current = 0;
     setMiningProgress(0);
   }, [fallbackBlocks.length]);
 
@@ -100,32 +102,32 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
       setFloatingTexts(prev => prev.filter(item => item.id !== newId));
     }, 900);
 
+    // Reset progress before notifying parent
+    progressRef.current = 0;
+    setMiningProgress(0);
+    pickNewBlock();
+
     // Give block to inventory & track stats and layer count
     onMineSuccess(activeBlock, amount, activeLayer.id);
 
     // Consume durability
     onDurabilityLoss();
-
-    // Reset progress and pick next block
-    setMiningProgress(0);
-    pickNewBlock();
-  }, [activeBlock, activeLayer.id, onDurabilityLoss, onMineSuccess, pickNewBlock, pickaxeState.fortuneLevel]);
+  }, [activeBlock, activeLayer.id, onDurabilityLoss, onMineSuccess, pickNewBlock, pickaxeState.fortuneLevel, isEn, getName]);
 
   // Perform a single mining strike / tick
   const strikeMining = useCallback(() => {
     sound.playHitSound(activeBlock.hardness);
 
     const strikeFraction = (120 / requiredMiningTimeMs) * 100;
-    setMiningProgress(prev => {
-      const next = prev + Math.max(15, strikeFraction);
-      if (next >= 100) {
-        completeMine();
-        return 0;
-      } else {
-        if (Math.random() < 0.35) sound.playCrackSound();
-        return next;
-      }
-    });
+    const nextVal = progressRef.current + Math.max(15, strikeFraction);
+
+    if (nextVal >= 100) {
+      completeMine();
+    } else {
+      if (Math.random() < 0.35) sound.playCrackSound();
+      progressRef.current = nextVal;
+      setMiningProgress(nextVal);
+    }
   }, [activeBlock.hardness, completeMine, requiredMiningTimeMs]);
 
   // Handle continuous hold mining
@@ -141,14 +143,13 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     // Tick every 60ms
     holdIntervalRef.current = window.setInterval(() => {
       const progressDelta = (60 / requiredMiningTimeMs) * 100;
-      setMiningProgress(prev => {
-        const next = prev + progressDelta;
-        if (next >= 100) {
-          completeMine();
-          return 0;
-        }
-        return next;
-      });
+      const nextVal = progressRef.current + progressDelta;
+      if (nextVal >= 100) {
+        completeMine();
+      } else {
+        progressRef.current = nextVal;
+        setMiningProgress(nextVal);
+      }
     }, 60);
 
     return () => {

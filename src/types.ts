@@ -57,6 +57,7 @@ export interface PickaxeState {
   unbreakingLevel: number; // durability loss reduction
   fortuneLevel: number; // bonus yield chance
   isBroken: boolean;
+  durabilities?: Record<string, number>;
 }
 
 export interface ThemeBackground {

@@ -15,7 +15,7 @@ import {
 } from './data/achievementEngine';
 import { BlockType, PickaxeState, ThemeBackground, PlayerSkin, Friend, FriendRequest, Achievement, MarketInflationEvent, ShopSupplyItem } from './types';
 import { QuarryMining } from './components/QuarryMining';
-import { BuildingZone, BUILDING_GRID_TOTAL } from './components/BuildingZone';
+import { BuildingZone, BUILDING_GRID_TOTAL, BUILDING_GRID_COLS } from './components/BuildingZone';
 import { CombatArena } from './components/CombatArena';
 import { Hotbar } from './components/Hotbar';
 import { MarketModal } from './components/MarketModal';
@@ -60,6 +60,7 @@ import {
   declineFriendRequest
 } from './services/firebase';
 import { useLanguage } from './utils/i18n';
+import { BLUEPRINT_PRESETS, generatePresetGrid, getPresetMaterialRequirements } from './data/buildingPresets';
 
 const STORAGE_KEY = 'mc_mining_workshop_v1';
 
@@ -112,7 +113,24 @@ export default function App() {
   const [pickaxeState, setPickaxeState] = useState<PickaxeState>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_pickaxe`);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          const durabilities: Record<string, number> = parsed.durabilities ? { ...parsed.durabilities } : {};
+          if (parsed.currentTierId && parsed.currentDurability !== undefined) {
+            durabilities[parsed.currentTierId] = parsed.currentDurability;
+          }
+          return {
+            currentTierId: parsed.currentTierId || 'bare_hand',
+            currentDurability: parsed.currentDurability ?? 999999,
+            efficiencyLevel: parsed.efficiencyLevel ?? 0,
+            unbreakingLevel: parsed.unbreakingLevel ?? 0,
+            fortuneLevel: parsed.fortuneLevel ?? 0,
+            isBroken: !!parsed.isBroken,
+            durabilities
+          };
+        }
+      }
     } catch {
       // Fallback
     }
@@ -122,7 +140,10 @@ export default function App() {
       efficiencyLevel: 0,
       unbreakingLevel: 0,
       fortuneLevel: 0,
-      isBroken: false
+      isBroken: false,
+      durabilities: {
+        bare_hand: 999999
+      }
     };
   });
 
@@ -504,7 +525,14 @@ export default function App() {
       if (d.inventory) setInventory(d.inventory);
       if (d.layerMinedCounts) setLayerMinedCounts(d.layerMinedCounts);
       if (d.selectedLayerId) setSelectedLayerId(d.selectedLayerId);
-      if (d.pickaxeState) setPickaxeState(d.pickaxeState);
+      if (d.pickaxeState) {
+        const p = d.pickaxeState;
+        const durabilities: Record<string, number> = p.durabilities ? { ...p.durabilities } : {};
+        if (p.currentTierId && p.currentDurability !== undefined) {
+          durabilities[p.currentTierId] = p.currentDurability;
+        }
+        setPickaxeState({ ...p, durabilities });
+      }
       if (Array.isArray(d.ownedPickaxes)) setOwnedPickaxes(d.ownedPickaxes);
       if (d.currentThemeId) setCurrentThemeId(d.currentThemeId);
       if (Array.isArray(d.ownedThemes)) setOwnedThemes(d.ownedThemes);
@@ -886,21 +914,34 @@ export default function App() {
     const unbChance = pickaxeState.unbreakingLevel * 0.10;
     if (Math.random() < unbChance) return; // Saved!
 
+    const willBreak = pickaxeState.currentDurability <= 1;
+    if (willBreak) {
+      sound.playToolBreakSound();
+      unlockAchievement('pick_break_recovery');
+    }
+
     setPickaxeState(prev => {
       const newDura = prev.currentDurability - 1;
       if (newDura <= 0) {
-        sound.playToolBreakSound();
-        unlockAchievement('pick_break_recovery');
         return {
           ...prev,
           currentTierId: 'bare_hand',
           currentDurability: 999999,
+          durabilities: {
+            ...(prev.durabilities || {}),
+            [prev.currentTierId]: 0,
+            bare_hand: 999999
+          },
           isBroken: true
         };
       }
       return {
         ...prev,
-        currentDurability: newDura
+        currentDurability: newDura,
+        durabilities: {
+          ...(prev.durabilities || {}),
+          [prev.currentTierId]: newDura
+        }
       };
     });
   }, [zeroDurabilitySeconds, pickaxeState.currentTierId, pickaxeState.unbreakingLevel, unlockAchievement]);
@@ -974,58 +1015,78 @@ export default function App() {
     unlockAchievement('build_clear_all');
   }, [buildGrid, unlockAchievement]);
 
-  // Presets for building
+  // Presets for building (25 columns x 40 rows = 1,000 cells)
+  // CRITICAL FIX: Blueprints MUST consume actual player inventory blocks!
+  // Prevents the "free block exploit" by calculating requirements, validating stock, and deducting blocks.
   const handleLoadPreset = useCallback((presetName: string) => {
-    sound.playAchievementSound();
-    const newGrid = Array(BUILDING_GRID_TOTAL).fill(null);
+    const preset = BLUEPRINT_PRESETS.find(p => p.id === presetName);
+    const required = getPresetMaterialRequirements(presetName);
+    const isEn = language === 'en';
 
-    if (presetName === 'creeper') {
-      // 10x10 Creeper face
-      // Rows 0-9, Cols 0-9
-      const creeperMask = [
-        [0,0,0,0,0,0,0,0,0,0],
-        [0,1,1,1,1,1,1,1,1,0],
-        [0,1,0,0,1,1,0,0,1,0],
-        [0,1,0,0,1,1,0,0,1,0],
-        [0,1,1,1,0,0,1,1,1,0],
-        [0,1,1,0,0,0,0,1,1,0],
-        [0,1,1,0,0,0,0,1,1,0],
-        [0,1,1,0,1,1,0,1,1,0],
-        [0,1,1,1,1,1,1,1,1,0],
-        [0,0,0,0,0,0,0,0,0,0]
-      ];
-      for (let r = 0; r < 10; r++) {
-        for (let c = 0; c < 10; c++) {
-          const idx = r * 10 + c;
-          if (creeperMask[r][c] === 1) newGrid[idx] = 'emerald_ore';
-          else if (r >= 1 && r <= 8 && c >= 1 && c <= 8) newGrid[idx] = 'coal_ore';
-        }
+    // 1. Calculate all available blocks (inventory + blocks currently placed on the grid)
+    const available: Record<string, number> = { ...inventory };
+    buildGrid.forEach(blockId => {
+      if (blockId) {
+        available[blockId] = (available[blockId] || 0) + 1;
       }
-    } else if (presetName === 'heart') {
-      const heartIdxs = [
-        12, 13, 16, 17,
-        21, 22, 23, 24, 25, 26, 27, 28,
-        31, 32, 33, 34, 35, 36, 37, 38,
-        41, 42, 43, 44, 45, 46, 47, 48,
-        52, 53, 54, 55, 56, 57,
-        63, 64, 65, 66,
-        74, 75
-      ];
-      heartIdxs.forEach(i => {
-        newGrid[i] = 'redstone_ore';
-      });
-    } else if (presetName === 'sword') {
-      const swordIdxs = [
-        9, 18, 27, 36, 45, 54,
-        63, 64, 72, 73, 81, 90
-      ];
-      swordIdxs.forEach((idx, step) => {
-        newGrid[idx] = step > 7 ? 'wood' : 'diamond_ore';
-      });
+    });
+
+    // 2. Check whether user has sufficient blocks for all requirements
+    const missingList: { name: string; needed: number; has: number; missing: number }[] = [];
+    for (const [blockId, needed] of Object.entries(required)) {
+      const has = available[blockId] || 0;
+      if (has < needed) {
+        const blockObj = BLOCK_TYPES.find(b => b.id === blockId);
+        const name = blockObj ? (isEn ? blockObj.nameEn : blockObj.nameZh) : blockId;
+        missingList.push({
+          name,
+          needed,
+          has,
+          missing: needed - has
+        });
+      }
     }
 
+    if (missingList.length > 0) {
+      sound.playHitSound(2);
+      const missingDetails = missingList
+        .map(m => `${m.name} x${m.missing} (庫存:${m.has}/需:${m.needed})`)
+        .join('、');
+      setCloudToast(
+        isEn
+          ? `❌ Insufficient Materials! Blueprints strictly consume inventory blocks. Missing: ${missingDetails}`
+          : `❌ 背包材料不足！藍圖嚴格消耗背包方塊（杜絕免費方塊）。缺少：${missingDetails}`
+      );
+      setTimeout(() => setCloudToast(null), 5000);
+      return;
+    }
+
+    // 3. User has enough blocks! Deduct required blocks from available pool
+    for (const [blockId, needed] of Object.entries(required)) {
+      available[blockId] = (available[blockId] || 0) - needed;
+    }
+
+    // 4. Generate new grid and apply
+    const newGrid = generatePresetGrid(presetName);
+    setInventory(available);
     setBuildGrid(newGrid);
-  }, []);
+
+    // 5. Update stats and trigger sounds
+    const totalBlocksUsed = Object.values(required).reduce((a, b) => a + b, 0);
+    setStats(prev => ({
+      ...prev,
+      totalBlocksPlaced: prev.totalBlocksPlaced + totalBlocksUsed
+    }));
+
+    sound.playAchievementSound();
+    setCloudToast(
+      isEn
+        ? `🎉 Blueprint "${preset?.nameEn || presetName}" constructed! Deducted ${totalBlocksUsed} blocks from inventory.`
+        : `🎉 成功扣除背包材料搭建「${preset?.nameZh || presetName}」！共消耗 ${totalBlocksUsed} 個方塊。`
+    );
+    setTimeout(() => setCloudToast(null), 4000);
+    unlockAchievement('build_first_block');
+  }, [inventory, buildGrid, language, unlockAchievement]);
 
   // --- Handlers: Market Selling ---
   const handleSellBlock = useCallback((blockId: string, amount: number, customUnitPrice?: number) => {
@@ -1111,6 +1172,11 @@ export default function App() {
       ...prev,
       currentTierId: tierId,
       currentDurability: targetPick.maxDurability,
+      durabilities: {
+        ...(prev.durabilities || {}),
+        [prev.currentTierId]: prev.currentDurability,
+        [tierId]: targetPick.maxDurability
+      },
       isBroken: false
     }));
   }, [coins]);
@@ -1119,25 +1185,51 @@ export default function App() {
     const targetPick = PICKAXE_TIERS.find(p => p.id === tierId);
     if (!targetPick) return;
 
-    setPickaxeState(prev => ({
-      ...prev,
-      currentTierId: tierId,
-      currentDurability: targetPick.tier === 0 ? 999999 : targetPick.maxDurability,
-      isBroken: false
-    }));
+    setPickaxeState(prev => {
+      // 1. Preserve current tool's durability before equipping
+      const updatedDurabilities: Record<string, number> = {
+        ...(prev.durabilities || {}),
+        [prev.currentTierId]: prev.currentDurability
+      };
+
+      // 2. Retrieve target tool's saved durability
+      const savedDura = updatedDurabilities[tierId];
+      const targetDurability = targetPick.tier === 0
+        ? 999999
+        : (savedDura !== undefined ? savedDura : targetPick.maxDurability);
+
+      return {
+        ...prev,
+        currentTierId: tierId,
+        currentDurability: targetDurability,
+        durabilities: {
+          ...updatedDurabilities,
+          [tierId]: targetDurability
+        },
+        isBroken: targetPick.tier !== 0 && targetDurability <= 0
+      };
+    });
   }, []);
 
-  const handleRepairPickaxe = useCallback((cost: number) => {
+  const handleRepairPickaxe = useCallback((cost: number, targetTierId?: string) => {
     if (coins < cost) return;
-    const currentPick = PICKAXE_TIERS.find(p => p.id === pickaxeState.currentTierId) || PICKAXE_TIERS[0];
-    if (currentPick.tier === 0) return;
+    const tierToRepair = targetTierId || pickaxeState.currentTierId;
+    const targetPick = PICKAXE_TIERS.find(p => p.id === tierToRepair) || PICKAXE_TIERS[0];
+    if (targetPick.tier === 0) return;
 
     setCoins(prev => prev - cost);
-    setPickaxeState(prev => ({
-      ...prev,
-      currentDurability: currentPick.maxDurability,
-      isBroken: false
-    }));
+    setPickaxeState(prev => {
+      const isEquipped = prev.currentTierId === tierToRepair;
+      return {
+        ...prev,
+        currentDurability: isEquipped ? targetPick.maxDurability : prev.currentDurability,
+        durabilities: {
+          ...(prev.durabilities || {}),
+          [tierToRepair]: targetPick.maxDurability
+        },
+        isBroken: isEquipped ? false : prev.isBroken
+      };
+    });
 
     unlockAchievement('repair_pick_1');
   }, [coins, pickaxeState.currentTierId, unlockAchievement]);
@@ -1178,6 +1270,10 @@ export default function App() {
       setPickaxeState(prev => ({
         ...prev,
         currentDurability: currentPick.tier === 0 ? 999999 : currentPick.maxDurability,
+        durabilities: {
+          ...(prev.durabilities || {}),
+          [prev.currentTierId]: currentPick.tier === 0 ? 999999 : currentPick.maxDurability
+        },
         isBroken: false
       }));
       sound.playUpgradeSound();
@@ -1315,7 +1411,10 @@ export default function App() {
       efficiencyLevel: 0,
       unbreakingLevel: 0,
       fortuneLevel: 0,
-      isBroken: false
+      isBroken: false,
+      durabilities: {
+        bare_hand: 999999
+      }
     });
     setOwnedPickaxes(['bare_hand']);
 
@@ -1758,9 +1857,11 @@ export default function App() {
                 setIsChangelogOpen(true);
               }}
               title={isEn ? 'View Version Changelog' : '查看版本更新日誌'}
-              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-amber-300 border-2 border-black rounded-lg active:scale-95 cursor-pointer"
+              className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-amber-300 border-2 border-black rounded-lg active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow"
             >
-              <Scroll className="w-4 h-4" />
+              <Scroll className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">{isEn ? 'Changelog' : '更新日誌'}</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 bg-amber-950 text-amber-300 rounded border border-amber-700 font-bold">v2.2.4</span>
             </button>
 
             {/* Quick Language Toggle */}
@@ -1918,7 +2019,7 @@ export default function App() {
           />
         )}
 
-        {/* SECTION 2: 100 格建築創作區 (Building Zone) */}
+        {/* SECTION 2: 1000 格建築創作區 (Building Zone) */}
         {(activeView === 'all' || activeView === 'building') && (
           <BuildingZone
             grid={buildGrid}
@@ -1954,7 +2055,7 @@ export default function App() {
             }}
             className="text-amber-400 hover:underline flex items-center gap-1 font-mono cursor-pointer"
           >
-            <span>{isEn ? 'v2.2.0 (Changelog)' : 'v2.2.0 (更新日誌)'}</span>
+            <span>{isEn ? 'v2.2.4 (Changelog)' : 'v2.2.4 (更新日誌)'}</span>
           </button>
         </div>
 

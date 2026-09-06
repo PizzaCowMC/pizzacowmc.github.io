@@ -17,7 +17,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
   en: {
     // App Header & Branding
     'app.title': 'Minecraft Quarry & Workshop',
-    'app.subtitle': 'Stratum Mining • 100-Block Creative Grid • Market Economy',
+    'app.subtitle': 'Stratum Mining • 1,000-Block Creative Grid • Market Economy',
     'app.tagline': 'By PizzaCowMC',
 
     // Nav & Views
@@ -74,13 +74,13 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'quarry.autoMining': 'Auto-miner mining...',
 
     // Building Zone
-    'build.title': '100-Block Creative Studio',
-    'build.subtitle': 'Place blocks from inventory onto 10x10 creative stage',
+    'build.title': '1,000-Block Creative Studio',
+    'build.subtitle': 'Place blocks from inventory onto 25x40 (1,000-cell) creative stage',
     'build.selectedBlock': 'Selected Block',
     'build.none': 'None',
     'build.clickToSelect': 'Click a block from your hotbar below to build',
     'build.clearCanvas': 'Clear Canvas',
-    'build.clearConfirm': 'Clear all 100 blocks on the grid? Returned blocks will be recycled.',
+    'build.clearConfirm': 'Clear all blocks on the 1,000-cell grid? Returned blocks will be recycled.',
     'build.reclaimed': 'Reclaimed',
     'build.placed': 'Placed',
     'build.blocksUsed': 'Grid Occupied',
@@ -145,13 +145,13 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // Achievements Modal
     'achievements.title': 'Trophy & Milestones',
-    'achievements.subtitle': '1,000 Comprehensive Milestones • Earn High Coin Bounties',
+    'achievements.subtitle': '100,000 Comprehensive Milestones • Earn High Coin Bounties',
     'achievements.search': 'Search achievements...',
     'achievements.claimAll': 'Claim All Available Rewards',
     'achievements.claimed': 'Claimed',
     'achievements.claimReward': 'Claim',
     'achievements.locked': 'Locked',
-    'achievements.catAll': 'All (1,000)',
+    'achievements.catAll': 'All (100,000)',
     'achievements.catMining': 'Mining',
     'achievements.catEconomy': 'Economy',
     'achievements.catEquipment': 'Equipment',
@@ -216,10 +216,21 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'auth.syncStatus': 'Cloud Synchronization Status',
     'auth.lastSynced': 'Last Synced:',
     'auth.notSyncedYet': 'Not Synced Yet',
-    'auth.syncDesc': 'Cloud save preserves coins, inventory blocks, pickaxe tier, durability, 100-cell building plots, all 1,000 achievements, and all statistics.',
+    'auth.syncDesc': 'Cloud save preserves coins, inventory blocks, pickaxe tier, durability, 1,000-cell building plots, all 100,000 achievements, and all statistics.',
     'auth.uploadProgress': 'Upload Current Progress to Cloud',
     'auth.downloadProgress': 'Download & Load Cloud Progress',
     'auth.ready': 'Cloud Save Ready',
+    'auth.sendCode': 'Send Code to Email',
+    'auth.sendingCode': 'Sending...',
+    'auth.resendCode': 'Resend in',
+    'auth.verificationCode': 'Email Verification Code (6-digit)',
+    'auth.codePlaceholder': 'Enter 6-digit verification code...',
+    'auth.verifyCodeBtn': 'Verify Code',
+    'auth.verifying': 'Verifying...',
+    'auth.emailVerified': 'Email Verified Successfully',
+    'auth.emailUnverified': 'Email Not Verified',
+    'auth.codeSentPrompt': 'Verification code sent to your entered email address!',
+    'auth.codeRequiredPrompt': 'Please obtain and enter the 6-digit verification code sent to your email first!',
 
     // Common / Notifications
     'common.coins': 'coins',
@@ -233,7 +244,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'common.error': 'Error',
 
     // Building Zone
-    'building.title': 'Building Plot',
+    'building.title': '1,000-Cell Creative Studio',
     'building.clear': 'Clear All',
 
     // Training Grounds (Combat)
@@ -258,7 +269,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
   zh: {
     // App Header & Branding
     'app.title': 'Minecraft 挖掘場與建築工坊',
-    'app.subtitle': '深層地脈採礦 • 100格建築創作 • 市場動態經濟',
+    'app.subtitle': '深層地脈採礦 • 1000格建築創作 • 市場動態經濟',
     'app.tagline': 'By PizzaCowMC',
 
     // Nav & Views
@@ -315,13 +326,13 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'quarry.autoMining': '自動採礦魔像採掘中...',
 
     // Building Zone
-    'build.title': '100 格創作建築工坊',
-    'build.subtitle': '消耗背包方塊在 10x10 平面自由拼貼與搭建藝術創作',
+    'build.title': '1000 格創作建築工坊',
+    'build.subtitle': '消耗背包方塊在 25x40 (1,000格) 平面自由拼貼與搭建藝術創作',
     'build.selectedBlock': '當前選中方塊',
     'build.none': '無',
     'build.clickToSelect': '點擊下方快捷列選擇方塊以開始建造',
     'build.clearCanvas': '清空畫布',
-    'build.clearConfirm': '確定清空網格上所有方塊嗎？方塊將回收至背包。',
+    'build.clearConfirm': '確定清空 1000 格畫布上所有方塊嗎？方塊將 100% 完整回收至背包。',
     'build.reclaimed': '已回收',
     'build.placed': '已放置',
     'build.blocksUsed': '已佔用格數',
@@ -386,13 +397,13 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // Achievements Modal
     'achievements.title': '成就榮耀殿堂',
-    'achievements.subtitle': '1,000 個終極里程碑挑戰 • 達成領取高額遊戲幣獎賞',
+    'achievements.subtitle': '100,000 個終極里程碑挑戰 • 達成領取高額遊戲幣獎賞',
     'achievements.search': '搜尋成就名稱或描述...',
     'achievements.claimAll': '一鍵領取所有已達成獎勵',
     'achievements.claimed': '已領取',
     'achievements.claimReward': '領取獎勵',
     'achievements.locked': '未達成',
-    'achievements.catAll': '全部 (1,000)',
+    'achievements.catAll': '全部 (100,000)',
     'achievements.catMining': '開採里程',
     'achievements.catEconomy': '財富經濟',
     'achievements.catEquipment': '裝備鍛造',
@@ -457,10 +468,21 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'auth.syncStatus': '雲端同步狀態',
     'auth.lastSynced': '上次同步：',
     'auth.notSyncedYet': '尚未同步',
-    'auth.syncDesc': '雲端存檔會儲存您的金幣、方塊庫存、鎬子階級、耐久度、100 格建築區、1,000 個成就狀態與所有統計資料。',
+    'auth.syncDesc': '雲端存檔會儲存您的金幣、方塊庫存、鎬子階級、耐久度、1,000 格建築區、100,000 個成就狀態與所有統計資料。',
     'auth.uploadProgress': '上傳目前進度至雲端',
     'auth.downloadProgress': '下載並載入雲端進度',
     'auth.ready': '雲端存檔就緒',
+    'auth.sendCode': '發送驗證碼至信箱',
+    'auth.sendingCode': '發送中...',
+    'auth.resendCode': '重新發送',
+    'auth.verificationCode': '信箱驗證碼 (6 位數)',
+    'auth.codePlaceholder': '請輸入 6 位數字驗證碼...',
+    'auth.verifyCodeBtn': '驗證代碼',
+    'auth.verifying': '驗證中...',
+    'auth.emailVerified': '電子信箱已驗證通過',
+    'auth.emailUnverified': '電子信箱尚未驗證',
+    'auth.codeSentPrompt': '6 位數驗證碼已傳送至用戶輸入的信箱！',
+    'auth.codeRequiredPrompt': '請先獲取並輸入傳送至該信箱的 6 位數驗證碼以完成信箱驗證！',
 
     // Common / Notifications
     'common.coins': '遊戲幣',
@@ -474,7 +496,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'common.error': '錯誤',
 
     // Building Zone
-    'building.title': '建築工地',
+    'building.title': '1000格建築創作工坊',
     'building.clear': '全部清空',
 
     // Training Grounds (Combat)

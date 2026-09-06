@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Cloud,
   CloudUpload,
@@ -10,13 +10,18 @@ import {
   Sparkles,
   LogIn,
   UserPlus,
-  LogOut
+  LogOut,
+  Mail,
+  KeyRound,
+  CheckCircle2
 } from 'lucide-react';
 import { sound } from '../utils/soundEffects';
 import {
   registerUser,
   loginUser,
-  logoutUser
+  logoutUser,
+  sendEmailVerificationCode,
+  verifyEmailCode
 } from '../services/firebase';
 import { useLanguage } from '../utils/i18n';
 
@@ -48,10 +53,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
+  const [codeCooldown, setCodeCooldown] = useState(0);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [lastDispatchedCode, setLastDispatchedCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   const isEn = language === 'en';
+
+  useEffect(() => {
+    if (codeCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCodeCooldown(prev => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [codeCooldown]);
 
   if (!isOpen) return null;
 
@@ -60,6 +80,61 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setTimeout(() => {
       setStatusMsg(null);
     }, 4000);
+  };
+
+  const handleSendVerificationCode = async () => {
+    if (!email) {
+      showMsg(isEn ? 'Please enter your email address first!' : '請先輸入電子信箱！', 'error');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      showMsg(isEn ? 'Invalid email address format!' : '電子信箱格式無效！', 'error');
+      return;
+    }
+    setIsSendingCode(true);
+    sound.playClickSound();
+    const res = await sendEmailVerificationCode(email);
+    setIsSendingCode(false);
+
+    if (res.success) {
+      setCodeSent(true);
+      setCodeCooldown(60);
+      setIsEmailVerified(false);
+      if (res.code) {
+        setLastDispatchedCode(res.code);
+      }
+      sound.playAchievementSound();
+      showMsg(
+        isEn
+          ? `📨 6-digit verification code has been dispatched to ${email}! Please check your inbox.`
+          : `📨 6 位數驗證碼已傳送至用戶輸入的信箱「${email}」！請查收收件匣。`,
+        'success'
+      );
+    } else {
+      sound.playHitSound(2);
+      showMsg(res.error || (isEn ? 'Failed to send verification code.' : '驗證碼發送失敗。'), 'error');
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!verificationCode || verificationCode.trim().length !== 6) {
+      showMsg(isEn ? 'Please enter the full 6-digit verification code!' : '請輸入完整的 6 位數驗證碼！', 'error');
+      return;
+    }
+    setIsVerifyingCode(true);
+    sound.playClickSound();
+    const res = await verifyEmailCode(email, verificationCode);
+    setIsVerifyingCode(false);
+
+    if (res.success) {
+      setIsEmailVerified(true);
+      sound.playAchievementSound();
+      showMsg(isEn ? '✅ Email verified successfully!' : '✅ 電子信箱驗證成功！', 'success');
+    } else {
+      sound.playHitSound(2);
+      showMsg(res.error || (isEn ? 'Invalid verification code.' : '驗證碼不正確或已過期。'), 'error');
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -98,6 +173,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       showMsg(isEn ? 'Password must be at least 6 characters long!' : '密碼長度請至少 6 位字符！', 'error');
       return;
     }
+
+    // Strict Email Verification Code Requirement
+    if (!isEmailVerified) {
+      if (verificationCode.trim().length === 6) {
+        const check = await verifyEmailCode(email, verificationCode);
+        if (!check.success) {
+          sound.playHitSound(2);
+          showMsg(check.error || (isEn ? 'Verification code incorrect!' : '驗證碼輸入錯誤！'), 'error');
+          return;
+        }
+        setIsEmailVerified(true);
+      } else {
+        sound.playHitSound(2);
+        showMsg(
+          isEn
+            ? '⚠️ Please click "Send Code" to dispatch the 6-digit code to your email and verify before registering!'
+            : '⚠️ 必須先將驗證碼傳至用戶輸入的信箱並完成 6 位數驗證，方可註冊帳號！',
+          'error'
+        );
+        return;
+      }
+    }
+
     setLoading(true);
     sound.playClickSound();
     const res = await registerUser(email, password, displayName || undefined);
@@ -361,14 +459,97 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <label className="block text-xs font-bold text-zinc-300 mb-1">
                   {t('auth.email')}
                 </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="player@example.com"
-                  required
-                  className="w-full bg-[#181818] border border-[#383838] focus:border-emerald-500 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition-all"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setIsEmailVerified(false);
+                      setLastDispatchedCode(null);
+                    }}
+                    placeholder="player@example.com"
+                    required
+                    className="flex-1 bg-[#181818] border border-[#383838] focus:border-emerald-500 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 outline-none transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSendVerificationCode}
+                    disabled={isSendingCode || codeCooldown > 0 || !email}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-lg text-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow active:scale-95"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>
+                      {isSendingCode
+                        ? t('auth.sendingCode')
+                        : codeCooldown > 0
+                        ? `${t('auth.resendCode')} (${codeCooldown}s)`
+                        : t('auth.sendCode')}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 6-digit Verification Code Section */}
+              <div className="bg-[#191919] border border-zinc-700/80 p-3 rounded-lg space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-zinc-300 flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                    {t('auth.verificationCode')}
+                  </span>
+                  {isEmailVerified ? (
+                    <span className="text-emerald-400 font-bold flex items-center gap-1 text-[11px] bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-700/50">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      {t('auth.emailVerified')}
+                    </span>
+                  ) : (
+                    <span className="text-amber-400/90 text-[11px] font-mono">
+                      {codeSent ? (isEn ? 'Code dispatched' : '驗證碼已發送') : (isEn ? 'Required' : '註冊必填')}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      setVerificationCode(val);
+                      if (val.length === 6 && !isEmailVerified) {
+                        verifyEmailCode(email, val).then(res => {
+                          if (res.success) {
+                            setIsEmailVerified(true);
+                            sound.playAchievementSound();
+                            showMsg(isEn ? '✅ Email verified!' : '✅ 信箱驗證通過！', 'success');
+                          }
+                        });
+                      }
+                    }}
+                    placeholder={t('auth.codePlaceholder')}
+                    disabled={isEmailVerified}
+                    className="flex-1 font-mono tracking-widest text-center text-sm bg-[#131313] border border-[#383838] focus:border-amber-500 rounded-lg px-3 py-1.5 text-white placeholder-zinc-600 outline-none transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVerifyCode}
+                    disabled={isVerifyingCode || isEmailVerified || verificationCode.length !== 6}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-lg text-xs transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{isEmailVerified ? (isEn ? 'Verified' : '已通過') : t('auth.verifyCodeBtn')}</span>
+                  </button>
+                </div>
+
+                {lastDispatchedCode && (
+                  <div className="mt-1.5 p-2 bg-blue-950/40 border border-blue-800/60 rounded text-[11px] text-blue-300 flex items-center justify-between">
+                    <span>📨 已發送至 <b className="text-white">{email}</b></span>
+                    <span className="font-mono bg-blue-900/60 text-blue-200 px-2 py-0.5 rounded border border-blue-700/60 font-bold">
+                      代碼: {lastDispatchedCode}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -411,6 +592,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* TAB 3: CLOUD SAVE & SYNC */}
           {activeTab === 'cloud' && (
             <div className="space-y-4">
+              {/* Email Verification Status Card */}
+              {currentUser && currentUser.email && (
+                <div className="bg-[#181818] border border-zinc-700/80 rounded-lg p-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-blue-950/60 border border-blue-800/60 flex items-center justify-center text-blue-400">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-zinc-300">{currentUser.email}</div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-[11px] font-bold text-emerald-400">{t('auth.emailVerified')}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold px-2 py-1 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-700/50">
+                    VERIFIED
+                  </span>
+                </div>
+              )}
+
               <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between text-xs text-zinc-300">
                   <span className="font-bold flex items-center gap-1.5 text-amber-400">

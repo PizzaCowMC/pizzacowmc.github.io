@@ -17,7 +17,7 @@ interface ShopModalProps {
   currentSkinId: string;
   onBuyPickaxe: (tierId: string, cost: number) => void;
   onEquipPickaxe: (tierId: string) => void;
-  onRepairPickaxe: (cost: number) => void;
+  onRepairPickaxe: (cost: number, targetTierId?: string) => void;
   onUpgradePickaxe: (type: 'efficiency' | 'unbreaking' | 'fortune', cost: number) => void;
   onBuyTheme: (theme: ThemeBackground) => void;
   onEquipTheme: (themeId: string) => void;
@@ -183,7 +183,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
           {activeTab === 'pickaxes' && (
             <div className="space-y-4">
               {/* Repair Station */}
-              {currentPick.tier !== 0 && (
+              {currentPick.tier !== 0 ? (
                 <div className="p-3 bg-zinc-900 border-2 border-black rounded-lg flex flex-wrap items-center justify-between gap-3 shadow-[inset_1px_1px_0_#3f3f46]">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-500/20 border border-blue-500 rounded text-blue-400">
@@ -193,7 +193,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                       <div className="font-black text-sm text-white flex items-center gap-2">
                         <span>{isEn ? 'Pickaxe Anvil Repair Station' : '鎬具鐵砧修復站'}</span>
                         <span className="text-xs text-zinc-400">
-                          ({isEn ? 'Damage:' : '損耗：'}{missingDurability} {isEn ? 'durability' : '耐久度'})
+                          ({isEn ? 'Equipped Damage:' : '當前手持損耗：'}{missingDurability} {isEn ? 'durability' : '耐久度'})
                         </span>
                       </div>
                       <div className="text-xs text-zinc-400 mt-0.5">
@@ -207,7 +207,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                     onClick={() => {
                       if (coins >= repairCost && missingDurability > 0) {
                         sound.playUpgradeSound();
-                        onRepairPickaxe(repairCost);
+                        onRepairPickaxe(repairCost, currentPick.id);
                         showMsg(isEn ? `Pickaxe fully repaired! Spent ${repairCost} Coins.` : `鎬具耐久已全數修復完成！消耗 ${repairCost} 遊戲幣。`);
                       }
                     }}
@@ -216,6 +216,20 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                     <Wrench className="w-3.5 h-3.5" />
                     {missingDurability === 0 ? (isEn ? 'Durability Full' : '耐久度已滿') : (isEn ? `Repair All (${repairCost} Coins)` : `修復全滿 (${repairCost} 幣)`)}
                   </button>
+                </div>
+              ) : (
+                <div className="p-3 bg-zinc-900 border-2 border-black rounded-lg flex items-center gap-3 shadow-[inset_1px_1px_0_#3f3f46]">
+                  <div className="p-2 bg-emerald-500/20 border border-emerald-500 rounded text-emerald-400">
+                    <Wrench className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-black text-sm text-white">
+                      {isEn ? 'Pickaxe Anvil Repair Station' : '鎬具鐵砧修復站'}
+                    </div>
+                    <div className="text-xs text-zinc-400 mt-0.5">
+                      {isEn ? 'Currently equipped: Bare Hands (Infinite Durability). You can repair any damaged pickaxe directly in the armory below.' : '當前裝備：徒手挖掘 (無限耐久)。若有其他受損鎬具，可直接在下方陳列庫中點擊修復！'}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -327,6 +341,18 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                   const isOwned = ownedPickaxes.includes(pick.id) || pick.tier === 0;
                   const isEquipped = pickaxeState.currentTierId === pick.id;
                   const pickName = getName(pick);
+                  const curDurability = pick.tier === 0
+                    ? 999999
+                    : (isEquipped
+                        ? pickaxeState.currentDurability
+                        : (pickaxeState.durabilities?.[pick.id] !== undefined
+                            ? pickaxeState.durabilities[pick.id]
+                            : pick.maxDurability));
+                  const isDamaged = pick.tier !== 0 && isOwned && curDurability < pick.maxDurability;
+                  const isBroken = pick.tier !== 0 && isOwned && curDurability <= 0;
+                  const duraPct = pick.tier === 0 ? 100 : Math.max(0, Math.min(100, Math.round((curDurability / pick.maxDurability) * 100)));
+                  const itemMissing = Math.max(0, pick.maxDurability - curDurability);
+                  const itemRepairCost = Math.max(10, Math.ceil(itemMissing * 0.25));
 
                   return (
                     <div
@@ -353,12 +379,23 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                                 {isEn ? 'Equipped' : '當前裝備中'}
                               </span>
                             )}
+                            {isBroken && (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-red-600 text-white font-bold rounded animate-pulse">
+                                {isEn ? 'Broken' : '已損毀'}
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-zinc-400 flex items-center gap-3 mt-1 font-mono">
                             <span className="text-cyan-300 font-bold">⚡ {isEn ? 'Speed' : '速度'}: {pick.speedMultiplier}x</span>
                             <span>•</span>
-                            <span className="text-amber-300">
-                              🛡️ {isEn ? 'Durability' : '耐久'}: {pick.tier === 0 ? (isEn ? 'Infinite' : '無限') : pick.maxDurability}
+                            <span className={isBroken ? "text-red-400 font-bold" : isDamaged ? "text-amber-400" : "text-amber-300"}>
+                              🛡️ {isEn ? 'Durability' : '耐久'}: {
+                                pick.tier === 0
+                                  ? (isEn ? 'Infinite' : '無限')
+                                  : isOwned
+                                  ? `${curDurability.toLocaleString()} / ${pick.maxDurability.toLocaleString()} (${duraPct}%)`
+                                  : pick.maxDurability.toLocaleString()
+                              }
                             </span>
                           </div>
                           <p className="text-[11px] text-zinc-500 mt-0.5">{getDesc(pick)}</p>
@@ -366,21 +403,41 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                       </div>
 
                       <div>
-                        {isEquipped ? (
-                          <div className="px-3 py-1.5 bg-zinc-800 text-emerald-400 text-xs font-black border border-emerald-500 rounded flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" /> {isEn ? 'Equipped' : '已裝備'}
+                        {isOwned ? (
+                          <div className="flex items-center gap-2">
+                            {isDamaged && (
+                              <button
+                                disabled={coins < itemRepairCost}
+                                onClick={() => {
+                                  if (coins >= itemRepairCost) {
+                                    sound.playUpgradeSound();
+                                    onRepairPickaxe(itemRepairCost, pick.id);
+                                    showMsg(isEn ? `Repaired ${pickName} for ${itemRepairCost} Coins!` : `已花費 ${itemRepairCost} 遊戲幣修復【${pickName}】！`);
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-black border-2 border-black rounded shadow-[inset_-2px_-2px_0_#1e3a8a,inset_2px_2px_0_#60a5fa] active:scale-95 flex items-center gap-1 cursor-pointer"
+                              >
+                                <Wrench className="w-3.5 h-3.5" />
+                                {isEn ? `Repair (${itemRepairCost})` : `修復 (${itemRepairCost})`}
+                              </button>
+                            )}
+                            {isEquipped ? (
+                              <div className="px-3 py-1.5 bg-zinc-800 text-emerald-400 text-xs font-black border border-emerald-500 rounded flex items-center gap-1">
+                                <Check className="w-3.5 h-3.5" /> {isEn ? 'Equipped' : '已裝備'}
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  sound.playClickSound();
+                                  onEquipPickaxe(pick.id);
+                                  showMsg(isEn ? `Equipped ${pickName}!` : `已成功裝備【${pickName}】！`);
+                                }}
+                                className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-black border-2 border-black rounded active:scale-95 cursor-pointer"
+                              >
+                                {isEn ? 'Equip' : '裝備'}
+                              </button>
+                            )}
                           </div>
-                        ) : isOwned ? (
-                          <button
-                            onClick={() => {
-                              sound.playClickSound();
-                              onEquipPickaxe(pick.id);
-                              showMsg(isEn ? `Equipped ${pickName}!` : `已成功裝備【${pickName}】！`);
-                            }}
-                            className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-black border-2 border-black rounded active:scale-95 cursor-pointer"
-                          >
-                            {isEn ? 'Equip' : '裝備'}
-                          </button>
                         ) : (
                           <button
                             disabled={coins < pick.cost}

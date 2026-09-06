@@ -187,13 +187,13 @@ export const ACHIEVEMENT_GROUPS: AchievementGroupDef[] = [
     reward: (idx) => 35 + idx * 2,
     statSelector: (s) => s.blocksSoldDuringInflation
   },
-  // 8. Building placed — 5,000 tiers (building zone now 1000 cells)
+  // 8. Building placed — 6,000 tiers (building zone now 1000 cells)
   {
     groupId: 'build_placed',
     category: 'building',
-    count: 5000,
+    count: 6000,
     icon: '🧱',
-    target: linear(20),
+    target: linear(15),
     nameZh: (idx, t) => `建築藝術家 #${idx} (${fmtNum(t)}塊)`,
     nameEn: (idx, t) => `Architectural Master #${idx} (${t.toLocaleString()})`,
     descZh: (t) => `在建築工坊內累計擺放 ${t.toLocaleString()} 個方塊。`,
@@ -201,11 +201,11 @@ export const ACHIEVEMENT_GROUPS: AchievementGroupDef[] = [
     reward: (idx) => 25 + idx * 2,
     statSelector: (s) => s.totalBlocksPlaced
   },
-  // 9. Equipment mastery — 2,500 tiers
+  // 9. Equipment mastery — 3,000 tiers
   {
     groupId: 'equip_mastery',
     category: 'equipment',
-    count: 2500,
+    count: 3000,
     icon: '🪓',
     target: linear(1),
     nameZh: (idx) => `鐵匠的榮耀 #${idx}`,
@@ -215,11 +215,11 @@ export const ACHIEVEMENT_GROUPS: AchievementGroupDef[] = [
     reward: (idx) => 50 + idx * 4,
     statSelector: (s) => s.equipScore
   },
-  // 10. Collection & social — 2,000 tiers
+  // 10. Collection & social — 2,500 tiers
   {
     groupId: 'collection_social',
     category: 'collection',
-    count: 2000,
+    count: 2500,
     icon: '🎨',
     target: linear(1),
     nameZh: (idx) => `創世名錄收藏 #${idx}`,
@@ -229,11 +229,11 @@ export const ACHIEVEMENT_GROUPS: AchievementGroupDef[] = [
     reward: (idx) => 60 + idx * 6,
     statSelector: (s) => s.collectionScore
   },
-  // 11. Combat / Training Grounds — 6,500 tiers (new feature)
+  // 11. Combat / Training Grounds — 7,500 tiers
   {
     groupId: 'monsters_slain',
     category: 'combat' as AchievementCategory,
-    count: 4000,
+    count: 4500,
     icon: '⚔️',
     target: blended(5, 200, 1.5, 10),
     nameZh: (idx, t) => `狩獵者印記 #${idx} (${fmtNum(t)}隻)`,
@@ -246,7 +246,7 @@ export const ACHIEVEMENT_GROUPS: AchievementGroupDef[] = [
   {
     groupId: 'combat_damage',
     category: 'combat' as AchievementCategory,
-    count: 2500,
+    count: 3000,
     icon: '💢',
     target: blended(50, 100, 1.6, 20),
     nameZh: (idx, t) => `戰鬥意志 #${idx} (${fmtNum(t)}點傷害)`,
@@ -258,7 +258,7 @@ export const ACHIEVEMENT_GROUPS: AchievementGroupDef[] = [
   }
 ];
 
-// Sanity: keep this near 100,000 (used only for a dev-time console check)
+// Exact total: 100,000 achievements
 export const TOTAL_ACHIEVEMENT_COUNT = ACHIEVEMENT_GROUPS.reduce((sum, g) => sum + g.count, 0);
 
 /**
