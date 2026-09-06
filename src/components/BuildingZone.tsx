@@ -14,6 +14,10 @@ interface BuildingZoneProps {
   onClearAll: () => void;
 }
 
+// Grid is 25 columns x 40 rows = 1,000 cells total.
+export const BUILDING_GRID_COLS = 25;
+export const BUILDING_GRID_TOTAL = 1000;
+
 export const BuildingZone: React.FC<BuildingZoneProps> = ({
   grid,
   inventory,
@@ -52,7 +56,7 @@ export const BuildingZone: React.FC<BuildingZoneProps> = ({
           <h2 className="text-xl font-black text-amber-300 drop-shadow-[2px_2px_0_#000] flex items-center gap-2">
             <span>🏗️ {t('building.title')}</span>
             <span className="text-xs px-2.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 font-mono">
-              {placedCount} / 100 {isEn ? 'placed' : '格已放置'}
+              {placedCount} / {BUILDING_GRID_TOTAL} {isEn ? 'placed' : '格已放置'}
             </span>
           </h2>
           <p className="text-xs text-zinc-400 mt-1">
@@ -76,9 +80,12 @@ export const BuildingZone: React.FC<BuildingZoneProps> = ({
         </div>
       </div>
 
-      {/* 10x10 Building Grid */}
-      <div className="flex justify-center overflow-x-auto py-2">
-        <div className="grid grid-cols-10 gap-1 p-3 bg-zinc-950 border-4 border-black rounded shadow-[inset_0_0_15px_rgba(0,0,0,0.8)]">
+      {/* 25x40 (1000-cell) Building Grid — scrollable viewport since it no longer fits on screen at once */}
+      <div className="flex justify-center overflow-auto py-2 max-h-[420px] border border-zinc-800 rounded bg-zinc-950/40">
+        <div
+          className="grid gap-1 p-3 bg-zinc-950 border-4 border-black rounded shadow-[inset_0_0_15px_rgba(0,0,0,0.8)]"
+          style={{ gridTemplateColumns: `repeat(${BUILDING_GRID_COLS}, minmax(0, 1fr))` }}
+        >
           {grid.map((blockId, index) => {
             const hasBlock = blockId !== null;
             const placedBlockObj = hasBlock ? BLOCK_TYPES.find(b => b.id === blockId) : null;
@@ -90,14 +97,14 @@ export const BuildingZone: React.FC<BuildingZoneProps> = ({
                 id={`build-slot-${index}`}
                 onClick={() => handleSlotClick(index)}
                 title={hasBlock ? `${placedBlockName} (${isEn ? 'Click to reclaim' : '點擊回收'})` : `${isEn ? 'Empty Slot' : '空位格'} #${index + 1} (${isEn ? 'Click to place' : '點擊放置'} ${selectedBlockName})`}
-                className={`w-9 h-9 sm:w-11 sm:h-11 border-2 border-black rounded flex items-center justify-center transition-all duration-75 relative group ${
+                className={`w-7 h-7 sm:w-8 sm:h-8 border-2 border-black rounded flex items-center justify-center transition-all duration-75 relative group ${
                   hasBlock
                     ? 'hover:brightness-110 active:scale-90'
                     : 'bg-[#181818] hover:bg-zinc-800 active:scale-95 shadow-[inset_1px_1px_0_#333,inset_-1px_-1px_0_#000]'
                 }`}
               >
                 {hasBlock ? (
-                  <BlockTexture blockId={blockId} size={36} />
+                  <BlockTexture blockId={blockId} size={26} />
                 ) : (
                   <span className="opacity-0 group-hover:opacity-40 text-[9px] text-zinc-500 font-mono select-none">
                     +
@@ -110,8 +117,8 @@ export const BuildingZone: React.FC<BuildingZoneProps> = ({
       </div>
 
       <div className="flex items-center justify-between text-[11px] text-zinc-400 mt-2 px-1">
-        <span>💡 {isEn ? 'Tip: Click empty slot to place. Click placed block to reclaim 100% back to inventory!' : '提示：點擊空格放置方塊，點擊已放置方塊即可 100% 完整回收進庫存！'}</span>
-        <span className="font-mono text-amber-400">{isEn ? 'Grid: 10 × 10' : '畫布尺寸：10 × 10'}</span>
+        <span>💡 {isEn ? 'Tip: Click empty slot to place. Click placed block to reclaim 100% back to inventory! Scroll to see the full grid.' : '提示：點擊空格放置方塊，點擊已放置方塊即可 100% 完整回收進庫存！可捲動查看完整畫布。'}</span>
+        <span className="font-mono text-amber-400">{isEn ? `Grid: ${BUILDING_GRID_COLS} × ${BUILDING_GRID_TOTAL / BUILDING_GRID_COLS}` : `畫布尺寸：${BUILDING_GRID_COLS} × ${BUILDING_GRID_TOTAL / BUILDING_GRID_COLS}`}</span>
       </div>
     </section>
   );

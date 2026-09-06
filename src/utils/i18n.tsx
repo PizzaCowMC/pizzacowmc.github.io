@@ -24,6 +24,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'nav.all': 'All Views',
     'nav.quarry': '⛏️ Quarry',
     'nav.building': '🧱 Building',
+    'nav.combat': '⚔️ Training',
     'nav.market': '💰 Market',
     'nav.shop': '🛒 Shop',
     'nav.festivals': '🎉 Festivals',
@@ -235,7 +236,30 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'common.save': 'Save',
     'common.loading': 'Loading...',
     'common.success': 'Success',
-    'common.error': 'Error'
+    'common.error': 'Error',
+
+    // Building Zone
+    'building.title': 'Building Plot',
+    'building.clear': 'Clear All',
+
+    // Training Grounds (Combat)
+    'combat.title': 'Training Grounds',
+    'combat.clickToAttack': 'Click the monster to attack!',
+    'combat.attackPower': 'Attack Power',
+    'combat.coinNote': 'Coin drops are scaled 0.001x of mining income',
+
+    // Achievements
+    'achievements.claim': 'Claim',
+    'achievements.unlocked': 'Unlocked',
+
+    // Friends
+    'friends.copyCode': 'Copy Code',
+
+    // Shop Tabs
+    'shop.pickaxesTab': 'Pickaxes',
+    'shop.skinsTab': 'Skins',
+    'shop.suppliesTab': 'Supplies',
+    'shop.themesTab': 'Themes'
   },
   zh: {
     // App Header & Branding
@@ -247,6 +271,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'nav.all': '全部視圖',
     'nav.quarry': '⛏️ 挖掘場',
     'nav.building': '🧱 建築區',
+    'nav.combat': '⚔️ 練習場',
     'nav.market': '💰 交易所',
     'nav.shop': '🛒 商店',
     'nav.festivals': '🎉 慶典',
@@ -458,7 +483,30 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'common.save': '儲存',
     'common.loading': '載入中...',
     'common.success': '成功',
-    'common.error': '錯誤'
+    'common.error': '錯誤',
+
+    // Building Zone
+    'building.title': '建築工地',
+    'building.clear': '全部清空',
+
+    // Training Grounds (Combat)
+    'combat.title': '打怪練習場',
+    'combat.clickToAttack': '點擊怪物進行攻擊！',
+    'combat.attackPower': '攻擊力',
+    'combat.coinNote': '金幣掉落為挖礦收益的 0.001 倍',
+
+    // Achievements
+    'achievements.claim': '領取',
+    'achievements.unlocked': '已解鎖',
+
+    // Friends
+    'friends.copyCode': '複製代碼',
+
+    // Shop Tabs
+    'shop.pickaxesTab': '鎬具',
+    'shop.skinsTab': '造型',
+    'shop.suppliesTab': '補給品',
+    'shop.themesTab': '主題背景'
   }
 };
 

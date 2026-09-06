@@ -1,9 +1,22 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { BLOCK_TYPES, PICKAXE_TIERS, THEME_BACKGROUNDS, PLAYER_SKINS, STRATA_LAYERS, MARKET_INFLATION_TEMPLATES, SHOP_SUPPLIES } from './data/gameData';
-import { INITIAL_ACHIEVEMENTS } from './data/achievementsData';
-import { BlockType, PickaxeState, ThemeBackground, PlayerSkin, Friend, Achievement, MarketInflationEvent, ShopSupplyItem } from './types';
+import { ONE_OFF_ACHIEVEMENTS } from './data/achievementsData';
+import {
+  AchievementEngineState,
+  ACHIEVEMENT_GROUPS,
+  computeUnlockedCounts,
+  unlockedTierCount,
+  getGroupById,
+  parseAchievementId,
+  buildDisplayAchievement,
+  makeAchievementId,
+  DisplayAchievement,
+  TOTAL_ACHIEVEMENT_COUNT
+} from './data/achievementEngine';
+import { BlockType, PickaxeState, ThemeBackground, PlayerSkin, Friend, FriendRequest, Achievement, MarketInflationEvent, ShopSupplyItem } from './types';
 import { QuarryMining } from './components/QuarryMining';
-import { BuildingZone } from './components/BuildingZone';
+import { BuildingZone, BUILDING_GRID_TOTAL } from './components/BuildingZone';
+import { CombatArena } from './components/CombatArena';
 import { Hotbar } from './components/Hotbar';
 import { MarketModal } from './components/MarketModal';
 import { ShopModal } from './components/ShopModal';
@@ -33,13 +46,19 @@ import {
   Layers,
   CheckCircle2,
   TrendingUp,
-  Flame
+  Flame,
+  Sword
 } from 'lucide-react';
 import {
   subscribeToAuth,
   saveUserData,
   loadUserData,
-  isFirebaseConfigured
+  isFirebaseConfigured,
+  registerFriendCode,
+  resolveFriendCode,
+  sendFriendRequest,
+  acceptFriendRequest,
+  declineFriendRequest
 } from './services/firebase';
 import { useLanguage } from './utils/i18n';
 
@@ -153,15 +172,23 @@ export default function App() {
     }
   });
 
-  // 100-slot building canvas
+  // 1000-slot building canvas (25 x 40). Older saves may still have a
+  // 100-length grid from before the expansion — pad them out so existing
+  // placed blocks are preserved and new slots are simply empty.
   const [buildGrid, setBuildGrid] = useState<(string | null)[]>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_grid`);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          if (parsed.length >= BUILDING_GRID_TOTAL) return parsed.slice(0, BUILDING_GRID_TOTAL);
+          return [...parsed, ...Array(BUILDING_GRID_TOTAL - parsed.length).fill(null)];
+        }
+      }
     } catch {
       // Fallback
     }
-    return Array(100).fill(null);
+    return Array(BUILDING_GRID_TOTAL).fill(null);
   });
 
   // Friends & social state
@@ -208,14 +235,14 @@ export default function App() {
     }
   });
 
-  // 150 Achievements state
-  const [achievements, setAchievements] = useState<Achievement[]>(() => {
+  // One-off (hardcoded, non-procedural) achievements — small in number,
+  // stored the old way since there are only a few dozen of them.
+  const [oneOffAchievements, setOneOffAchievements] = useState<Achievement[]>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_achievements`);
       if (saved) {
         const parsed = JSON.parse(saved) as Achievement[];
-        // Merge with initial list in case count expanded
-        return INITIAL_ACHIEVEMENTS.map(initial => {
+        return ONE_OFF_ACHIEVEMENTS.map(initial => {
           const found = parsed.find(p => p.id === initial.id);
           return found
             ? { ...initial, unlocked: found.unlocked, rewardClaimed: found.rewardClaimed }
@@ -225,7 +252,21 @@ export default function App() {
     } catch {
       // Fallback
     }
-    return INITIAL_ACHIEVEMENTS;
+    return ONE_OFF_ACHIEVEMENTS;
+  });
+
+  // 100,000-tier PROCEDURAL achievements: we never store per-tier unlock
+  // state. Only the (much smaller) set of "reward claimed" IDs needs
+  // persisting — unlocked status is recomputed live from game stats via
+  // computeUnlockedCounts(), which is O(log n) per group, not O(100,000).
+  const [claimedProceduralIds, setClaimedProceduralIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_claimed_proc_ach`);
+      if (saved) return new Set(JSON.parse(saved) as string[]);
+    } catch {
+      // Fallback
+    }
+    return new Set();
   });
 
   // Strata mining layer tracking (50,000 blocks each to unlock next)
@@ -275,6 +316,9 @@ export default function App() {
     totalBlocksSold: number;
     blocksSoldDuringInflation: number;
     blockTypeMinedCounts: Record<string, number>;
+    totalMonstersKilled: number;
+    totalCombatDamageDealt: number;
+    totalCombatCoinsEarned: number;
   }>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_stats`);
@@ -287,7 +331,10 @@ export default function App() {
           totalBlocksPlaced: parsed.totalBlocksPlaced || 0,
           totalBlocksSold: parsed.totalBlocksSold || 0,
           blocksSoldDuringInflation: parsed.blocksSoldDuringInflation || 0,
-          blockTypeMinedCounts: parsed.blockTypeMinedCounts || {}
+          blockTypeMinedCounts: parsed.blockTypeMinedCounts || {},
+          totalMonstersKilled: parsed.totalMonstersKilled || 0,
+          totalCombatDamageDealt: parsed.totalCombatDamageDealt || 0,
+          totalCombatCoinsEarned: parsed.totalCombatCoinsEarned || 0
         };
       }
     } catch {
@@ -300,7 +347,10 @@ export default function App() {
       totalBlocksPlaced: 0,
       totalBlocksSold: 0,
       blocksSoldDuringInflation: 0,
-      blockTypeMinedCounts: {}
+      blockTypeMinedCounts: {},
+      totalMonstersKilled: 0,
+      totalCombatDamageDealt: 0,
+      totalCombatCoinsEarned: 0
     };
   });
 
@@ -349,7 +399,7 @@ export default function App() {
   const [supplyToastMsg, setSupplyToastMsg] = useState<string | null>(null);
 
   // Active zone filter in layout
-  const [activeView, setActiveView] = useState<'all' | 'quarry' | 'building'>('all');
+  const [activeView, setActiveView] = useState<'all' | 'quarry' | 'building' | 'combat'>('all');
 
   // Firebase Auth & Cloud Sync state
   const [currentUser, setCurrentUser] = useState<{ email: string | null; displayName: string | null; uid: string | null } | null>(null);
@@ -359,7 +409,7 @@ export default function App() {
   const [cloudToast, setCloudToast] = useState<string | null>(null);
 
   // Achievement unlock popup toast
-  const [popupAchievement, setPopupAchievement] = useState<Achievement | null>(null);
+  const [popupAchievement, setPopupAchievement] = useState<Achievement | DisplayAchievement | null>(null);
 
   // Subscribe to Firebase Auth state change (Auto-Login)
   useEffect(() => {
@@ -376,11 +426,16 @@ export default function App() {
         // Notify
         setCloudToast(`☁️ 已自動登入：${user.displayName || user.email}`);
         setTimeout(() => setCloudToast(null), 3500);
+        // Register/refresh this account's public friend-code lookup so
+        // others can resolve it and send real friend requests.
+        registerFriendCode(user.uid, myFriendCode, user.displayName || user.email?.split('@')[0] || 'Miner');
       } else {
         setCurrentUser(null);
       }
     });
     return () => unsubscribe();
+    // myFriendCode is generated once on mount and never changes, so it's
+    // safe to omit from deps here.
   }, []);
 
   // Cloud Save Handler
@@ -404,7 +459,8 @@ export default function App() {
       myFriendCode,
       friends,
       friendRewardClaimed,
-      achievements: achievements.map(a => ({ id: a.id, unlocked: a.unlocked, rewardClaimed: a.rewardClaimed })),
+      oneOffAchievements: oneOffAchievements.map(a => ({ id: a.id, unlocked: a.unlocked, rewardClaimed: a.rewardClaimed })),
+      claimedProceduralIds: Array.from(claimedProceduralIds),
       stats
     };
 
@@ -432,7 +488,8 @@ export default function App() {
     myFriendCode,
     friends,
     friendRewardClaimed,
-    achievements,
+    oneOffAchievements,
+    claimedProceduralIds,
     stats
   ]);
 
@@ -454,12 +511,30 @@ export default function App() {
       if (Array.isArray(d.ownedThemes)) setOwnedThemes(d.ownedThemes);
       if (d.currentSkinId) setCurrentSkinId(d.currentSkinId);
       if (Array.isArray(d.ownedSkins)) setOwnedSkins(d.ownedSkins);
-      if (Array.isArray(d.buildGrid)) setBuildGrid(d.buildGrid);
+      if (Array.isArray(d.buildGrid)) {
+        const g = d.buildGrid;
+        setBuildGrid(
+          g.length >= BUILDING_GRID_TOTAL
+            ? g.slice(0, BUILDING_GRID_TOTAL)
+            : [...g, ...Array(BUILDING_GRID_TOTAL - g.length).fill(null)]
+        );
+      }
       if (d.myUsername) setMyUsername(d.myUsername);
       if (Array.isArray(d.friends)) setFriends(d.friends);
       if (typeof d.friendRewardClaimed === 'boolean') setFriendRewardClaimed(d.friendRewardClaimed);
-      if (Array.isArray(d.achievements)) {
-        setAchievements(prev =>
+      if (Array.isArray(d.oneOffAchievements)) {
+        setOneOffAchievements(prev =>
+          prev.map(item => {
+            const cloudAch = d.oneOffAchievements.find((c: any) => c.id === item.id);
+            return cloudAch
+              ? { ...item, unlocked: cloudAch.unlocked, rewardClaimed: cloudAch.rewardClaimed }
+              : item;
+          })
+        );
+      } else if (Array.isArray(d.achievements)) {
+        // Backward compatibility with older cloud saves from before the
+        // 100,000-achievement engine migration.
+        setOneOffAchievements(prev =>
           prev.map(item => {
             const cloudAch = d.achievements.find((c: any) => c.id === item.id);
             return cloudAch
@@ -467,6 +542,9 @@ export default function App() {
               : item;
           })
         );
+      }
+      if (Array.isArray(d.claimedProceduralIds)) {
+        setClaimedProceduralIds(new Set(d.claimedProceduralIds as string[]));
       }
       if (d.stats) setStats(d.stats);
       if (d.lastSavedLocalTime) {
@@ -528,8 +606,12 @@ export default function App() {
   }, [friendRewardClaimed]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_achievements`, JSON.stringify(achievements));
-  }, [achievements]);
+    localStorage.setItem(`${STORAGE_KEY}_achievements`, JSON.stringify(oneOffAchievements));
+  }, [oneOffAchievements]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_claimed_proc_ach`, JSON.stringify(Array.from(claimedProceduralIds)));
+  }, [claimedProceduralIds]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_stats`, JSON.stringify(stats));
@@ -641,9 +723,9 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Unlock achievement helper
+  // Unlock a ONE-OFF (non-procedural) achievement by id.
   const unlockAchievement = useCallback((achId: string) => {
-    setAchievements(prev => {
+    setOneOffAchievements(prev => {
       const ach = prev.find(a => a.id === achId);
       if (!ach || ach.unlocked) return prev;
 
@@ -658,106 +740,97 @@ export default function App() {
     });
   }, []);
 
-  // Check achievements against current state & stats across all 1000 achievements
-  useEffect(() => {
-    const newlyUnlockedIds: string[] = [];
+  // Track last-seen unlocked tier count per procedural group so we can
+  // detect newly-crossed tiers (for the toast popup) without ever storing
+  // or iterating all 100,000 individual achievement items.
+  const lastUnlockedCountsRef = useRef<Record<string, number>>({});
 
-    achievements.forEach(ach => {
-      if (ach.unlocked) return;
-
-      // 1. Mine total blocks: mine_total_{X}
-      if (ach.id.startsWith('mine_total_')) {
-        const target = parseInt(ach.id.replace('mine_total_', ''), 10);
-        if (!isNaN(target) && stats.totalBlocksMined >= target) {
-          newlyUnlockedIds.push(ach.id);
-        }
-      }
-      // 2. Click milestones: click_milestone_{X}
-      else if (ach.id.startsWith('click_milestone_')) {
-        const idx = parseInt(ach.id.replace('click_milestone_', ''), 10);
-        if (!isNaN(idx) && stats.totalClicks >= idx * 250) {
-          newlyUnlockedIds.push(ach.id);
-        }
-      }
-      // 3. Strata layer milestones: layer_{layerId}_{target}
-      else if (ach.id.startsWith('layer_')) {
-        const parts = ach.id.split('_');
-        const target = parseInt(parts[parts.length - 1], 10);
-        const layerId = parts.slice(1, parts.length - 1).join('_');
-        if (!isNaN(target) && (layerMinedCounts[layerId] || 0) >= target) {
-          newlyUnlockedIds.push(ach.id);
-        }
-      }
-      // 4. Cumulative revenue: coin_earned_{target}
-      else if (ach.id.startsWith('coin_earned_')) {
-        const target = parseInt(ach.id.replace('coin_earned_', ''), 10);
-        if (!isNaN(target) && stats.totalCoinsEarned >= target) {
-          newlyUnlockedIds.push(ach.id);
-        }
-      }
-      // 5. Wallet holdings: wallet_tier_{idx}
-      else if (ach.id.startsWith('wallet_tier_')) {
-        const idx = parseInt(ach.id.replace('wallet_tier_', ''), 10);
-        if (!isNaN(idx) && coins >= idx * 2000) {
-          newlyUnlockedIds.push(ach.id);
-        }
-      }
-      // 6. Blocks sold: sold_blocks_{target}
-      else if (ach.id.startsWith('sold_blocks_')) {
-        const target = parseInt(ach.id.replace('sold_blocks_', ''), 10);
-        if (!isNaN(target) && stats.totalBlocksSold >= target) {
-          newlyUnlockedIds.push(ach.id);
-        }
-      }
-      // 7. Inflation trading: inflation_trader_{idx}
-      else if (ach.id.startsWith('inflation_trader_')) {
-        const idx = parseInt(ach.id.replace('inflation_trader_', ''), 10);
-        if (!isNaN(idx) && (stats.blocksSoldDuringInflation || 0) >= idx * 50) {
-          newlyUnlockedIds.push(ach.id);
-        }
-      }
-      // 8. Building placed: build_placed_{idx}
-      else if (ach.id.startsWith('build_placed_')) {
-        const idx = parseInt(ach.id.replace('build_placed_', ''), 10);
-        if (!isNaN(idx) && stats.totalBlocksPlaced >= idx * 20) {
-          newlyUnlockedIds.push(ach.id);
-        }
-      }
-      // 9. Equipment mastery: equip_mastery_{idx}
-      else if (ach.id.startsWith('equip_mastery_')) {
-        const idx = parseInt(ach.id.replace('equip_mastery_', ''), 10);
-        const equipScore = ownedPickaxes.length * 5 + pickaxeState.efficiencyLevel + pickaxeState.unbreakingLevel + pickaxeState.fortuneLevel;
-        if (!isNaN(idx) && equipScore >= idx) {
-          newlyUnlockedIds.push(ach.id);
-        }
-      }
-      // 10. Collection and social: collection_social_{idx}
-      else if (ach.id.startsWith('collection_social_')) {
-        const idx = parseInt(ach.id.replace('collection_social_', ''), 10);
-        const colScore = ownedThemes.length * 3 + ownedSkins.length * 3 + friends.length * 5;
-        if (!isNaN(idx) && colScore >= idx) {
-          newlyUnlockedIds.push(ach.id);
-        }
-      }
-    });
-
-    if (newlyUnlockedIds.length > 0) {
-      newlyUnlockedIds.forEach(id => unlockAchievement(id));
-    }
-  }, [
+  // Live-computed unlocked counts for all procedural achievement groups.
+  // This is O(groups * log(tiersPerGroup)) — a few hundred ops total,
+  // regardless of the 100,000 total achievement tiers.
+  const engineState: AchievementEngineState = useMemo(() => ({
+    totalBlocksMined: stats.totalBlocksMined,
+    totalClicks: stats.totalClicks,
+    totalCoinsEarned: stats.totalCoinsEarned,
     coins,
+    totalBlocksSold: stats.totalBlocksSold,
+    blocksSoldDuringInflation: stats.blocksSoldDuringInflation || 0,
+    totalBlocksPlaced: stats.totalBlocksPlaced,
+    equipScore: ownedPickaxes.length * 5 + pickaxeState.efficiencyLevel + pickaxeState.unbreakingLevel + pickaxeState.fortuneLevel,
+    collectionScore: ownedThemes.length * 3 + ownedSkins.length * 3 + friends.length * 5,
+    layerMinedCounts,
+    totalMonstersKilled: stats.totalMonstersKilled,
+    totalCombatDamageDealt: stats.totalCombatDamageDealt,
+    totalCombatCoinsEarned: stats.totalCombatCoinsEarned
+  }), [
     stats,
+    coins,
     ownedPickaxes,
     pickaxeState,
-    buildGrid,
-    friends,
-    friendRewardClaimed,
     ownedThemes,
     ownedSkins,
-    layerMinedCounts,
-    achievements,
-    unlockAchievement
+    friends,
+    layerMinedCounts
   ]);
+
+  const unlockedCounts = useMemo(() => computeUnlockedCounts(engineState), [engineState]);
+
+  // Detect newly-unlocked procedural tiers and show a toast for the
+  // highest newly-crossed tier per group (avoids a toast storm if many
+  // tiers unlock at once, e.g. right after a cloud-load).
+  useEffect(() => {
+    for (const group of ACHIEVEMENT_GROUPS) {
+      const newCount = unlockedCounts[group.groupId] || 0;
+      const prevCount = lastUnlockedCountsRef.current[group.groupId] ?? newCount; // don't toast on first mount
+      if (newCount > prevCount) {
+        sound.playAchievementSound();
+        const displayAch = buildDisplayAchievement(group, newCount, true, claimedProceduralIds);
+        setPopupAchievement(displayAch);
+        setTimeout(() => setPopupAchievement(null), 3800);
+      }
+      lastUnlockedCountsRef.current[group.groupId] = newCount;
+    }
+  }, [unlockedCounts, claimedProceduralIds]);
+
+  // First-visit / first-kill combat one-off achievements
+  useEffect(() => {
+    if (stats.totalMonstersKilled >= 1) {
+      unlockAchievement('combat_first_kill');
+    }
+  }, [stats.totalMonstersKilled, unlockAchievement]);
+
+  // Attack power in the Training Grounds derives from the equipped
+  // pickaxe's tier and efficiency enchant level — a stronger pickaxe means
+  // a stronger fighter, without introducing a fully separate gear system.
+  const combatAttackPower = useMemo(() => {
+    const currentTier = PICKAXE_TIERS.find(p => p.id === pickaxeState.currentTierId);
+    const tierBonus = currentTier ? currentTier.tier : 0;
+    return Math.max(1, 1 + tierBonus + pickaxeState.efficiencyLevel);
+  }, [pickaxeState.currentTierId, pickaxeState.efficiencyLevel]);
+
+  useEffect(() => {
+    if (activeView === 'combat' || activeView === 'all') {
+      unlockAchievement('combat_arena_visit');
+    }
+  }, [activeView, unlockAchievement]);
+
+  const handleMonsterKilled = useCallback((coinDrop: number, damageDealt: number) => {
+    setCoins(c => Math.round((c + coinDrop) * 1000) / 1000);
+    setStats(prev => ({
+      ...prev,
+      totalMonstersKilled: prev.totalMonstersKilled + 1,
+      totalCombatCoinsEarned: Math.round((prev.totalCombatCoinsEarned + coinDrop) * 1000) / 1000,
+      totalCoinsEarned: Math.round((prev.totalCoinsEarned + coinDrop) * 1000) / 1000
+    }));
+  }, []);
+
+  const handleCombatDamageDealt = useCallback((damage: number) => {
+    setStats(prev => ({
+      ...prev,
+      totalCombatDamageDealt: prev.totalCombatDamageDealt + damage
+    }));
+  }, []);
+
 
   // --- Handlers: Mining ---
   const handleMineSuccess = useCallback((minedBlock: BlockType, amount: number, layerId?: string) => {
@@ -898,14 +971,14 @@ export default function App() {
       return updated;
     });
 
-    setBuildGrid(Array(100).fill(null));
+    setBuildGrid(Array(BUILDING_GRID_TOTAL).fill(null));
     unlockAchievement('build_clear_all');
   }, [buildGrid, unlockAchievement]);
 
   // Presets for building
   const handleLoadPreset = useCallback((presetName: string) => {
     sound.playAchievementSound();
-    const newGrid = Array(100).fill(null);
+    const newGrid = Array(BUILDING_GRID_TOTAL).fill(null);
 
     if (presetName === 'creeper') {
       // 10x10 Creeper face
@@ -1254,7 +1327,7 @@ export default function App() {
     setOwnedSkins(['steve']);
 
     // 4. Reset building canvas
-    setBuildGrid(Array(100).fill(null));
+    setBuildGrid(Array(BUILDING_GRID_TOTAL).fill(null));
 
     // 5. Reset strata layers progression
     setLayerMinedCounts({
@@ -1269,8 +1342,11 @@ export default function App() {
     });
     setSelectedLayerId('surface');
 
-    // 6. Reset all 1,000 achievements
-    setAchievements(INITIAL_ACHIEVEMENTS.map(a => ({ ...a, unlocked: false, rewardClaimed: false })));
+    // 6. Reset achievements: one-off list back to locked, and clear all
+    // claimed procedural reward IDs (unlocked status itself is derived live
+    // from stats, which are also reset below, so it naturally goes back to 0).
+    setOneOffAchievements(ONE_OFF_ACHIEVEMENTS.map(a => ({ ...a, unlocked: false, rewardClaimed: false })));
+    setClaimedProceduralIds(new Set());
 
     // 7. Reset stats
     setStats({
@@ -1280,7 +1356,10 @@ export default function App() {
       totalBlocksPlaced: 0,
       totalBlocksSold: 0,
       blocksSoldDuringInflation: 0,
-      blockTypeMinedCounts: {}
+      blockTypeMinedCounts: {},
+      totalMonstersKilled: 0,
+      totalCombatDamageDealt: 0,
+      totalCombatCoinsEarned: 0
     });
 
     // 8. Reset supplies and buffs
@@ -1323,36 +1402,82 @@ export default function App() {
     unlockAchievement('social_friend_reward_claim');
   }, [friends.length, friendRewardClaimed, unlockAchievement]);
 
-  const handleAddFriendByCode = useCallback((code: string) => {
-    if (friends.some(f => f.code === code)) return false;
+  // Sends a real friend request. Resolves the code against the registered
+  // account directory (Firestore `friendCodes`) — if no account with that
+  // code exists, the request fails and no fake friend is fabricated.
+  const handleSendFriendRequest = useCallback(async (code: string): Promise<{ success: boolean; error?: string }> => {
+    if (!currentUser?.uid) {
+      return { success: false, error: isEn ? 'You must be logged in to send friend requests.' : '請先登入才能送出好友邀請。' };
+    }
+    if (friends.some(f => f.code === code)) {
+      return { success: false, error: isEn ? 'Already on your friends list.' : '對方已經在你的好友名單中。' };
+    }
+    const { result, error } = await resolveFriendCode(code);
+    if (error) return { success: false, error };
+    if (!result) {
+      return { success: false, error: isEn ? 'No registered account found with that code.' : '找不到使用該代碼的註冊帳號。' };
+    }
+    const sendResult = await sendFriendRequest(currentUser.uid, myFriendCode, myUsername, result.uid);
+    return sendResult;
+  }, [currentUser, friends, myFriendCode, myUsername, isEn]);
 
-    // Add friend
-    const newFriend: Friend = {
-      code,
-      username: `Player_${code.slice(0, 4)}`,
-      isOnline: Math.random() < 0.8,
-      addedAt: Date.now(),
-      level: Math.floor(Math.random() * 20) + 1
-    };
+  const handleAcceptFriendRequest = useCallback(async (req: FriendRequest): Promise<boolean> => {
+    if (!currentUser?.uid) return false;
+    const result = await acceptFriendRequest(currentUser.uid, myFriendCode, myUsername, req.fromUid, req.fromCode, req.fromUsername);
+    if (result.success) {
+      setFriends(prev => [...prev, { uid: req.fromUid, code: req.fromCode, username: req.fromUsername, isOnline: true, addedAt: Date.now() }]);
+    }
+    return result.success;
+  }, [currentUser, myFriendCode, myUsername]);
 
-    setFriends(prev => [...prev, newFriend]);
-    return true;
-  }, [friends]);
+  const handleDeclineFriendRequest = useCallback(async (req: FriendRequest): Promise<boolean> => {
+    if (!currentUser?.uid) return false;
+    const result = await declineFriendRequest(currentUser.uid, req.fromUid);
+    return result.success;
+  }, [currentUser]);
 
   // --- Handlers: Achievements ---
+  // Claim a single achievement's reward. Works for both one-off achievements
+  // (stored directly) and procedural achievements (id format "group__idx",
+  // unlocked status derived live from unlockedCounts).
   const handleClaimAchReward = useCallback((achId: string) => {
-    setAchievements(prev => {
+    const parsed = parseAchievementId(achId);
+    if (parsed) {
+      const group = getGroupById(parsed.groupId);
+      if (!group) return;
+      const currentUnlocked = unlockedCounts[parsed.groupId] || 0;
+      if (parsed.idx > currentUnlocked) return; // not actually unlocked
+      if (claimedProceduralIds.has(achId)) return; // already claimed
+      const target = group.target(parsed.idx);
+      const reward = group.reward(parsed.idx, target);
+      if (reward <= 0) return;
+      setClaimedProceduralIds(prev => {
+        const next = new Set(prev);
+        next.add(achId);
+        return next;
+      });
+      setCoins(c => c + reward);
+      return;
+    }
+
+    setOneOffAchievements(prev => {
       const ach = prev.find(a => a.id === achId);
       if (!ach || !ach.unlocked || ach.rewardClaimed || ach.coinReward <= 0) return prev;
 
       setCoins(c => c + ach.coinReward);
       return prev.map(a => (a.id === achId ? { ...a, rewardClaimed: true } : a));
     });
-  }, []);
+  }, [unlockedCounts, claimedProceduralIds]);
 
+  // Claim every currently-unlocked, not-yet-claimed reward across BOTH
+  // one-off achievements and all procedural groups. For procedural groups
+  // this sums rewards for [1..unlockedCount] tiers not already claimed —
+  // still bounded by how many tiers are actually unlocked (never the full
+  // 100,000), which in practice is a small number even for dedicated players.
   const handleClaimAllAchRewards = useCallback(() => {
     let total = 0;
-    setAchievements(prev => {
+
+    setOneOffAchievements(prev => {
       const updated = prev.map(a => {
         if (a.unlocked && a.coinReward > 0 && !a.rewardClaimed) {
           total += a.coinReward;
@@ -1363,10 +1488,33 @@ export default function App() {
       return updated;
     });
 
+    const newlyClaimedProceduralIds: string[] = [];
+    for (const group of ACHIEVEMENT_GROUPS) {
+      const unlockedCount = unlockedCounts[group.groupId] || 0;
+      for (let idx = 1; idx <= unlockedCount; idx++) {
+        const id = makeAchievementId(group.groupId, idx);
+        if (claimedProceduralIds.has(id)) continue;
+        const target = group.target(idx);
+        const reward = group.reward(idx, target);
+        if (reward > 0) {
+          total += reward;
+          newlyClaimedProceduralIds.push(id);
+        }
+      }
+    }
+    if (newlyClaimedProceduralIds.length > 0) {
+      setClaimedProceduralIds(prev => {
+        const next = new Set(prev);
+        newlyClaimedProceduralIds.forEach(id => next.add(id));
+        return next;
+      });
+    }
+
     if (total > 0) {
       setCoins(c => c + total);
     }
-  }, []);
+  }, [unlockedCounts, claimedProceduralIds]);
+
 
   // Theme styling
   const activeTheme = useMemo(() => {
@@ -1487,6 +1635,20 @@ export default function App() {
             >
               <Box className="w-3.5 h-3.5 text-blue-400" />
               <span>{t('nav.building')}</span>
+            </button>
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                setActiveView('combat');
+              }}
+              className={`px-3 py-1 rounded flex items-center gap-1 transition-all cursor-pointer ${
+                activeView === 'combat'
+                  ? 'bg-red-900/60 text-red-300 border border-red-600/50 shadow'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Sword className="w-3.5 h-3.5 text-red-400" />
+              <span>{t('nav.combat')}</span>
             </button>
           </div>
 
@@ -1769,6 +1931,15 @@ export default function App() {
             onLoadPreset={handleLoadPreset}
           />
         )}
+
+        {/* SECTION 3: 打怪練習場 (Training Grounds / Combat Arena) */}
+        {(activeView === 'all' || activeView === 'combat') && (
+          <CombatArena
+            attackPower={combatAttackPower}
+            onMonsterKilled={handleMonsterKilled}
+            onDamageDealt={handleCombatDamageDealt}
+          />
+        )}
       </main>
 
       {/* Footer with PizzaCowMC link and status */}
@@ -1940,20 +2111,28 @@ export default function App() {
       <FriendsModal
         isOpen={isFriendsOpen}
         onClose={() => setIsFriendsOpen(false)}
+        isLoggedIn={!!currentUser?.uid}
+        myUid={currentUser?.uid || null}
         myUsername={myUsername}
         myFriendCode={myFriendCode}
         friends={friends}
         friendRewardClaimed={friendRewardClaimed}
         onClaimFriendReward={handleClaimFriendReward}
-        onAddFriendByCode={handleAddFriendByCode}
+        onSendFriendRequest={handleSendFriendRequest}
+        onAcceptFriendRequest={handleAcceptFriendRequest}
+        onDeclineFriendRequest={handleDeclineFriendRequest}
         onUpdateUsername={setMyUsername}
+        onOpenAuth={() => { setIsFriendsOpen(false); setIsAuthOpen(true); }}
       />
 
       {/* ACHIEVEMENTS MODAL */}
       <AchievementsModal
         isOpen={isAchievementsOpen}
         onClose={() => setIsAchievementsOpen(false)}
-        achievements={achievements}
+        oneOffAchievements={oneOffAchievements}
+        unlockedCounts={unlockedCounts}
+        claimedProceduralIds={claimedProceduralIds}
+        totalAchievementCount={TOTAL_ACHIEVEMENT_COUNT}
         onClaimReward={handleClaimAchReward}
         onClaimAllRewards={handleClaimAllAchRewards}
       />

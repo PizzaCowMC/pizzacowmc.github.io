@@ -112,8 +112,11 @@ export interface PlayerSkin {
   desc: string;
 }
 
-export type AchievementCategory = 'mining' | 'economy' | 'equipment' | 'building' | 'social' | 'collection';
+export type AchievementCategory = 'mining' | 'economy' | 'equipment' | 'building' | 'social' | 'collection' | 'combat';
 
+// Legacy shape kept for one-off (non-procedural) achievements defined directly
+// in code (e.g. "repair your pickaxe for the first time"). The 100,000
+// procedural achievements are NOT stored this way — see achievementEngine.ts.
 export interface Achievement {
   id: string;
   category: AchievementCategory;
@@ -127,12 +130,23 @@ export interface Achievement {
   rewardClaimed: boolean;
 }
 
+// A friend request/relationship must reference a REAL registered account
+// (Firebase Auth uid), not a locally-fabricated fake player.
 export interface Friend {
+  uid: string;
   code: string;
   username: string;
   isOnline: boolean;
   addedAt: number;
   level?: number;
+}
+
+export interface FriendRequest {
+  fromUid: string;
+  fromCode: string;
+  fromUsername: string;
+  toUid: string;
+  createdAt: number;
 }
 
 export interface GameStats {
@@ -146,4 +160,31 @@ export interface GameStats {
   upgradesPurchased: number;
   themesUnlocked: number;
   friendsCount: number;
+  blocksSoldDuringInflation?: number;
+  // Combat / Training Grounds
+  totalMonstersKilled: number;
+  totalCombatDamageDealt: number;
+  totalCombatCoinsEarned: number;
+}
+
+// ------------------------------------------------------------------
+// Training Grounds (Combat minigame)
+// ------------------------------------------------------------------
+export interface MonsterTemplate {
+  id: string;
+  nameZh: string;
+  nameEn: string;
+  icon: string;
+  maxHealth: number;
+  damagePerHit: number; // damage the player takes if they get hit back (passive tick)
+  coinDrop: number; // base coin value before the 0.001 scaling
+  xpTier: number; // difficulty tier, used for spawn weighting
+}
+
+export interface ActiveMonster {
+  instanceId: string;
+  templateId: string;
+  currentHealth: number;
+  maxHealth: number;
+  spawnedAt: number;
 }

@@ -1,9 +1,21 @@
 import { Achievement, AchievementCategory } from '../types';
 
-function build1000Achievements(): Achievement[] {
+/**
+ * ONE-OFF ACHIEVEMENTS
+ * ---------------------
+ * These are hand-written, single-fire achievements triggered by specific
+ * in-game events (e.g. "sell a diamond for the first time") rather than by
+ * crossing a numeric milestone. There are only a few dozen of these, so it's
+ * fine to store each one's `unlocked` / `rewardClaimed` state directly.
+ *
+ * The bulk of the game's 100,000 achievements are NOT defined here — see
+ * src/data/achievementEngine.ts for the formula-driven, storage-light system
+ * that covers all numeric-milestone achievements (mining totals, coins
+ * earned, monsters slain, etc).
+ */
+function buildOneOffAchievements(): Achievement[] {
   const list: Achievement[] = [];
 
-  // Helper to push
   const addAch = (
     id: string,
     category: AchievementCategory,
@@ -28,208 +40,26 @@ function build1000Achievements(): Achievement[] {
     });
   };
 
-  // ==========================================
-  // GROUP 1: 全局開採大師 (Mining Milestones) - 200 項
-  // ==========================================
-  const miningMilestones = [
-    1, 3, 5, 8, 10, 15, 20, 25, 30, 40, 50, 65, 80, 100, 125, 150, 175, 200, 250, 300,
-    350, 400, 450, 500, 600, 700, 800, 900, 1000, 1200, 1400, 1600, 1800, 2000, 2500, 3000, 3500, 4000, 4500, 5000,
-    6000, 7000, 8000, 9000, 10000, 12000, 14000, 16000, 18000, 20000, 25000, 30000, 35000, 40000, 45000, 50000,
-    60000, 70000, 80000, 90000, 100000, 120000, 140000, 160000, 180000, 200000, 250000, 300000, 350000, 400000,
-    450000, 500000, 600000, 700000, 800000, 900000, 1000000, 1100000, 1200000, 1300000, 1400000, 1500000, 1600000,
-    1700000, 1800000, 1900000, 2000000, 2200000, 2400000, 2600000, 2800000, 3000000, 3200000, 3400000, 3600000,
-    3800000, 4000000, 4500000, 5000000, 6000000
-  ]; // 100 items
-
-  miningMilestones.forEach((target, idx) => {
-    const reward = Math.round(Math.min(10000, 15 + Math.sqrt(target) * 3));
-    addAch(
-      `mine_total_${target}`,
-      'mining',
-      `挖掘先驅 #${idx + 1} (${target >= 10000 ? `${target / 10000}萬格` : `${target}格`})`,
-      `Mining Pioneer #${idx + 1}`,
-      `在挖掘場累計開採達 ${target.toLocaleString()} 個方塊。`,
-      `Mine a total of ${target.toLocaleString()} blocks.`,
-      target >= 1000000 ? '🌌' : target >= 50000 ? '⚡' : '⛏️',
-      reward
-    );
-  });
-
-  // Additional 100 Click & Mining Speed Milestones
-  for (let i = 1; i <= 100; i++) {
-    const targetClicks = i * 250;
-    addAch(
-      `click_milestone_${i}`,
-      'mining',
-      `勤奮揮鎬 #${i} (${targetClicks.toLocaleString()}次敲擊)`,
-      `Tenacious Swings #${i}`,
-      `累計敲擊破壞方塊達 ${targetClicks.toLocaleString()} 次。`,
-      `Hit blocks ${targetClicks.toLocaleString()} times in total.`,
-      i % 10 === 0 ? '💥' : '🔨',
-      20 + i * 8
-    );
-  }
-
-  // ==========================================
-  // GROUP 2: 八大地層專精 (Layer Progression) - 200 項 (8 層 x 25 項)
-  // ==========================================
-  const layersInfo = [
-    { id: 'surface', name: '表層泥岩', icon: '🌱' },
-    { id: 'shallow', name: '淺層沉積', icon: '🪙' },
-    { id: 'crystalline', name: '金石結晶', icon: '💎' },
-    { id: 'deepslate_abyss', name: '深板岩裂谷', icon: '🪨' },
-    { id: 'nether_core', name: '熔岩地心', icon: '🔥' },
-    { id: 'end_void', name: '終界星環', icon: '🪐' },
-    { id: 'deep_dark', name: '幽匿深暗', icon: '👁️' },
-    { id: 'aether_celestial', name: '以太星輝', icon: '☀️' }
-  ];
-
-  const layerStepTargets = [
-    100, 300, 600, 1000, 1500, 2000, 3000, 4500, 6000, 8000,
-    10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 75000, 90000,
-    100000, // 100,000 unlocks next!
-    120000, 150000, 200000, 250000
-  ]; // 25 targets per layer
-
-  layersInfo.forEach((layer) => {
-    layerStepTargets.forEach((tgt, stepIdx) => {
-      const isUnlockStep = tgt === 100000;
-      addAch(
-        `layer_${layer.id}_${tgt}`,
-        'mining',
-        `${layer.name}開拓 #${stepIdx + 1} (${tgt >= 10000 ? `${tgt / 10000}萬格` : `${tgt}格`})`,
-        `${layer.name} Mastery #${stepIdx + 1}`,
-        `在「${layer.name}」礦脈層累計挖掘達 ${tgt.toLocaleString()} 格方塊${isUnlockStep ? '（達成10萬格解鎖下層資格！）' : ''}。`,
-        `Mine ${tgt.toLocaleString()} blocks in the ${layer.name} stratum.`,
-        isUnlockStep ? '🔓' : layer.icon,
-        isUnlockStep ? 800 : 25 + stepIdx * 15
-      );
-    });
-  });
-
-  // ==========================================
-  // GROUP 3: 財富累積與經濟大亨 (Economy & Coins) - 180 項
-  // ==========================================
-  const coinTargets = [
-    100, 250, 500, 800, 1200, 1800, 2500, 3500, 5000, 7000,
-    10000, 15000, 20000, 30000, 40000, 50000, 70000, 100000, 140000, 200000,
-    280000, 400000, 600000, 800000, 1000000, 1500000, 2000000, 3000000, 5000000, 10000000
-  ]; // 30 big targets
-
-  coinTargets.forEach((c, idx) => {
-    addAch(
-      `coin_earned_${c}`,
-      'economy',
-      `巨富傳奇 #${idx + 1} (${c >= 10000 ? `${c / 10000}萬幣` : `${c}幣`})`,
-      `Wealth Titan #${idx + 1}`,
-      `累計賺取超過 ${c.toLocaleString()} 遊戲幣。`,
-      `Earn a total of ${c.toLocaleString()} coins.`,
-      c >= 1000000 ? '👑' : '💰',
-      Math.round(20 + Math.sqrt(c) * 1.8)
-    );
-  });
-
-  // 150 more detailed coin wallet & earnings milestones
-  for (let i = 1; i <= 150; i++) {
-    const val = i * 2000;
-    addAch(
-      `wallet_tier_${i}`,
-      'economy',
-      `金庫儲備階級 #${i} (${val >= 10000 ? `${val / 10000}萬` : val}幣)`,
-      `Treasury Reserve #${i}`,
-      `當前錢包資金或財富達到 ${val.toLocaleString()} 遊戲幣。`,
-      `Accumulate or hold ${val.toLocaleString()} coins.`,
-      '🪙',
-      30 + Math.floor(i * 3)
-    );
-  }
-
-  // ==========================================
-  // GROUP 4: 市場交易與隨機通膨 (Trade & Inflation) - 150 項
-  // ==========================================
-  const sellBlocksTargets = [
-    10, 25, 50, 100, 150, 200, 300, 450, 600, 800, 1000, 1500, 2000, 3000, 4500,
-    6000, 8000, 10000, 15000, 20000, 30000, 40000, 50000, 75000, 100000, 150000, 200000, 300000, 500000, 1000000
-  ]; // 30 milestones
-
-  sellBlocksTargets.forEach((s, idx) => {
-    addAch(
-      `sold_blocks_${s}`,
-      'economy',
-      `方塊貿易行大亨 #${idx + 1} (${s >= 10000 ? `${s / 10000}萬個` : `${s}個`})`,
-      `Block Merchant #${idx + 1}`,
-      `在交易所累計成功賣出 ${s.toLocaleString()} 個方塊。`,
-      `Sell ${s.toLocaleString()} blocks in the market.`,
-      '📦',
-      30 + idx * 25
-    );
-  });
-
-  // 120 Market Inflation Trading Achievements (抓住通膨熱潮、高價賣出)
-  for (let i = 1; i <= 120; i++) {
-    const inflTarget = i * 50;
-    addAch(
-      `inflation_trader_${i}`,
-      'economy',
-      `通膨投機大師 #${i} (${inflTarget}個方塊)`,
-      `Inflation Speculator #${i}`,
-      `在市場通貨膨脹（+80% 以上高倍率）爆發期間累計售出 ${inflTarget.toLocaleString()} 個方塊。`,
-      `Sell ${inflTarget.toLocaleString()} blocks during high market inflation events.`,
-      i % 5 === 0 ? '🔥' : '📈',
-      35 + i * 4
-    );
-  }
-
-  // ==========================================
-  // GROUP 5: 100格建築創作巨匠 (Building Zone) - 120 項
-  // ==========================================
-  for (let i = 1; i <= 120; i++) {
-    const placed = i * 20;
-    addAch(
-      `build_placed_${i}`,
-      'building',
-      `建築藝術家 #${i} (${placed}塊結構)`,
-      `Architectural Master #${i}`,
-      `在 100 格建築工坊內累計擺放 ${placed.toLocaleString()} 個方塊。`,
-      `Place a total of ${placed.toLocaleString()} blocks in the building zone.`,
-      i >= 50 ? '🏰' : '🧱',
-      25 + i * 3
-    );
-  }
-
-  // ==========================================
-  // GROUP 6: 裝備鍛造、修復與附魔 (Equipment) - 80 項
-  // ==========================================
-  for (let i = 1; i <= 80; i++) {
-    addAch(
-      `equip_mastery_${i}`,
-      'equipment',
-      `鐵匠的榮耀 #${i}`,
-      `Blacksmith's Honor #${i}`,
-      `達成第 ${i} 階鎬具鍛造升級、修復損耗或極限強化進度。`,
-      `Complete pickaxe upgrade or durability repair milestone #${i}.`,
-      '🪓',
-      50 + i * 5
-    );
-  }
-
-  // ==========================================
-  // GROUP 7: 收藏家、好友與稀有探索 (Collection & Social) - 70 項
-  // ==========================================
-  for (let i = 1; i <= 70; i++) {
-    addAch(
-      `collection_social_${i}`,
-      'collection',
-      `創世名錄收藏 #${i}`,
-      `Genesis Collector #${i}`,
-      `解鎖第 ${i} 項稀有外觀、主題秘境、珍稀神礦收藏或好友社交同盟標誌。`,
-      `Unlock rare skins, themes, cosmic ores, or social milestones #${i}.`,
-      i % 10 === 0 ? '✨' : '🎨',
-      60 + i * 8
-    );
-  }
+  addAch('pick_break_recovery', 'equipment', '鎬具浴火重生', 'Pickaxe Phoenix', '鎬具耐久歸零損壞後，成功重新升級或修復。', 'Recover from a broken pickaxe by upgrading or repairing it.', '🔥', 40);
+  addAch('build_reclaim_1', 'building', '初次回收', 'First Reclaim', '在建築工地首次點擊已放置的方塊將其回收。', 'Reclaim your first placed block in the building zone.', '♻️', 15);
+  addAch('build_clear_all', 'building', '大掃除', 'Clean Slate', '一次性清空整個建築工地並返還所有方塊。', 'Clear the entire building zone at once.', '🧹', 20);
+  addAch('sell_diamond_single', 'economy', '鑽石初賣', 'First Diamond Sale', '在交易所首次賣出一顆鑽石。', 'Sell a diamond in the market for the first time.', '💎', 25);
+  addAch('sell_emerald_single', 'economy', '綠寶石初賣', 'First Emerald Sale', '在交易所首次賣出一顆綠寶石。', 'Sell an emerald in the market for the first time.', '💚', 25);
+  addAch('sell_ancient_debris', 'economy', '遠古殘骸初賣', 'Ancient Debris Sale', '在交易所首次賣出遠古殘骸。', 'Sell an ancient debris in the market for the first time.', '🟫', 35);
+  addAch('sell_dirt_50', 'economy', '泥土大拍賣', 'Dirt Clearance Sale', '一次性賣出 50 個泥土。', 'Sell 50 dirt blocks in a single transaction.', '🟤', 10);
+  addAch('sell_cobble_50', 'economy', '圓石大拍賣', 'Cobblestone Clearance Sale', '一次性賣出 50 個圓石。', 'Sell 50 cobblestone blocks in a single transaction.', '⬜', 10);
+  addAch('sell_single_trade_500', 'economy', '單筆大交易 I', 'Big Trade I', '單筆交易獲利達到 500 遊戲幣。', 'Earn 500 coins in a single market transaction.', '💵', 30);
+  addAch('sell_single_trade_1500', 'economy', '單筆大交易 II', 'Big Trade II', '單筆交易獲利達到 1500 遊戲幣。', 'Earn 1,500 coins in a single market transaction.', '💴', 60);
+  addAch('quick_sell_all', 'economy', '一鍵清倉', 'Quick Sell Master', '使用一鍵賣出功能清空整個庫存。', 'Use quick-sell to sell your entire inventory at once.', '⚡', 20);
+  addAch('repair_pick_1', 'equipment', '初次修復', 'First Repair', '首次花費遊戲幣修復鎬具耐久。', 'Repair your pickaxe for the first time.', '🔧', 15);
+  addAch('social_friend_reward_claim', 'social', '好友同盟', 'Friendship Bonus', '成功加入至少一位好友並領取好友獎勵。', 'Add at least one friend and claim the friendship reward.', '🤝', 100);
+  addAch('combat_first_kill', 'combat', '初戰告捷', 'First Blood', '在打怪練習場首次擊敗一隻怪物。', 'Defeat your first monster in the Training Grounds.', '⚔️', 10);
+  addAch('combat_arena_visit', 'combat', '踏入戰場', 'Enter the Arena', '首次進入打怪練習場。', 'Visit the Training Grounds for the first time.', '🏟️', 5);
 
   return list;
 }
 
-export const INITIAL_ACHIEVEMENTS: Achievement[] = build1000Achievements();
+export const ONE_OFF_ACHIEVEMENTS: Achievement[] = buildOneOffAchievements();
+
+// Kept for backward compatibility with any code that hasn't migrated yet.
+export const INITIAL_ACHIEVEMENTS: Achievement[] = ONE_OFF_ACHIEVEMENTS;

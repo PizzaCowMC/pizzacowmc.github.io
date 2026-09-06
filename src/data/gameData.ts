@@ -1,4 +1,4 @@
-import { BlockType, PickaxeTier, ThemeBackground, PlayerSkin, StrataLayer, MarketInflationEvent, ShopSupplyItem, FestivalEvent } from '../types';
+import { BlockType, PickaxeTier, ThemeBackground, PlayerSkin, StrataLayer, MarketInflationEvent, ShopSupplyItem, FestivalEvent, MonsterTemplate } from '../types';
 
 // Blocks with 20% reduced base sell value and newly added strata blocks
 export const BLOCK_TYPES: BlockType[] = [
@@ -1354,5 +1354,97 @@ export const FESTIVAL_EVENTS: FestivalEvent[] = [
     themeBg: THEME_BACKGROUNDS.find(t => t.id === 'summer_solstice') || THEME_BACKGROUNDS[0],
     specialPickaxe: PICKAXE_TIERS.find(p => p.id === 'summer_pickaxe') || PICKAXE_TIERS[0],
     specialItems: SHOP_SUPPLIES.filter(s => s.id === 'summer_coconut')
+  }
+];
+
+// ------------------------------------------------------------------
+// Training Grounds — Monster Templates
+// Coin drops are scaled down to 0.001x of their "nominal" value per the
+// game design decision to keep combat loot from trivializing the mining
+// economy (e.g. a monster that "feels" like a 50-coin reward actually
+// drops 0.05 coins).
+// ------------------------------------------------------------------
+const COMBAT_COIN_SCALE = 0.001;
+
+export const MONSTER_TEMPLATES: MonsterTemplate[] = [
+  {
+    id: 'zombie',
+    nameZh: '殭屍',
+    nameEn: 'Zombie',
+    icon: '🧟',
+    maxHealth: 20,
+    damagePerHit: 2,
+    coinDrop: Math.round(8 * COMBAT_COIN_SCALE * 1000) / 1000,
+    xpTier: 1
+  },
+  {
+    id: 'skeleton',
+    nameZh: '骷髏弓箭手',
+    nameEn: 'Skeleton',
+    icon: '💀',
+    maxHealth: 16,
+    damagePerHit: 3,
+    coinDrop: Math.round(10 * COMBAT_COIN_SCALE * 1000) / 1000,
+    xpTier: 1
+  },
+  {
+    id: 'spider',
+    nameZh: '蜘蛛',
+    nameEn: 'Spider',
+    icon: '🕷️',
+    maxHealth: 14,
+    damagePerHit: 2,
+    coinDrop: Math.round(7 * COMBAT_COIN_SCALE * 1000) / 1000,
+    xpTier: 1
+  },
+  {
+    id: 'creeper',
+    nameZh: '苦力怕',
+    nameEn: 'Creeper',
+    icon: '🟢',
+    maxHealth: 18,
+    damagePerHit: 5,
+    coinDrop: Math.round(15 * COMBAT_COIN_SCALE * 1000) / 1000,
+    xpTier: 2
+  },
+  {
+    id: 'enderman',
+    nameZh: '終界使者',
+    nameEn: 'Enderman',
+    icon: '🟣',
+    maxHealth: 40,
+    damagePerHit: 7,
+    coinDrop: Math.round(30 * COMBAT_COIN_SCALE * 1000) / 1000,
+    xpTier: 3
+  },
+  {
+    id: 'wither_skeleton',
+    nameZh: '凋零骷髏',
+    nameEn: 'Wither Skeleton',
+    icon: '🖤',
+    maxHealth: 55,
+    damagePerHit: 8,
+    coinDrop: Math.round(45 * COMBAT_COIN_SCALE * 1000) / 1000,
+    xpTier: 4
+  },
+  {
+    id: 'blaze',
+    nameZh: '烈焰使者',
+    nameEn: 'Blaze',
+    icon: '🔥',
+    maxHealth: 60,
+    damagePerHit: 9,
+    coinDrop: Math.round(50 * COMBAT_COIN_SCALE * 1000) / 1000,
+    xpTier: 4
+  },
+  {
+    id: 'ender_dragon_wisp',
+    nameZh: '終界龍裔',
+    nameEn: 'Dragon Wisp',
+    icon: '🐉',
+    maxHealth: 150,
+    damagePerHit: 15,
+    coinDrop: Math.round(200 * COMBAT_COIN_SCALE * 1000) / 1000,
+    xpTier: 5
   }
 ];

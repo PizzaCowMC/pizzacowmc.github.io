@@ -15,7 +15,14 @@ import {
   setDoc,
   getDoc,
   Firestore,
-  serverTimestamp
+  serverTimestamp,
+  collection,
+  query,
+  where,
+  getDocs,
+  deleteDoc,
+  updateDoc,
+  arrayUnion
 } from 'firebase/firestore';
 
 export interface FirebaseConfigOptions {
@@ -200,5 +207,143 @@ export async function loadUserData(uid: string): Promise<{ data: any | null; err
   } catch (err: any) {
     console.error('Failed to load from Firestore:', err);
     return { data: null, error: err.message || '讀取雲端存檔失敗' };
+  }
+}
+
+// ------------------------------------------------------------------
+// REAL ACCOUNT-BASED FRIEND SYSTEM
+// ------------------------------------------------------------------
+// Adding a friend now requires the OTHER user to be a real registered
+// Firebase Auth account. We maintain a small public lookup document per
+// user at `friendCodes/{code}` mapping a short code -> uid, so a friend
+// code can be resolved to a real account without exposing the full user
+// document. Friend requests are stored at `friendRequests/{autoId}` and
+// must be explicitly accepted by the recipient — no email/SMS verification
+// codes are sent at any point, per the game's design (simple email+password
+// accounts only).
+
+export interface ResolvedFriendCode {
+  uid: string;
+  username: string;
+}
+
+/**
+ * Registers (or refreshes) the public code -> {uid, username} lookup for
+ * the given account. Call this once after a user registers/logs in so
+ * their code becomes resolvable by others.
+ */
+export async function registerFriendCode(uid: string, code: string, username: string): Promise<{ success: boolean; error?: string }> {
+  const { db } = initFirebase();
+  if (!db) return { success: false, error: 'Firebase 資料庫未連接' };
+  try {
+    await setDoc(doc(db, 'friendCodes', code), { uid, username, updatedAt: serverTimestamp() }, { merge: true });
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || '好友代碼註冊失敗' };
+  }
+}
+
+/**
+ * Looks up a friend code against the real, registered-account directory.
+ * Returns null if no account with that code exists — this is the check
+ * that enforces "must be a registered account to add as a friend".
+ */
+export async function resolveFriendCode(code: string): Promise<{ result: ResolvedFriendCode | null; error?: string }> {
+  const { db } = initFirebase();
+  if (!db) return { result: null, error: 'Firebase 資料庫未連接' };
+  try {
+    const snap = await getDoc(doc(db, 'friendCodes', code));
+    if (!snap.exists()) return { result: null };
+    const data = snap.data();
+    return { result: { uid: data.uid, username: data.username } };
+  } catch (err: any) {
+    return { result: null, error: err.message || '查詢好友代碼失敗' };
+  }
+}
+
+/**
+ * Sends a friend request from one real account to another. No email/SMS
+ * verification code is sent — the recipient simply sees a pending request
+ * in-app and can accept or decline it.
+ */
+export async function sendFriendRequest(fromUid: string, fromCode: string, fromUsername: string, toUid: string): Promise<{ success: boolean; error?: string }> {
+  const { db } = initFirebase();
+  if (!db) return { success: false, error: 'Firebase 資料庫未連接' };
+  if (fromUid === toUid) return { success: false, error: '無法加自己為好友！' };
+  try {
+    const reqId = `${fromUid}_${toUid}`;
+    await setDoc(doc(db, 'friendRequests', reqId), {
+      fromUid,
+      fromCode,
+      fromUsername,
+      toUid,
+      createdAt: serverTimestamp()
+    });
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || '好友邀請發送失敗' };
+  }
+}
+
+/**
+ * Fetches all pending incoming friend requests for a user.
+ */
+export async function getIncomingFriendRequests(uid: string): Promise<{ requests: { fromUid: string; fromCode: string; fromUsername: string }[]; error?: string }> {
+  const { db } = initFirebase();
+  if (!db) return { requests: [], error: 'Firebase 資料庫未連接' };
+  try {
+    const q = query(collection(db, 'friendRequests'), where('toUid', '==', uid));
+    const snap = await getDocs(q);
+    const requests = snap.docs.map(d => {
+      const data = d.data();
+      return { fromUid: data.fromUid, fromCode: data.fromCode, fromUsername: data.fromUsername };
+    });
+    return { requests };
+  } catch (err: any) {
+    return { requests: [], error: err.message || '讀取好友邀請失敗' };
+  }
+}
+
+/**
+ * Accepts a friend request: adds each user to the other's friends list
+ * (stored on their user document) and removes the pending request.
+ */
+export async function acceptFriendRequest(
+  myUid: string,
+  myCode: string,
+  myUsername: string,
+  otherUid: string,
+  otherCode: string,
+  otherUsername: string
+): Promise<{ success: boolean; error?: string }> {
+  const { db } = initFirebase();
+  if (!db) return { success: false, error: 'Firebase 資料庫未連接' };
+  try {
+    const now = Date.now();
+    await setDoc(
+      doc(db, 'users', myUid),
+      { friendsList: arrayUnion({ uid: otherUid, code: otherCode, username: otherUsername, addedAt: now }) },
+      { merge: true }
+    );
+    await setDoc(
+      doc(db, 'users', otherUid),
+      { friendsList: arrayUnion({ uid: myUid, code: myCode, username: myUsername, addedAt: now }) },
+      { merge: true }
+    );
+    await deleteDoc(doc(db, 'friendRequests', `${otherUid}_${myUid}`));
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || '接受好友邀請失敗' };
+  }
+}
+
+export async function declineFriendRequest(myUid: string, otherUid: string): Promise<{ success: boolean; error?: string }> {
+  const { db } = initFirebase();
+  if (!db) return { success: false, error: 'Firebase 資料庫未連接' };
+  try {
+    await deleteDoc(doc(db, 'friendRequests', `${otherUid}_${myUid}`));
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || '拒絕好友邀請失敗' };
   }
 }
