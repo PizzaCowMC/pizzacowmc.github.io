@@ -32,50 +32,39 @@ export interface FirebaseConfigOptions {
   storageBucket?: string;
   messagingSenderId?: string;
   appId: string;
+  databaseURL?: string;
+  measurementId?: string;
 }
 
-const LOCAL_CONFIG_KEY = 'mc_custom_firebase_config';
+// ------------------------------------------------------------------
+// BUILT-IN FIREBASE PROJECT CONFIGURATION
+// ------------------------------------------------------------------
+// The game now ships with a fixed Firebase project baked in — players no
+// longer configure their own project via a settings tab (that tab has been
+// removed). This config is not a secret: Firebase web config values are
+// meant to be public in client-side apps; real access control comes from
+// Firestore Security Rules, not from hiding this object.
+const BUILT_IN_FIREBASE_CONFIG: FirebaseConfigOptions = {
+  apiKey: 'AIzaSyCTzDwIn44By3EpmDFVKChLamB3axNaqN0',
+  authDomain: 'mc-friends.firebaseapp.com',
+  databaseURL: 'https://mc-friends-default-rtdb.firebaseio.com',
+  projectId: 'mc-friends',
+  storageBucket: 'mc-friends.firebasestorage.app',
+  messagingSenderId: '207249637719',
+  appId: '1:207249637719:web:4efa60d8dedbf32562be12',
+  measurementId: 'G-6X18EV4PM2'
+};
 
-// Load stored or env config
 export function getSavedFirebaseConfig(): FirebaseConfigOptions | null {
-  try {
-    const saved = localStorage.getItem(LOCAL_CONFIG_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed && parsed.apiKey && parsed.projectId) {
-        return parsed;
-      }
-    }
-  } catch (e) {
-    console.error('Failed to parse saved Firebase config', e);
-  }
-
-  // Check Vite Env variables
-  const metaEnv = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  if (metaEnv?.VITE_FIREBASE_API_KEY && metaEnv?.VITE_FIREBASE_PROJECT_ID) {
-    return {
-      apiKey: metaEnv.VITE_FIREBASE_API_KEY,
-      authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || `${metaEnv.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
-      projectId: metaEnv.VITE_FIREBASE_PROJECT_ID,
-      storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || '',
-      messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-      appId: metaEnv.VITE_FIREBASE_APP_ID || ''
-    };
-  }
-
-  return null;
+  return BUILT_IN_FIREBASE_CONFIG;
 }
 
-export function saveFirebaseConfig(config: FirebaseConfigOptions): boolean {
-  try {
-    localStorage.setItem(LOCAL_CONFIG_KEY, JSON.stringify(config));
-    // Re-initialize app
-    initFirebase(config, true);
-    return true;
-  } catch (e) {
-    console.error('Failed to save Firebase config', e);
-    return false;
-  }
+// Custom per-user Firebase config is no longer supported — the project
+// uses the built-in config above for everyone. This function is kept as a
+// no-op stub only in case any older cached code path still calls it.
+export function saveFirebaseConfig(_config: FirebaseConfigOptions): boolean {
+  console.warn('saveFirebaseConfig is disabled: this project now uses a fixed, built-in Firebase configuration.');
+  return false;
 }
 
 let appInstance: FirebaseApp | null = null;
@@ -117,7 +106,7 @@ export function isFirebaseConfigured(): boolean {
 export async function registerUser(email: string, pass: string, displayName?: string): Promise<{ user: User | null; error?: string }> {
   const { auth } = initFirebase();
   if (!auth) {
-    return { user: null, error: 'Firebase 尚未配置，請先在「Firebase 設定」填寫專案資訊！' };
+    return { user: null, error: 'Firebase 連線初始化失敗，請稍後再試或聯繫網站管理員。' };
   }
   try {
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
@@ -137,7 +126,7 @@ export async function registerUser(email: string, pass: string, displayName?: st
 export async function loginUser(email: string, pass: string): Promise<{ user: User | null; error?: string }> {
   const { auth } = initFirebase();
   if (!auth) {
-    return { user: null, error: 'Firebase 尚未配置，請先在「Firebase 設定」填寫專案資訊！' };
+    return { user: null, error: 'Firebase 連線初始化失敗，請稍後再試或聯繫網站管理員。' };
   }
   try {
     const cred = await signInWithEmailAndPassword(auth, email, pass);
