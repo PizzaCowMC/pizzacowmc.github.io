@@ -2,10 +2,12 @@
 
 class SoundSystem {
   private ctx: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
   private soundEnabled: boolean = true;
+  private volume: number = 0.8; // 0.0 to 1.0
 
   private getContext(): AudioContext | null {
-    if (!this.soundEnabled) return null;
+    if (!this.soundEnabled || this.volume <= 0) return null;
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
@@ -18,12 +20,40 @@ class SoundSystem {
     return this.ctx;
   }
 
+  private getOutput(ctx: AudioContext): AudioNode {
+    if (!this.masterGain) {
+      this.masterGain = ctx.createGain();
+      this.masterGain.gain.setValueAtTime(this.soundEnabled ? this.volume : 0, ctx.currentTime);
+      this.masterGain.connect(ctx.destination);
+    } else {
+      this.masterGain.gain.setValueAtTime(this.soundEnabled ? this.volume : 0, ctx.currentTime);
+    }
+    return this.masterGain;
+  }
+
   public setSoundEnabled(enabled: boolean) {
     this.soundEnabled = enabled;
+    if (this.masterGain && this.ctx) {
+      this.masterGain.gain.setValueAtTime(this.soundEnabled ? this.volume : 0, this.ctx.currentTime);
+    }
   }
 
   public isSoundEnabled(): boolean {
-    return this.soundEnabled;
+    return this.soundEnabled && this.volume > 0;
+  }
+
+  public setVolume(vol: number) {
+    this.volume = Math.max(0, Math.min(1, vol));
+    if (this.volume > 0) {
+      this.soundEnabled = true;
+    }
+    if (this.masterGain && this.ctx) {
+      this.masterGain.gain.setValueAtTime(this.soundEnabled ? this.volume : 0, this.ctx.currentTime);
+    }
+  }
+
+  public getVolume(): number {
+    return this.volume;
   }
 
   // Hit sound when clicking or mining a block
@@ -43,7 +73,7 @@ class SoundSystem {
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.getOutput(ctx));
 
     osc.start();
     osc.stop(ctx.currentTime + 0.08);
@@ -73,7 +103,7 @@ class SoundSystem {
 
     noise.connect(filter);
     filter.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.getOutput(ctx));
 
     noise.start();
   }
@@ -94,7 +124,7 @@ class SoundSystem {
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.getOutput(ctx));
     osc.start();
     osc.stop(ctx.currentTime + 0.12);
 
@@ -119,7 +149,7 @@ class SoundSystem {
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.getOutput(ctx));
 
     osc.start(now);
     osc.stop(now + 0.25);
@@ -141,7 +171,7 @@ class SoundSystem {
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.09);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.getOutput(ctx));
 
     osc.start();
     osc.stop(ctx.currentTime + 0.09);
@@ -165,7 +195,7 @@ class SoundSystem {
       gain.gain.exponentialRampToValueAtTime(0.01, time + 0.18);
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(this.getOutput(ctx));
 
       osc.start(time);
       osc.stop(time + 0.18);
@@ -190,7 +220,7 @@ class SoundSystem {
       gain.gain.exponentialRampToValueAtTime(0.01, time + 0.35);
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(this.getOutput(ctx));
 
       osc.start(time);
       osc.stop(time + 0.35);
@@ -213,7 +243,7 @@ class SoundSystem {
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.getOutput(ctx));
 
     osc.start();
     osc.stop(ctx.currentTime + 0.3);
@@ -233,7 +263,7 @@ class SoundSystem {
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.04);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.getOutput(ctx));
 
     osc.start();
     osc.stop(ctx.currentTime + 0.04);
@@ -265,7 +295,7 @@ class SoundSystem {
 
     noise.connect(filter);
     filter.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.getOutput(ctx));
 
     noise.start();
   }
@@ -288,7 +318,7 @@ class SoundSystem {
       gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(this.getOutput(ctx));
 
       osc.start(time);
       osc.stop(time + 0.2);
@@ -321,7 +351,7 @@ class SoundSystem {
 
     noise.connect(filter);
     filter.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.getOutput(ctx));
 
     noise.start();
   }
@@ -343,7 +373,7 @@ class SoundSystem {
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.getOutput(ctx));
     osc.start();
     osc.stop(ctx.currentTime + 0.2);
   }
@@ -363,7 +393,7 @@ class SoundSystem {
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.getOutput(ctx));
     osc.start();
     osc.stop(ctx.currentTime + 0.15);
   }
@@ -384,7 +414,7 @@ class SoundSystem {
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(this.getOutput(ctx));
     osc.start();
     osc.stop(ctx.currentTime + 0.45);
   }
@@ -409,7 +439,7 @@ class SoundSystem {
       gain.gain.exponentialRampToValueAtTime(0.01, time + 0.25);
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(this.getOutput(ctx));
 
       osc.start(time);
       osc.stop(time + 0.25);

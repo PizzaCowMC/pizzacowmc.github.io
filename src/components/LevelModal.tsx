@@ -2,7 +2,7 @@ import React from 'react';
 import { Award, CheckCircle2, ChevronRight, Sparkles, X, ShieldAlert, Zap, Gift, Trophy } from 'lucide-react';
 import { useLanguage } from '../utils/i18n';
 import { sound } from '../utils/soundEffects';
-import { getLevelQuest, getLevelTitle, checkQuestProgress, PlayerStatsForQuest } from '../utils/levelSystem';
+import { getLevelQuest, getLevelTitle, checkQuestProgress, PlayerStatsForQuest, MAX_PLAYER_LEVEL } from '../utils/levelSystem';
 
 interface LevelModalProps {
   isOpen: boolean;
@@ -26,16 +26,19 @@ export const LevelModal: React.FC<LevelModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isMaxLevel = playerLevel >= MAX_PLAYER_LEVEL;
   const currentQuest = getLevelQuest(playerLevel);
   const nextQuest = getLevelQuest(playerLevel + 1);
   const currentTitle = getLevelTitle(playerLevel, isEn);
-  const nextTitle = getLevelTitle(playerLevel + 1, isEn);
+  const nextTitle = isMaxLevel ? (isEn ? 'Max Level Reached' : '已達滿級巔峰') : getLevelTitle(playerLevel + 1, isEn);
 
   const questStatus = checkQuestProgress(currentQuest, stats);
-  const hasEnoughXp = playerXp >= currentQuest.requiredXp;
-  const canLevelUp = hasEnoughXp && questStatus.isCompleted;
+  const hasEnoughXp = (playerXp || 0) >= currentQuest.requiredXp;
+  const canLevelUp = !isMaxLevel && hasEnoughXp && questStatus.isCompleted;
 
-  const xpPercent = Math.min(100, Math.round((playerXp / currentQuest.requiredXp) * 100));
+  const xpPercent = isMaxLevel
+    ? 100
+    : Math.min(100, Math.round(((Number(playerXp) || 0) / Math.max(1, currentQuest.requiredXp)) * 100));
 
   const handleLevelUpClick = () => {
     if (!canLevelUp) return;
@@ -55,10 +58,12 @@ export const LevelModal: React.FC<LevelModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg sm:text-xl font-black text-amber-300 drop-shadow-[2px_2px_0_#000]">
-                  {isEn ? 'Player Level & Promotion' : '玩家等級與晉升突破'}
+                  {isEn ? 'Player Level & Promotion (Lv.1 ~ 100)' : '玩家等級與晉升突破 (Lv.1 ~ 100)'}
                 </h3>
-                <span className="px-2 py-0.5 bg-emerald-900/80 border border-emerald-500 text-emerald-300 font-mono text-xs font-black rounded">
-                  Lv. {playerLevel}
+                <span className={`px-2 py-0.5 border font-mono text-xs font-black rounded ${
+                  isMaxLevel ? 'bg-amber-900/90 border-amber-400 text-amber-200' : 'bg-emerald-900/80 border-emerald-500 text-emerald-300'
+                }`}>
+                  Lv. {playerLevel} / {MAX_PLAYER_LEVEL}
                 </span>
               </div>
               <p className="text-xs text-zinc-300 font-medium">
@@ -101,9 +106,15 @@ export const LevelModal: React.FC<LevelModalProps> = ({
                   {isEn ? 'Next Target' : '晉升目標'}
                 </span>
                 <div className="text-xs font-bold text-amber-300 flex items-center gap-1">
-                  <span>Lv. {playerLevel + 1}</span>
-                  <span>{nextTitle}</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-amber-400" />
+                  {isMaxLevel ? (
+                    <span className="text-amber-400">★ {isEn ? 'Max Level 100' : '已登頂 100 級'} ★</span>
+                  ) : (
+                    <>
+                      <span>Lv. {playerLevel + 1}</span>
+                      <span>{nextTitle}</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-amber-400" />
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -116,21 +127,27 @@ export const LevelModal: React.FC<LevelModalProps> = ({
                   {isEn ? 'Experience Points (XP)' : '經驗值進度 (XP)'}
                 </span>
                 <span className="font-bold text-emerald-400">
-                  {playerXp.toLocaleString()} / {currentQuest.requiredXp.toLocaleString()} XP ({xpPercent}%)
+                  {isMaxLevel
+                    ? 'MAX / MAX (100%)'
+                    : `${(playerXp || 0).toLocaleString()} / ${currentQuest.requiredXp.toLocaleString()} XP (${xpPercent}%)`}
                 </span>
               </div>
 
               {/* Progress track */}
               <div className="w-full h-4 bg-zinc-900 border-2 border-black rounded overflow-hidden p-0.5 relative">
                 <div
-                  className="h-full bg-gradient-to-r from-emerald-600 via-green-500 to-lime-400 transition-all duration-300 rounded-xs shadow-[0_0_8px_rgba(74,222,128,0.5)]"
+                  className={`h-full transition-all duration-300 rounded-xs shadow-[0_0_8px_rgba(74,222,128,0.5)] ${
+                    isMaxLevel
+                      ? 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300'
+                      : 'bg-gradient-to-r from-emerald-600 via-green-500 to-lime-400'
+                  }`}
                   style={{ width: `${xpPercent}%` }}
                 />
               </div>
             </div>
           </div>
 
-          {/* Special Promotion Quest Box (每個等級除了經驗值還需要特殊任務) */}
+          {/* Special Promotion Quest Box */}
           <div className="p-4 bg-gradient-to-br from-amber-950/40 via-zinc-900 to-zinc-950 border-3 border-amber-500/80 rounded-lg space-y-3 shadow-[inset_1px_1px_0_#fde047]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -141,7 +158,9 @@ export const LevelModal: React.FC<LevelModalProps> = ({
                   <h4 className="font-black text-sm text-amber-300 flex items-center gap-1.5">
                     <span>{isEn ? 'Level Promotion Special Quest' : '升等晉升特殊任務'}</span>
                     <span className="text-[10px] px-1.5 py-0.2 bg-amber-500 text-black font-black rounded-xs">
-                      {isEn ? `Required for Lv.${playerLevel + 1}` : `晉升 Lv.${playerLevel + 1} 必備`}
+                      {isMaxLevel
+                        ? (isEn ? 'Apex Legend' : '全知全能終極巔峰')
+                        : (isEn ? `Required for Lv.${playerLevel + 1}` : `晉升 Lv.${playerLevel + 1} 必備`)}
                     </span>
                   </h4>
                   <div className="text-xs text-white font-bold mt-0.5">
@@ -150,7 +169,12 @@ export const LevelModal: React.FC<LevelModalProps> = ({
                 </div>
               </div>
 
-              {questStatus.isCompleted ? (
+              {isMaxLevel ? (
+                <div className="px-2.5 py-1 bg-amber-950/90 border border-amber-500 text-amber-300 text-xs font-black rounded flex items-center gap-1 font-mono">
+                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                  {isEn ? 'Max Level' : '頂峰大師'}
+                </div>
+              ) : questStatus.isCompleted ? (
                 <div className="px-2.5 py-1 bg-emerald-950/90 border border-emerald-500 text-emerald-300 text-xs font-black rounded flex items-center gap-1 font-mono">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                   {isEn ? 'Completed' : '已達成'}
@@ -171,18 +195,18 @@ export const LevelModal: React.FC<LevelModalProps> = ({
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs font-mono">
                 <span className="text-zinc-400">{isEn ? 'Task Requirement Progress' : '任務條件進度'}</span>
-                <span className={`font-bold ${questStatus.isCompleted ? 'text-emerald-400' : 'text-amber-300'}`}>
-                  {questStatus.displayText} ({questStatus.progressPercent}%)
+                <span className={`font-bold ${isMaxLevel || questStatus.isCompleted ? 'text-emerald-400' : 'text-amber-300'}`}>
+                  {isMaxLevel ? '100% (Completed)' : `${questStatus.displayText} (${questStatus.progressPercent}%)`}
                 </span>
               </div>
               <div className="w-full h-2.5 bg-zinc-900 border border-black rounded overflow-hidden">
                 <div
                   className={`h-full transition-all duration-300 ${
-                    questStatus.isCompleted
+                    isMaxLevel || questStatus.isCompleted
                       ? 'bg-emerald-500'
                       : 'bg-gradient-to-r from-amber-600 to-yellow-400'
                   }`}
-                  style={{ width: `${questStatus.progressPercent}%` }}
+                  style={{ width: `${isMaxLevel ? 100 : questStatus.progressPercent}%` }}
                 />
               </div>
             </div>
@@ -201,7 +225,17 @@ export const LevelModal: React.FC<LevelModalProps> = ({
 
           {/* Action Level Up Button */}
           <div>
-            {canLevelUp ? (
+            {isMaxLevel ? (
+              <div className="p-3.5 bg-gradient-to-r from-amber-950/80 via-yellow-950/60 to-amber-950/80 border-3 border-amber-500 rounded-lg text-center space-y-1">
+                <div className="text-amber-300 font-black text-sm flex items-center justify-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-400" />
+                  <span>{isEn ? '★ Max Level 100 Achieved: Supreme Omnipotent God! ★' : '★ 已登頂 Lv.100 滿級！全知全能終極造物主 ★'}</span>
+                </div>
+                <p className="text-xs text-amber-200/80">
+                  {isEn ? 'You have conquered all 10 strata layers and reached the pinnacle of the universe!' : '您已開拓全部 10 大地層，登上 Minecraft 建築與採礦工藝的無上神座！'}
+                </p>
+              </div>
+            ) : canLevelUp ? (
               <button
                 onClick={handleLevelUpClick}
                 className="w-full py-3 bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-600 hover:from-emerald-500 hover:to-green-400 text-black font-black text-sm rounded-lg border-3 border-black shadow-[inset_-2px_-2px_0_#14532d,inset_2px_2px_0_#86efac,0_0_15px_rgba(34,197,94,0.6)] active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer animate-pulse"
@@ -219,8 +253,8 @@ export const LevelModal: React.FC<LevelModalProps> = ({
                   <span>
                     {!hasEnoughXp
                       ? (isEn
-                          ? `⚠️ XP insufficient (Need ${(currentQuest.requiredXp - playerXp).toLocaleString()} more XP)`
-                          : `⚠️ 經驗值未達標（尚差 ${(currentQuest.requiredXp - playerXp).toLocaleString()} XP）`)
+                          ? `⚠️ XP insufficient (Need ${(currentQuest.requiredXp - (playerXp || 0)).toLocaleString()} more XP)`
+                          : `⚠️ 經驗值未達標（尚差 ${(currentQuest.requiredXp - (playerXp || 0)).toLocaleString()} XP）`)
                       : (isEn ? '⏳ Special Quest not completed yet' : '⏳ 升等特殊任務尚未完成')}
                   </span>
                 </div>
@@ -243,8 +277,8 @@ export const LevelModal: React.FC<LevelModalProps> = ({
               <div className="p-2 bg-zinc-900 border border-zinc-800 rounded flex items-center gap-2">
                 <span className="text-base">⛏️</span>
                 <div>
-                  <div className="font-bold text-zinc-200">{isEn ? 'Quarry Mining' : '採石場開採'}</div>
-                  <div className="text-[10px] text-zinc-400">{isEn ? '+1~35 XP per block mined' : '每開採 1 顆方塊 +1~35 XP'}</div>
+                  <div className="font-bold text-zinc-200">{isEn ? 'Quarry Mining (10 Strata)' : '採石場開採 (10大地層)'}</div>
+                  <div className="text-[10px] text-zinc-400">{isEn ? '+1~60 XP per block mined' : '每開採 1 顆方塊 +1~60 XP'}</div>
                 </div>
               </div>
 
@@ -277,7 +311,7 @@ export const LevelModal: React.FC<LevelModalProps> = ({
 
         {/* Footer */}
         <div className="p-3 bg-zinc-900 border-t-2 border-black flex items-center justify-between text-xs text-zinc-400">
-          <span>{isEn ? 'Keep mining and completing quests to become a Legend!' : '持續開採並完成突破任務，晉升為伺服器傳奇巨匠！'}</span>
+          <span>{isEn ? 'Level 1 to 100 progression supported!' : '支援 Lv.1 至 Lv.100 完整傳奇晉升！'}</span>
           <button
             onClick={() => {
               sound.playClickSound();

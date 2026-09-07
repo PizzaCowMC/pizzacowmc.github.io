@@ -2,7 +2,7 @@ export interface BlockType {
   id: string;
   nameZh: string;
   nameEn: string;
-  category: 'surface' | 'ore' | 'nether' | 'end' | 'deepslate' | 'gem' | 'deep_dark' | 'aether';
+  category: 'surface' | 'ore' | 'nether' | 'end' | 'deepslate' | 'gem' | 'deep_dark' | 'aether' | 'singularity' | 'genesis';
   hardness: number; // in seconds (base time to mine with bare hands)
   sellPrice: number; // in coins
   color: string;

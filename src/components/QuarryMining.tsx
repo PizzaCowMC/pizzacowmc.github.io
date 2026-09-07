@@ -36,6 +36,8 @@ interface QuarryMiningProps {
   swordState?: { currentTierId: string; currentDurability: number };
   onDefeatMonster?: (monster: MonsterData, coinReward: number) => void;
   onEarnExtraCoins?: (coins: number) => void;
+  coins?: number;
+  onRepairSword?: (cost: number) => void;
 }
 
 export const QuarryMining: React.FC<QuarryMiningProps> = ({
@@ -62,7 +64,9 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   shovelState = { currentTierId: 'bare_hand_shovel', currentDurability: 999999 },
   swordState = { currentTierId: 'wood_sword', currentDurability: 80 },
   onDefeatMonster,
-  onEarnExtraCoins
+  onEarnExtraCoins,
+  coins = 0,
+  onRepairSword
 }) => {
   const { language, getName, t } = useLanguage();
   const isEn = language === 'en';
@@ -112,6 +116,8 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   // Safety lock to prevent double execution (fixes "我每挖一個就變成兩個???!!!")
   const isCompletingRef = useRef<boolean>(false);
   const holdIntervalRef = useRef<number | null>(null);
+  const isMouseDownRef = useRef<boolean>(false);
+  const lastBlockMinedTimeRef = useRef<number>(0);
 
   const activeBlock = fallbackBlocks[currentBlockIndex % fallbackBlocks.length] || BLOCK_TYPES[0];
 
@@ -120,6 +126,11 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   const currentAxe = AXE_TIERS.find(a => a.id === axeState.currentTierId) || AXE_TIERS[0];
   const currentShovel = SHOVEL_TIERS.find(s => s.id === shovelState.currentTierId) || SHOVEL_TIERS[0];
   const currentSword = SWORD_TIERS.find(s => s.id === swordState.currentTierId) || SWORD_TIERS[0];
+
+  // Sword durability & broken status check
+  const isSwordBroken = (swordState?.currentDurability ?? 0) <= 0;
+  const missingSwordDurability = Math.max(0, currentSword.maxDurability - (swordState?.currentDurability ?? 0));
+  const swordRepairCost = Math.max(10, Math.ceil(missingSwordDurability * 0.3));
 
   // Best recommended tool for the current block
   const bestTool = getBestToolForBlock(activeBlock);
@@ -132,7 +143,8 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
           setActiveTool('sword');
         }
       } else {
-        if (activeTool !== bestTool && activeTool !== 'sword') {
+        // Outside combat: always switch to the best mining tool (pickaxe, axe, or shovel)
+        if (activeTool !== bestTool) {
           setActiveTool(bestTool);
         }
       }
@@ -161,6 +173,30 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setActiveTool]);
+
+  // Global mouseup, touchend, and blur listeners to prevent stuck mining / runaway loops
+  useEffect(() => {
+    const handleGlobalRelease = () => {
+      isMouseDownRef.current = false;
+      setIsMiningActive(false);
+      if (holdIntervalRef.current) {
+        clearInterval(holdIntervalRef.current);
+        holdIntervalRef.current = null;
+      }
+    };
+
+    window.addEventListener('mouseup', handleGlobalRelease);
+    window.addEventListener('touchend', handleGlobalRelease);
+    window.addEventListener('blur', handleGlobalRelease);
+    document.addEventListener('visibilitychange', handleGlobalRelease);
+
+    return () => {
+      window.removeEventListener('mouseup', handleGlobalRelease);
+      window.removeEventListener('touchend', handleGlobalRelease);
+      window.removeEventListener('blur', handleGlobalRelease);
+      document.removeEventListener('visibilitychange', handleGlobalRelease);
+    };
+  }, []);
 
   // Calculate speed multiplier based on active tool vs required tool
   const hasteMultiplier = (hasteRemainingSeconds > 0 ? 2.0 : 1.0) * (extremeHasteSeconds > 0 ? 2.0 : 1.0);
@@ -206,6 +242,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   const completeMine = useCallback(() => {
     if (isCompletingRef.current) return;
     isCompletingRef.current = true;
+    lastBlockMinedTimeRef.current = Date.now();
 
     sound.playBlockBreakSound();
 
@@ -268,6 +305,13 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     // 9% chance for a random underground monster encounter!
     if (!activeMonster && Math.random() < 0.09) {
       const monster = spawnRandomMonster(currentLayerIndex);
+      // Immediately reset any active mining state so combat starts completely clean
+      isMouseDownRef.current = false;
+      setIsMiningActive(false);
+      if (holdIntervalRef.current) {
+        clearInterval(holdIntervalRef.current);
+        holdIntervalRef.current = null;
+      }
       setActiveMonster(monster);
       setMonsterCurrentHp(monster.maxHp);
       sound.playMonsterSpawnSound();
@@ -276,14 +320,19 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
       }
     }
 
-    // Reset progress and pick next block
+    // Reset progress and pick next block ("就挖到下一個方塊")
     setMiningProgress(0);
     pickNewBlock();
 
-    // Release completion lock
+    // If mouse is no longer physically held down, reset active mining
+    if (!isMouseDownRef.current) {
+      setIsMiningActive(false);
+    }
+
+    // Release completion lock after safety buffer
     setTimeout(() => {
       isCompletingRef.current = false;
-    }, 70);
+    }, 100);
   }, [
     activeBlock,
     activeLayer.id,
@@ -302,7 +351,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     setActiveTool
   ]);
 
-  // Strike mining action (click)
+  // Strike mining action (click) - with "就挖到下一個方塊" auto-stop protection
   const strikeMining = useCallback(() => {
     if (isCompletingRef.current || activeMonster) return;
     sound.playHitSound(activeBlock.hardness);
@@ -313,6 +362,8 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     if (nextProgress >= 100) {
       setMiningProgress(100);
       completeMine();
+      // "就挖到下一個方塊": Advance cleanly to the next block, and stop immediate auto-chaining
+      setIsMiningActive(false);
     } else {
       setMiningProgress(nextProgress);
       if (Math.random() < 0.35) sound.playCrackSound();
@@ -330,7 +381,23 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     }
 
     holdIntervalRef.current = window.setInterval(() => {
+      // Must verify mouse is physically held down
+      if (!isMouseDownRef.current) {
+        setIsMiningActive(false);
+        if (holdIntervalRef.current) {
+          clearInterval(holdIntervalRef.current);
+          holdIntervalRef.current = null;
+        }
+        return;
+      }
+
       if (isCompletingRef.current) return;
+
+      // Pacing buffer: 120ms buffer after a block is mined before damaging the next block
+      if (Date.now() - lastBlockMinedTimeRef.current < 120) {
+        return;
+      }
+
       setMiningProgress(prev => {
         const next = prev + (60 / requiredMiningTimeMs) * 100;
         if (next >= 100) {
@@ -360,17 +427,23 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     let isCrit = false;
 
     if (activeTool === 'sword') {
-      // Using a sword: deals full attack damage with crit chance!
-      damage = currentSword.attackDamage;
-      if (Math.random() < currentSword.critChance) {
-        isCrit = true;
-        damage = Math.round(damage * 1.75);
-        sound.playSwordCritSound();
+      if (isSwordBroken) {
+        // Sword is broken! Deals only 1 scratch damage with bare hands
+        damage = 1;
+        sound.playHitSound(0.5);
       } else {
-        sound.playSwordSlashSound();
+        // Using an intact sword: deals full attack damage with crit chance!
+        damage = currentSword.attackDamage;
+        if (Math.random() < currentSword.critChance) {
+          isCrit = true;
+          damage = Math.round(damage * 1.75);
+          sound.playSwordCritSound();
+        } else {
+          sound.playSwordSlashSound();
+        }
+        sound.playMonsterHurtSound();
+        handleConsumeDurability('sword');
       }
-      sound.playMonsterHurtSound();
-      handleConsumeDurability('sword');
     } else {
       // Using pickaxe, axe, shovel, or bare hands: only 1 scratch damage!
       damage = 1;
@@ -384,7 +457,9 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     // Floating combat text
     const newId = Date.now() + Math.random();
     const hitText = activeTool === 'sword'
-      ? (isCrit ? `💥 CRIT! -${damage}` : `⚔️ -${damage}`)
+      ? (isSwordBroken
+          ? `💥 1 (${isEn ? 'Sword Broken!' : '劍已折斷！'})`
+          : (isCrit ? `💥 CRIT! -${damage}` : `⚔️ -${damage}`))
       : `1 (${isEn ? 'Use Sword!' : '請用劍打！'})`;
 
     setFloatingTexts(prev => [
@@ -394,7 +469,9 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
         text: hitText,
         x: 50 + (Math.random() * 24 - 12),
         y: 40 + (Math.random() * 10 - 5),
-        color: activeTool === 'sword' ? (isCrit ? '#fbbf24' : '#ef4444') : '#9ca3af'
+        color: activeTool === 'sword'
+          ? (isSwordBroken ? '#f87171' : (isCrit ? '#fbbf24' : '#ef4444'))
+          : '#9ca3af'
       }
     ]);
     setTimeout(() => {
@@ -404,6 +481,14 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     // Check if monster defeated
     if (nextHp <= 0) {
       sound.playMonsterDefeatSound();
+
+      // Ensure mining is completely reset and stopped
+      isMouseDownRef.current = false;
+      setIsMiningActive(false);
+      if (holdIntervalRef.current) {
+        clearInterval(holdIntervalRef.current);
+        holdIntervalRef.current = null;
+      }
 
       const coinReward = activeMonster.coinReward * (doubleCoinsSeconds > 0 ? 2 : 1);
       if (onDefeatMonster) {
@@ -428,8 +513,10 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
         setFloatingTexts(prev => prev.filter(item => item.id !== defeatId));
       }, 1500);
 
-      // Return to quarry blocks
+      // Return to quarry blocks - ensure mining active is false so no runaway bug occurs
       setTimeout(() => {
+        isMouseDownRef.current = false;
+        setIsMiningActive(false);
         setActiveMonster(null);
         if (autoSwitchTool) {
           setActiveTool(bestTool);
@@ -446,6 +533,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     doubleCoinsSeconds,
     handleConsumeDurability,
     isEn,
+    isSwordBroken,
     monsterCurrentHp,
     onDefeatMonster,
     onEarnExtraCoins,
@@ -455,6 +543,12 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   // Manually trigger a monster encounter (for user testing and exploration)
   const triggerManualMonster = useCallback(() => {
     sound.playClickSound();
+    isMouseDownRef.current = false;
+    setIsMiningActive(false);
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
     const monster = spawnRandomMonster(currentLayerIndex);
     setActiveMonster(monster);
     setMonsterCurrentHp(monster.maxHp);
@@ -704,13 +798,37 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
               </div>
 
               {/* Weapon Warning Notice */}
-              <div className={`text-[11px] font-bold px-3 py-1 rounded-md mb-3 border max-w-sm ${
+              <div className={`text-[11px] font-bold px-3 py-1.5 rounded-md mb-3 border max-w-sm ${
                 activeTool === 'sword'
-                  ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500'
+                  ? (isSwordBroken
+                      ? 'bg-red-950/95 text-red-200 border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.4)]'
+                      : 'bg-emerald-950/80 text-emerald-300 border-emerald-500')
                   : 'bg-red-950/90 text-red-200 border-red-500 animate-bounce'
               }`}>
                 {activeTool === 'sword' ? (
-                  <span>⚔️ {isEn ? 'Sword ready! Strike to deal lethal weapon damage!' : `已裝備【${isEn ? currentSword.nameEn : currentSword.nameZh}】！點擊怪物斬殺！`}</span>
+                  isSwordBroken ? (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+                      <span>⚠️ {isEn ? `【${currentSword.nameEn}】durability is 0 (Broken)! Deals only 1 scratch damage!` : `【${currentSword.nameZh}】耐久歸零折斷！攻擊僅造成 1 點刮痕！`}</span>
+                      {onRepairSword && (
+                        <button
+                          disabled={coins < swordRepairCost}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (coins >= swordRepairCost) {
+                              sound.playUpgradeSound();
+                              onRepairSword(swordRepairCost);
+                            }
+                          }}
+                          className="shrink-0 px-2 py-0.5 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white text-[10px] font-black rounded border border-black cursor-pointer shadow active:scale-95 flex items-center gap-1"
+                        >
+                          <Wrench className="w-3 h-3" />
+                          <span>{isEn ? `Repair (${swordRepairCost} C)` : `立即修復 (${swordRepairCost} 幣)`}</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <span>⚔️ {isEn ? 'Sword ready! Strike to deal lethal weapon damage!' : `已裝備【${isEn ? currentSword.nameEn : currentSword.nameZh}】！點擊怪物斬殺！`}</span>
+                  )
                 ) : (
                   <span>⚠️ {isEn ? 'MUST USE SWORD TO ATTACK! Non-swords only deal 1 scratch damage!' : '隨機怪獸必須用【劍】打！其他工具僅能造成 1 點刮痕！'}</span>
                 )}
@@ -783,18 +901,50 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
                     <span>{isEn ? `Equip ${currentSword.nameEn}` : `立即換劍【${currentSword.nameZh}】迎戰！`}</span>
                   </button>
                 ) : (
-                  <button
-                    onClick={strikeMonster}
-                    className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded border-2 border-black shadow-[inset_1px_1px_0_#fef08a] active:scale-95 flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Crosshair className="w-4 h-4" />
-                    <span>{isEn ? `Strike (${currentSword.attackDamage} DMG)` : `揮劍猛劈！(傷害: ${currentSword.attackDamage})`}</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={strikeMonster}
+                      className={`px-4 py-1.5 font-black text-xs rounded border-2 border-black active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                        isSwordBroken
+                          ? 'bg-red-800 hover:bg-red-700 text-white shadow-[inset_1px_1px_0_#f87171]'
+                          : 'bg-amber-500 hover:bg-amber-400 text-black shadow-[inset_1px_1px_0_#fef08a]'
+                      }`}
+                    >
+                      <Crosshair className="w-4 h-4" />
+                      <span>
+                        {isSwordBroken
+                          ? (isEn ? 'Bare Fist (1 DMG - Broken)' : '💥 徒手攻擊 (傷害: 1・劍已折斷)')
+                          : (isEn ? `Strike (${currentSword.attackDamage} DMG)` : `揮劍猛劈！(傷害: ${currentSword.attackDamage})`)}
+                      </span>
+                    </button>
+
+                    {isSwordBroken && onRepairSword && (
+                      <button
+                        disabled={coins < swordRepairCost}
+                        onClick={() => {
+                          if (coins >= swordRepairCost) {
+                            sound.playUpgradeSound();
+                            onRepairSword(swordRepairCost);
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-black text-xs rounded border-2 border-black shadow-[inset_1px_1px_0_#a7f3d0] active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Wrench className="w-3.5 h-3.5" />
+                        <span>{isEn ? `Repair Sword (${swordRepairCost} C)` : `🛠️ 快速修復神劍 (${swordRepairCost} 幣)`}</span>
+                      </button>
+                    )}
+                  </>
                 )}
 
                 <button
                   onClick={() => {
                     sound.playClickSound();
+                    isMouseDownRef.current = false;
+                    setIsMiningActive(false);
+                    if (holdIntervalRef.current) {
+                      clearInterval(holdIntervalRef.current);
+                      holdIntervalRef.current = null;
+                    }
                     setActiveMonster(null);
                     if (autoSwitchTool) setActiveTool(bestTool);
                   }}
@@ -822,6 +972,11 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
                       ? (isEn ? '✓ Optimal Tool Equipped' : '✓ 已裝備最佳工具')
                       : (isEn ? `⚠️ Recommended: ${bestTool.toUpperCase()}` : `⚠️ 建議切換至【${bestTool === 'axe' ? '斧頭' : bestTool === 'shovel' ? '鏟子' : '鎬子'}】`)}
                   </span>
+                  {/* Feature: Advance to next block */}
+                  <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-amber-950/80 border border-amber-500/80 text-amber-200 flex items-center gap-1">
+                    <span>⛏️</span>
+                    <span>{isEn ? 'Advance to Next Block' : '就挖到下一個方塊 (防連鎖爆挖)'}</span>
+                  </span>
                 </div>
                 <div className="text-lg font-black text-amber-300 drop-shadow-[1px_1px_0_#000] mt-1">
                   {getName(activeBlock)}
@@ -836,18 +991,33 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
                 <button
                   id="quarry-block-target"
                   onMouseDown={() => {
-                    setIsMiningActive(true);
+                    isMouseDownRef.current = true;
                     strikeMining();
+                    if (!isCompletingRef.current) {
+                      setIsMiningActive(true);
+                    }
                   }}
-                  onMouseUp={() => setIsMiningActive(false)}
-                  onMouseLeave={() => setIsMiningActive(false)}
+                  onMouseUp={() => {
+                    isMouseDownRef.current = false;
+                    setIsMiningActive(false);
+                  }}
+                  onMouseLeave={() => {
+                    isMouseDownRef.current = false;
+                    setIsMiningActive(false);
+                  }}
                   onTouchStart={() => {
-                    setIsMiningActive(true);
+                    isMouseDownRef.current = true;
                     strikeMining();
+                    if (!isCompletingRef.current) {
+                      setIsMiningActive(true);
+                    }
                   }}
-                  onTouchEnd={() => setIsMiningActive(false)}
+                  onTouchEnd={() => {
+                    isMouseDownRef.current = false;
+                    setIsMiningActive(false);
+                  }}
                   className="relative p-1 transition-transform active:scale-95 cursor-pointer group focus:outline-none"
-                  title={isEn ? 'Click or hold to mine!' : '點擊或長按開採！'}
+                  title={isEn ? 'Click or hold to mine! (Advances cleanly to next block)' : '點擊或長按開採！(開採完成推進至下一個方塊)'}
                 >
                   <BlockTexture
                     blockId={activeBlock.id}
@@ -1045,35 +1215,80 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
             )}
 
             {activeTool === 'sword' && (
-              <div className="bg-zinc-950 p-3 border-2 border-black rounded mb-3">
+              <div className={`p-3 border-2 rounded mb-3 ${
+                isSwordBroken
+                  ? 'bg-red-950/40 border-red-600 shadow-[0_0_12px_rgba(239,68,68,0.3)]'
+                  : 'bg-zinc-950 border-black'
+              }`}>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">⚔️</span>
                     <span className="font-black text-red-300 text-sm">{isEn ? currentSword.nameEn : currentSword.nameZh}</span>
+                    {isSwordBroken && (
+                      <span className="text-[10px] px-1.5 py-0.2 bg-red-900 text-red-200 border border-red-500 rounded font-black animate-pulse">
+                        {isEn ? 'BROKEN' : '已折斷'}
+                      </span>
+                    )}
                   </div>
-                  <span className="text-xs font-mono text-red-300 font-bold bg-red-950/80 px-2 py-0.5 rounded border border-red-800">
-                    {currentSword.attackDamage} ATK
-                  </span>
+                  <div className="flex items-center gap-1">
+                    {isSwordBroken && (
+                      <span className="text-[11px] font-mono text-zinc-500 line-through">
+                        {currentSword.attackDamage} ATK
+                      </span>
+                    )}
+                    <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded border ${
+                      isSwordBroken
+                        ? 'text-red-300 bg-red-950 border-red-600'
+                        : 'text-red-300 bg-red-950/80 border-red-800'
+                    }`}>
+                      {isSwordBroken ? (isEn ? '1 ATK (Fist)' : '1 ATK (刮痕)') : `${currentSword.attackDamage} ATK`}
+                    </span>
+                  </div>
                 </div>
                 <p className="text-[11px] text-zinc-400 line-clamp-2 mb-2">
-                  {currentSword.desc}
+                  {isSwordBroken
+                    ? (isEn ? '⚠️ This sword is broken! Attack is reduced to 1. Please click Quick Repair or visit the Shop.' : '⚠️ 此神劍耐久耗盡已折斷！攻擊力降為 1 點刮痕，請點擊下方快速修復或前往商店研磨！')
+                    : currentSword.desc}
                 </p>
 
                 {/* Durability */}
                 <div>
                   <div className="flex justify-between text-[11px] font-mono mb-1">
                     <span className="text-zinc-400">{isEn ? 'Sword Durability' : '神劍耐久度'}</span>
-                    <span className="text-zinc-300">
+                    <span className={isSwordBroken ? 'text-red-400 font-bold' : 'text-zinc-300'}>
                       {swordState.currentDurability} / {currentSword.maxDurability}
+                      {isSwordBroken && ` (${isEn ? 'Broken' : '已損壞'})`}
                     </span>
                   </div>
                   <div className="w-full h-2 bg-zinc-900 border border-black rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-red-500 transition-all"
+                      className={`h-full transition-all ${isSwordBroken ? 'bg-zinc-600' : 'bg-red-500'}`}
                       style={{ width: `${Math.max(0, Math.min(100, (swordState.currentDurability / currentSword.maxDurability) * 100))}%` }}
                     />
                   </div>
                 </div>
+
+                {/* Quick repair button when broken or damaged */}
+                {swordState.currentDurability < currentSword.maxDurability && onRepairSword && (
+                  <div className="mt-2.5 pt-2 border-t border-zinc-800 flex items-center justify-between">
+                    <span className="text-[10px] text-zinc-400 font-mono">
+                      {isEn ? `Cost: ${swordRepairCost} C` : `費用: ${swordRepairCost} 幣`}
+                    </span>
+                    <button
+                      disabled={coins < swordRepairCost}
+                      onClick={() => {
+                        if (coins >= swordRepairCost) {
+                          sound.playUpgradeSound();
+                          onRepairSword(swordRepairCost);
+                        }
+                      }}
+                      className="px-2.5 py-1 bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white text-[11px] font-black rounded border border-black cursor-pointer shadow active:scale-95 flex items-center gap-1"
+                    >
+                      <Wrench className="w-3 h-3" />
+                      <span>{isEn ? 'Quick Repair' : '快速修復神劍'}</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

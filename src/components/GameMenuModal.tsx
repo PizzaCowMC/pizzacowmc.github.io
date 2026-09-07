@@ -11,13 +11,15 @@ import {
   Cloud,
   Github,
   Volume2,
+  Volume1,
   VolumeX,
   Play,
   RotateCcw,
   AlertTriangle,
   Flame,
   ExternalLink,
-  Languages
+  Languages,
+  BookOpen
 } from 'lucide-react';
 import { sound } from '../utils/soundEffects';
 import { useLanguage } from '../utils/i18n';
@@ -35,11 +37,14 @@ interface GameMenuModalProps {
   onOpenAuth: () => void;
   onOpenFestivals?: () => void;
   onOpenLevel?: () => void;
+  onOpenEncyclopedia?: () => void;
   playerLevel?: number;
   onResetProgress?: () => void;
   currentUser: { email: string | null; displayName: string | null } | null;
   soundEnabled: boolean;
   onToggleSound: () => void;
+  volume: number;
+  onChangeVolume: (vol: number) => void;
 }
 
 export const GameMenuModal: React.FC<GameMenuModalProps> = ({
@@ -55,11 +60,14 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
   onOpenAuth,
   onOpenFestivals,
   onOpenLevel,
+  onOpenEncyclopedia,
   playerLevel = 0,
   onResetProgress,
   currentUser,
   soundEnabled,
-  onToggleSound
+  onToggleSound,
+  volume,
+  onChangeVolume
 }) => {
   const { language, toggleLanguage, t } = useLanguage();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -245,18 +253,86 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
               </span>
             </button>
 
+            {onOpenEncyclopedia && (
+              <button
+                onClick={() => handleAction(onOpenEncyclopedia)}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-amber-950/40 via-[#2a2720] to-[#282828] hover:from-amber-900/50 hover:to-[#323232] border border-amber-500/50 rounded-xl flex items-center justify-between text-xs font-bold text-amber-200 hover:text-white transition-all active:scale-98 shadow-sm group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">📖</span>
+                  <span className="group-hover:text-amber-300 font-minecraft transition-colors">
+                    {isEn ? 'Minecraft Encyclopedia (Wiki)' : 'Minecraft 百科全書 (全方位知識)'}
+                  </span>
+                </div>
+                <span className="text-amber-400 text-[10px] font-mono bg-amber-950/80 px-2 py-0.5 rounded border border-amber-700/60">
+                  Wiki →
+                </span>
+              </button>
+            )}
+
             <button
               onClick={() => handleAction(onOpenChangelog)}
               className="w-full px-4 py-2.5 bg-[#282828] hover:bg-[#323232] border border-[#383838] rounded-xl flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white transition-all active:scale-98"
             >
               <div className="flex items-center gap-2.5">
                 <Scroll className="w-4 h-4 text-amber-300" />
-                <span>{isEn ? '📜 Release Notes (Changelog v2.2.7)' : '📜 版本更新日誌 (Changelog v2.2.7)'}</span>
+                <span>{isEn ? '📜 Release Notes (Changelog v2.4.0)' : '📜 版本更新日誌 (Changelog v2.4.0)'}</span>
               </div>
               <span className="text-emerald-400 font-mono text-[10px] bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
-                v2.2.7
+                v2.4.0
               </span>
             </button>
+          </div>
+
+          {/* Sound Volume Slider Control (音效拉桿) */}
+          <div className="pt-2.5 pb-1 border-t border-[#333] space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 text-zinc-300 font-bold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (volume > 0) {
+                      onChangeVolume(0);
+                    } else {
+                      onChangeVolume(80);
+                    }
+                    sound.playClickSound();
+                  }}
+                  className="p-1.5 bg-[#282828] hover:bg-[#383838] border border-[#444] rounded text-zinc-300 hover:text-white cursor-pointer transition-colors"
+                  title={volume > 0 ? (isEn ? 'Mute Audio' : '靜音音效') : (isEn ? 'Unmute Audio' : '開啟音效')}
+                >
+                  {volume === 0 || !soundEnabled ? (
+                    <VolumeX className="w-4 h-4 text-rose-400" />
+                  ) : volume < 50 ? (
+                    <Volume1 className="w-4 h-4 text-amber-400" />
+                  ) : (
+                    <Volume2 className="w-4 h-4 text-emerald-400" />
+                  )}
+                </button>
+                <span>{isEn ? 'Master Sound Volume' : '遊戲主音效音量'}</span>
+              </div>
+              <span className="font-mono text-xs font-bold text-emerald-400 bg-black/60 px-2 py-0.5 rounded border border-zinc-700">
+                {volume}%
+              </span>
+            </div>
+
+            {/* Slider track */}
+            <div className="flex items-center gap-3 px-1">
+              <VolumeX className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={volume}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  onChangeVolume(val);
+                }}
+                className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 hover:accent-emerald-400 transition-all"
+              />
+              <Volume2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            </div>
           </div>
 
           {/* Language Switcher Setting */}
@@ -343,34 +419,14 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
             )}
           </div>
 
-          {/* Quick Sound Toggle & Controls */}
-          <div className="pt-2 flex items-center justify-between border-t border-[#333]">
-            <button
-              onClick={() => {
-                onToggleSound();
-                sound.playClickSound();
-              }}
-              className="px-3 py-2 bg-[#282828] hover:bg-[#333] border border-[#3c3c3c] rounded-lg text-xs font-bold text-zinc-300 flex items-center gap-2 transition-all cursor-pointer"
-            >
-              {soundEnabled ? (
-                <>
-                  <Volume2 className="w-4 h-4 text-emerald-400" />
-                  <span>{t('menu.soundOn')}</span>
-                </>
-              ) : (
-                <>
-                  <VolumeX className="w-4 h-4 text-zinc-500" />
-                  <span>{t('menu.soundOff')}</span>
-                </>
-              )}
-            </button>
-
+          {/* Quick Resume Controls */}
+          <div className="pt-2 flex items-center justify-end border-t border-[#333]">
             <button
               onClick={() => {
                 sound.playClickSound();
                 onClose();
               }}
-              className="px-5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-black transition-all flex items-center gap-1.5 shadow-md active:scale-95 font-minecraft cursor-pointer"
+              className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 font-minecraft cursor-pointer"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
               <span>{t('menu.resume')}</span>

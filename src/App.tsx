@@ -18,7 +18,8 @@ import { AvatarSelectModal } from './components/AvatarSelectModal';
 import { FestivalsModal } from './components/FestivalsModal';
 import { FestivalParticles } from './components/FestivalParticles';
 import { LevelModal } from './components/LevelModal';
-import { getLevelQuest, getLevelTitle, checkQuestProgress, calculateBlockXp } from './utils/levelSystem';
+import { EncyclopediaModal } from './components/EncyclopediaModal';
+import { getLevelQuest, getLevelTitle, checkQuestProgress, calculateBlockXp, PlayerStatsForQuest, MAX_PLAYER_LEVEL } from './utils/levelSystem';
 import { sound } from './utils/soundEffects';
 import {
   ShoppingBag,
@@ -203,7 +204,14 @@ export default function App() {
   const [swordState, setSwordState] = useState<{ currentTierId: string; currentDurability: number }>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_sword_state`);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.currentTierId === 'string') {
+          const tier = SWORD_TIERS.find(s => s.id === parsed.currentTierId) || SWORD_TIERS[0];
+          const dur = typeof parsed.currentDurability === 'number' ? Math.max(0, parsed.currentDurability) : tier.maxDurability;
+          return { currentTierId: parsed.currentTierId, currentDurability: dur };
+        }
+      }
     } catch {}
     return { currentTierId: 'wood_sword', currentDurability: 80 };
   });
@@ -416,10 +424,40 @@ export default function App() {
     };
   });
 
-  // Sound enabled
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  // Sound & Master Volume
+  const [volume, setVolume] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_volume`);
+      return saved !== null ? JSON.parse(saved) : 80;
+    } catch {
+      return 80;
+    }
+  });
+
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_volume`);
+      return saved !== null ? JSON.parse(saved) > 0 : true;
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    sound.setVolume(volume / 100);
+    sound.setSoundEnabled(volume > 0);
+  }, []);
+
+  const handleSetVolume = (newVol: number) => {
+    const clamped = Math.max(0, Math.min(100, newVol));
+    setVolume(clamped);
+    sound.setVolume(clamped / 100);
+    setSoundEnabled(clamped > 0);
+    localStorage.setItem(`${STORAGE_KEY}_volume`, JSON.stringify(clamped));
+  };
 
   // Modals visibility
+  const [isEncyclopediaOpen, setIsEncyclopediaOpen] = useState<boolean>(false);
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
@@ -757,66 +795,60 @@ export default function App() {
     localStorage.setItem(`${STORAGE_KEY}_player_xp`, JSON.stringify(playerXp));
   }, [playerXp]);
 
-  // Current Promotion Quest and Evaluation
+  // Current Promotion Quest and Player Quest Stats
   const currentLevelQuest = useMemo(() => getLevelQuest(playerLevel), [playerLevel]);
-  const levelQuestProgress = useMemo(() => {
+
+  const playerStatsForQuest: PlayerStatsForQuest = useMemo(() => {
     const pickaxeTierIndex = PICKAXE_TIERS.findIndex(p => p.id === pickaxeState.currentTierId);
-    const totalEnchants = pickaxeState.efficiencyLevel + pickaxeState.unbreakingLevel + pickaxeState.fortuneLevel;
+    const totalEnchants = (pickaxeState.efficiencyLevel || 0) + (pickaxeState.unbreakingLevel || 0) + (pickaxeState.fortuneLevel || 0);
     const currentStrataIndex = STRATA_LAYERS.findIndex(l => l.id === selectedLayerId);
     const achievementsCount = achievements.filter(a => a.unlocked).length;
 
-    return checkQuestProgress(currentLevelQuest, {
-      totalBlocksMined: stats.totalBlocksMined,
-      totalBlocksPlaced: stats.totalBlocksPlaced,
-      totalCoinsEarned: stats.totalCoinsEarned,
-      coins,
+    return {
+      totalBlocksMined: stats?.totalBlocksMined || 0,
+      totalBlocksPlaced: stats?.totalBlocksPlaced || 0,
+      totalCoinsEarned: stats?.totalCoinsEarned || 0,
+      coins: coins || 0,
       pickaxeTier: Math.max(0, pickaxeTierIndex),
       totalEnchants,
       currentStrataIndex: Math.max(0, currentStrataIndex),
-      hasAutoMiner,
+      hasAutoMiner: !!hasAutoMiner,
       achievementsCount
-    });
-  }, [currentLevelQuest, stats, coins, pickaxeState, selectedLayerId, hasAutoMiner, achievements]);
+    };
+  }, [stats, coins, pickaxeState, selectedLayerId, hasAutoMiner, achievements]);
 
-  const canLevelUp = playerXp >= currentLevelQuest.requiredXp && levelQuestProgress.isCompleted;
+  const levelQuestProgress = useMemo(() => {
+    return checkQuestProgress(currentLevelQuest, playerStatsForQuest);
+  }, [currentLevelQuest, playerStatsForQuest]);
+
+  const canLevelUp = playerLevel < MAX_PLAYER_LEVEL && (playerXp || 0) >= currentLevelQuest.requiredXp && levelQuestProgress.isCompleted;
 
   const handleLevelUp = useCallback(() => {
-    const pickaxeTierIndex = PICKAXE_TIERS.findIndex(p => p.id === pickaxeState.currentTierId);
-    const totalEnchants = pickaxeState.efficiencyLevel + pickaxeState.unbreakingLevel + pickaxeState.fortuneLevel;
-    const currentStrataIndex = STRATA_LAYERS.findIndex(l => l.id === selectedLayerId);
-    const achievementsCount = achievements.filter(a => a.unlocked).length;
+    if (playerLevel >= MAX_PLAYER_LEVEL) {
+      return;
+    }
 
-    const progress = checkQuestProgress(currentLevelQuest, {
-      totalBlocksMined: stats.totalBlocksMined,
-      totalBlocksPlaced: stats.totalBlocksPlaced,
-      totalCoinsEarned: stats.totalCoinsEarned,
-      coins,
-      pickaxeTier: Math.max(0, pickaxeTierIndex),
-      totalEnchants,
-      currentStrataIndex: Math.max(0, currentStrataIndex),
-      hasAutoMiner,
-      achievementsCount
-    });
+    const progress = checkQuestProgress(currentLevelQuest, playerStatsForQuest);
 
-    if (playerXp < currentLevelQuest.requiredXp || !progress.isCompleted) {
+    if ((playerXp || 0) < currentLevelQuest.requiredXp || !progress.isCompleted) {
       sound.playHitSound(1);
       return;
     }
 
     sound.playAchievementSound();
     setCoins(c => c + currentLevelQuest.coinReward);
-    setPlayerXp(xp => Math.max(0, xp - currentLevelQuest.requiredXp));
-    setPlayerLevel(lvl => lvl + 1);
+    setPlayerXp(xp => Math.max(0, (xp || 0) - currentLevelQuest.requiredXp));
+    setPlayerLevel(lvl => Math.min(MAX_PLAYER_LEVEL, lvl + 1));
 
     const nextLvl = playerLevel + 1;
     const nextTitle = getLevelTitle(nextLvl, isEn);
     setLevelUpToast(
       isEn
-        ? `🎉 Level Up! Ascended to Lv.${nextLvl}「${nextTitle}」! Claimed +${currentLevelQuest.coinReward} Coins!`
-        : `🎉 恭喜突破升等！成功晉升至 Lv.${nextLvl}「${nextTitle}」！領取 +${currentLevelQuest.coinReward} 金幣突破獎勵！`
+        ? `🎉 Level Up! Ascended to Lv.${nextLvl}「${nextTitle}」! Claimed +${currentLevelQuest.coinReward.toLocaleString()} Coins!`
+        : `🎉 恭喜突破升等！成功晉升至 Lv.${nextLvl}「${nextTitle}」！領取 +${currentLevelQuest.coinReward.toLocaleString()} 金幣突破獎勵！`
     );
     setTimeout(() => setLevelUpToast(null), 6000);
-  }, [currentLevelQuest, playerLevel, playerXp, pickaxeState, selectedLayerId, achievements, stats, coins, hasAutoMiner, isEn]);
+  }, [currentLevelQuest, playerLevel, playerXp, playerStatsForQuest, isEn]);
 
   // Haste buff countdown
   useEffect(() => {
@@ -1148,6 +1180,7 @@ export default function App() {
       });
     } else if (tool === 'sword') {
       setSwordState(prev => {
+        if (prev.currentDurability <= 0) return prev;
         const nextDur = Math.max(0, prev.currentDurability - 1);
         if (nextDur === 0) {
           sound.playToolBreakSound();
@@ -2205,18 +2238,17 @@ export default function App() {
               <span>{isEn ? 'EN' : '繁中'}</span>
             </button>
 
-            {/* Sound Toggle */}
+            {/* 📖 百科全書 (Minecraft Encyclopedia) Button */}
             <button
               onClick={() => {
-                const next = !soundEnabled;
-                setSoundEnabled(next);
-                sound.setSoundEnabled(next);
-                if (next) sound.playClickSound();
+                sound.playClickSound();
+                setIsEncyclopediaOpen(true);
               }}
-              title={soundEnabled ? (isEn ? 'Mute Audio' : '關閉音效') : (isEn ? 'Enable Audio' : '開啟音效')}
-              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-2 border-black rounded-lg active:scale-95 cursor-pointer"
+              title={isEn ? 'Minecraft Encyclopedia (Wiki)' : 'Minecraft 百科全書 (全方位知識)'}
+              className="px-2.5 py-1 bg-gradient-to-r from-amber-700/90 to-amber-600/90 hover:from-amber-600 hover:to-amber-500 text-amber-100 font-bold border-2 border-black rounded-lg active:scale-95 text-xs flex items-center gap-1.5 cursor-pointer font-minecraft shadow-sm"
             >
-              {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-zinc-500" />}
+              <span className="text-sm">📖</span>
+              <span className="hidden sm:inline">{isEn ? 'Wiki' : '百科全書'}</span>
             </button>
           </div>
         </div>
@@ -2362,6 +2394,8 @@ export default function App() {
               setCoins(prev => prev + c);
               setStats(prev => ({ ...prev, totalCoinsEarned: prev.totalCoinsEarned + c }));
             }}
+            coins={coins}
+            onRepairSword={handleRepairSword}
           />
         )}
 
@@ -2392,7 +2426,7 @@ export default function App() {
             }}
             className="text-amber-400 hover:underline flex items-center gap-1 font-mono cursor-pointer"
           >
-            <span>{isEn ? 'v2.2.6 (Changelog)' : 'v2.2.6 (更新日誌)'}</span>
+            <span>{isEn ? 'v2.4.0 (Changelog)' : 'v2.4.0 (更新日誌)'}</span>
           </button>
         </div>
 
@@ -2489,15 +2523,20 @@ export default function App() {
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenFestivals={() => setIsFestivalsOpen(true)}
         onOpenLevel={() => setIsLevelModalOpen(true)}
+        onOpenEncyclopedia={() => setIsEncyclopediaOpen(true)}
         playerLevel={playerLevel}
         currentUser={currentUser}
         soundEnabled={soundEnabled}
         onToggleSound={() => {
-          const next = !soundEnabled;
-          setSoundEnabled(next);
-          sound.setSoundEnabled(next);
-          if (next) sound.playClickSound();
+          if (volume > 0) {
+            handleSetVolume(0);
+          } else {
+            handleSetVolume(80);
+          }
+          sound.playClickSound();
         }}
+        volume={volume}
+        onChangeVolume={handleSetVolume}
         onResetProgress={handleResetProgress}
       />
 
@@ -2685,12 +2724,14 @@ export default function App() {
         playerLevel={playerLevel}
         playerXp={playerXp}
         onLevelUp={handleLevelUp}
-        stats={stats}
-        coins={coins}
-        pickaxeState={pickaxeState}
-        selectedLayerId={selectedLayerId}
-        hasAutoMiner={hasAutoMiner}
-        achievementsCount={achievements.filter(a => a.unlocked).length}
+        stats={playerStatsForQuest}
+      />
+
+      {/* MINECRAFT ENCYCLOPEDIA MODAL */}
+      <EncyclopediaModal
+        isOpen={isEncyclopediaOpen}
+        onClose={() => setIsEncyclopediaOpen(false)}
+        isEn={isEn}
       />
     </div>
   );

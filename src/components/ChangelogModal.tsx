@@ -16,6 +16,115 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
   const logs = [
     {
+      version: 'v2.4.0',
+      date: isEn ? 'Level 100 System & 10 Strata Layers & Quest NaN Fix' : '等級系統開放至100級・10大地層全開放・晉升任務 NaN Bug 徹底修復',
+      badge: isEn ? 'Lv.100 Ascendance & 10 Strata Layers & NaN Fix' : '等級上限至 Lv.100・101組冒險稱號・10大地層・晉升任務進度 NaN 修復',
+      badgeColor: 'bg-gradient-to-r from-amber-500 via-purple-600 to-emerald-500 text-white shadow-lg',
+      highlights: [
+        {
+          type: 'bugfix',
+          title: isEn ? 'Promotion Special Quest NaN / 2 (NaN%) Bug Fixed' : '徹底修復晉升特殊任務進度顯示 NaN / 2 (NaN%) 的重大問題',
+          desc: isEn
+            ? 'Fixed the critical issue where promotion special quests tracking pickaxe tiers, enchantment levels, held coins, or strata layers evaluated missing properties resulting in NaN values. Fully synchronized player stats objects and applied safe numeric validation to guarantee accurate real-time quest tracking.'
+            : '徹底修復了晉升特殊任務因鎬具階級、附魔總等級、地層探勘或持有金幣等屬性在傳遞時未正確綁定，導致運算出現「NaN / 2 (NaN%)」的重大問題！重新統一資料結構並加入數值安全防禦，確保每一階段的任務進度精準計算且即時呈現。'
+        },
+        {
+          type: 'level',
+          title: isEn ? 'Player Progression Extended to Level 100 with 101 Titles' : '冒險等級全面突破至 100 級上限，配備 101 組專屬冒險稱號',
+          desc: isEn
+            ? 'Extended the player promotion system up to Level 100! Added 101 bespoke bilingual titles (from Novice Miner to Omniscient Omnipotent Creator). Features dynamic high-tier procedural trials (quarry mastery, grand architecture, coin vaulting, arcane enchanting, achievements) scaling up to 1,000,000 coins and the legendary Apex Halo.'
+            : '玩家等級與晉升突破系統全面解鎖至 Lv.100 最高階位！新增從「實習礦工」到「全知全能終極造物主」共 101 組中英文專屬稱號；20 級後提供循環遞增的高階考驗（深層採礦、百格創作、金幣聚寶、奧術登峰、成就登神），滿級更享有登頂專屬金燦榮耀與百萬金幣！'
+        },
+        {
+          type: 'strata',
+          title: isEn ? 'Expanded to 10 Strata Layers with 8 Ultimate Cosmic Blocks' : '地質深度擴增至 10 大地層，新增 8 種多維創世神話方塊',
+          desc: isEn
+            ? 'Added 2 brand-new endgame strata layers: Layer 9 [Chrono Rift & Singularity] and Layer 10 [Genesis Omniverse Core]. Introduced 8 cosmic blocks: Chrono Stone, Dark Matter Ore, Temporal Crystal, Singularity Core, Genesis Bedrock, Chaos Essence Ore, Omniverse Matrix, and Infinity Shard, complete with custom SVG textures and up to +60 XP rewards.'
+            : '採石場深度正式拓展至 10 大地層！新增第 9 層【時空裂隙・奇點維度】與第 10 層【創世神域・終極宇宙母核】；推出時空暗岩、暗物質礦、時間裂變晶體、奇異點重力核、創世源生基岩、混沌原質神礦、寰宇神殿矩陣與無限永恆碎片等 8 種宇宙級神秘方塊，各具精緻專屬點陣紋理與高達 60 XP 經驗獎勵！'
+        }
+      ]
+    },
+    {
+      version: 'v2.3.1',
+      date: isEn ? 'Sword Durability 0/80 Bug Fix & Broken Blade Mechanism' : '神劍耐久 0/80 Bug 修復・折斷狀態與快速修復機制',
+      badge: isEn ? 'Sword Durability Fix & Broken Blade State & Quick Repair' : '神劍耐久 0/80 修復・折斷降傷・戰鬥快速修復・工具自動切換優化',
+      badgeColor: 'bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 text-white shadow',
+      highlights: [
+        {
+          type: 'combat',
+          title: isEn ? 'Sword 0/80 Durability Depletion & Full Damage Bug Fixed' : '修復神劍耐久歸零 (0/80) 仍具滿額攻擊力的重大 Bug',
+          desc: isEn
+            ? 'Fixed the critical issue where swords reaching 0 durability (e.g. 0/80) remained equipped, continuously allowed full-damage attacks, and repeatedly played break sounds on every hit. Added proper broken sword checks and sound suppression when durability is depleted.'
+            : '徹底修復神劍耐久耗盡（如 0/80）時仍可揮出滿額攻擊力、重複播放碎裂音效且未正確進入折斷狀態的重大漏洞。耐久度耗盡時不再重複播放音效，並精確進入折斷機制。'
+        },
+        {
+          type: 'feature',
+          title: isEn ? 'Broken Blade State & In-Combat Quick Repair' : '全新折斷狀態、徒手刮痕傷害與戰鬥一鍵快速修復',
+          desc: isEn
+            ? 'When sword durability reaches 0, the blade is marked as [BROKEN]. Attacks drop to 1 scratch damage with instant warning banners. Added a one-click Quick Repair button directly in the combat interface and tool status card so players can sharpen swords immediately using coins.'
+            : '當神劍耐久度歸零時，神劍將明確標註【已折斷/損壞】，戰鬥攻擊力退回徒手刮痕傷害 (1 點) 並即時提醒玩家；工具狀態欄與怪物戰鬥介面新增一鍵「🛠️ 快速修復神劍」按鈕，隨時消耗少量金幣磨利修復！'
+        },
+        {
+          type: 'tools',
+          title: isEn ? 'Tool Auto-Switch Logic Optimization' : '工具自動切換邏輯修復 (杜絕誤用神劍採礦耗損)',
+          desc: isEn
+            ? 'Fixed the issue where defeating or fleeing from monsters left the sword equipped while quarrying, which inadvertently wasted sword durability on stone blocks. Auto-switch now correctly restores the optimal mining tool (pickaxe/axe/shovel) after combat.'
+            : '修復打怪結束或撤退後手持工具未能自動切回最優採礦工具（鎬/斧/鏟），導致玩家在不知情下以神劍挖掘方塊而迅速耗光神劍耐久度的問題。現在脫離戰鬥後將自動換回開採工具！'
+        }
+      ]
+    },
+    {
+      version: 'v2.3.0',
+      date: isEn ? 'Mining Loop Fix & Next Block Feature' : '連挖Bug修復與「就挖到下一個方塊」功能上線',
+      badge: isEn ? 'Combat Runaway Fix & Advance to Next Block' : '打怪連挖修復・秒挖防連鎖・商店分頁點擊修復',
+      badgeColor: 'bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 text-white shadow',
+      highlights: [
+        {
+          type: 'mining',
+          title: isEn ? 'Continuous Mining Bug After Monsters Fixed' : '修復打怪後觸發持續連挖的 Bug',
+          desc: isEn
+            ? 'Resolved the critical issue where fighting monsters or exceeding block hardness caused unintentional automatic continuous mining. Added global mouse/touch-up listeners and combat state purges to ensure complete mining stops during and after mob encounters.'
+            : '全面修復了「只要打怪完，就會處發Bug連續挖」的重大問題！新增全域指標釋放監聽器，並在怪物遭遇、戰鬥中、擊敗魔物以及撤退時主動清除採礦長按計時器，徹底杜絕背景自動連挖。'
+        },
+        {
+          type: 'feature',
+          title: isEn ? 'New Feature: Mine & Advance to Next Block' : '全新功能：就挖到下一個方塊 (單次/秒挖保護)',
+          desc: isEn
+            ? 'When your tool efficiency exceeds block hardness, mining the block now cleanly completes and advances to the next block ("就挖到下一個方塊") without runaway chained auto-breaking. Players can now precisely mine one block at a time or intentionally hold with a smooth pacing buffer.'
+            : '加入「就挖到下一個方塊」保護機制！當工具效率或強度超越方塊硬度（秒挖）時，開採完成後會平穩切換至下一個方塊並自動停頓，防止單次點擊連鎖誤挖；長按開採時亦享有平滑緩衝過渡，手感更加精準可控！'
+        },
+        {
+          type: 'shop',
+          title: isEn ? 'Shop Navigation Tabs "Unclickable" Layout Fixed' : '商店選單分頁列「點不到」排版修復',
+          desc: isEn
+            ? 'Fixed the layout bug where shop navigation tabs were crushed or unclickable on certain screen sizes. Equipped all tabs with shrink-0, independent button cards, and improved touch targets.'
+            : '解決了商店分頁列被垂直壓縮導致文字截斷與「點不到」的問題。將所有分頁標籤設置為防壓縮按鈕卡片（shrink-0），強化點擊熱區與反饋效果，所有商品分類一目了然、隨點即開！'
+        }
+      ]
+    },
+    {
+      version: 'v2.2.8',
+      date: isEn ? 'Encyclopedia & Volume Slider' : 'Minecraft 百科全書與音效拉桿更新',
+      badge: isEn ? 'Official Lore Wiki & Master Volume Controls' : '全方位百科全書與主音效拉桿',
+      badgeColor: 'bg-gradient-to-r from-amber-600 via-yellow-600 to-amber-700 text-white shadow',
+      highlights: [
+        {
+          type: 'wiki',
+          title: isEn ? 'Comprehensive Minecraft Encyclopedia' : '全新加入：Minecraft 百科全書',
+          desc: isEn
+            ? 'Added an in-depth in-game Encyclopedia featuring comprehensive guides on Ores & Minerals, Blocks & Building Materials, Tool Tiers & Enchantments, Strata Depths, Mobs & Bosses, Redstone Mechanics, and Pro Survival Tips & Lore.'
+            : '全新推出「Minecraft 百科全書」！收錄礦石與寶石、方塊與建材、鎬具工具階級與核心附魔、8大地質礦脈層深度、苦力怕與終界龍等怪物生態、紅石電路機制，以及經典水桶救命術與歷史冷知識。'
+        },
+        {
+          type: 'audio',
+          title: isEn ? 'Master Volume Slider in Game Menu' : '選單新增音效拉桿，移除頂部開關',
+          desc: isEn
+            ? 'Removed the header sound toggle button and integrated a continuous 0%–100% Master Volume Slider inside the Game Menu with instant mute/unmute and Web Audio routing.'
+            : '依照需求移除頂部獨立音效按鈕，並於主遊戲選單（Menu）中全面升級為「遊戲主音效音量拉桿」，支援 0% 至 100% 精準調節與一鍵快速靜音/恢復。'
+        }
+      ]
+    },
+    {
       version: 'v2.2.7',
       date: isEn ? 'Level & Progression Update' : '玩家等級與晉升任務更新',
       badge: isEn ? 'Real Player Level, XP & Promotion Quests' : '真實玩家等級、經驗值與晉升特殊任務',
@@ -422,7 +531,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
         {/* Footer */}
         <div className="bg-[#181818] px-6 py-3 border-t-2 border-[#333] flex items-center justify-between text-xs text-zinc-400">
-          <span>{isEn ? 'Minecraft Quarry & Workshop v2.2.6' : 'Minecraft 挖掘場與建築工坊 v2.2.6'}</span>
+          <span>{isEn ? 'Minecraft Quarry & Workshop v2.4.0' : 'Minecraft 挖掘場與建築工坊 v2.4.0'}</span>
           <button
             onClick={() => {
               sound.playClickSound();

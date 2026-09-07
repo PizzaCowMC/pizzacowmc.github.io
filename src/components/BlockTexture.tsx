@@ -301,6 +301,58 @@ function renderBlockPixelSVG(pixelType: string, _baseColor: string) {
           <rect x="11" y="11" width="2" height="2" fill="#38bdf8" />
         </g>
       );
+    case 'chrono_stone':
+    case 'temporal_crystal':
+      return (
+        <g>
+          <rect x="0" y="0" width="16" height="16" fill="#3b0764" />
+          <rect x="4" y="2" width="8" height="2" fill="#f43f5e" />
+          <polygon points="4,4 12,4 9,8 7,8" fill="#ec4899" />
+          <polygon points="7,8 9,8 12,12 4,12" fill="#f43f5e" />
+          <rect x="4" y="12" width="8" height="2" fill="#f43f5e" />
+          <circle cx="8" cy="8" r="1.5" fill="#fdf2f8" />
+        </g>
+      );
+    case 'dark_matter_ore':
+    case 'singularity_core':
+      return (
+        <g>
+          <rect x="0" y="0" width="16" height="16" fill="#09090b" />
+          <circle cx="8" cy="8" r="6" fill="#18181b" stroke="#ec4899" strokeWidth="1" />
+          <circle cx="8" cy="8" r="4" fill="#581c87" />
+          <circle cx="8" cy="8" r="2" fill="#000000" />
+          <circle cx="8" cy="8" r="0.8" fill="#f472b6" />
+          <rect x="2" y="2" width="1.5" height="1.5" fill="#d946ef" />
+          <rect x="12" y="12" width="1.5" height="1.5" fill="#ec4899" />
+        </g>
+      );
+    case 'genesis_bedrock':
+    case 'chaos_essence_ore':
+      return (
+        <g>
+          <rect x="0" y="0" width="16" height="16" fill="#1e1035" />
+          <rect x="2" y="2" width="12" height="12" fill="#3b0764" stroke="#a855f7" strokeWidth="0.8" />
+          <path d="M 4 8 Q 8 3 12 8 Q 8 13 4 8 Z" fill="#c084fc" />
+          <circle cx="8" cy="8" r="2.5" fill="#ffffff" />
+          <rect x="3" y="3" width="2" height="2" fill="#f43f5e" />
+          <rect x="11" y="11" width="2" height="2" fill="#38bdf8" />
+        </g>
+      );
+    case 'omniverse_matrix':
+    case 'infinity_shard':
+      return (
+        <g>
+          <rect x="0" y="0" width="16" height="16" fill="#0f172a" />
+          <polygon points="8,1 15,8 8,15 1,8" fill="#0284c7" stroke="#38bdf8" strokeWidth="1" />
+          <polygon points="8,3 13,8 8,13 3,8" fill="#38bdf8" />
+          <polygon points="8,5 11,8 8,11 5,8" fill="#f0f9ff" />
+          <circle cx="8" cy="8" r="1.5" fill="#ffffff" />
+          <circle cx="2" cy="2" r="1" fill="#ec4899" />
+          <circle cx="14" cy="2" r="1" fill="#facc15" />
+          <circle cx="2" cy="14" r="1" fill="#a855f7" />
+          <circle cx="14" cy="14" r="1" fill="#38bdf8" />
+        </g>
+      );
     default:
       return null;
   }

@@ -138,7 +138,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-xs">
       <div className="bg-[#242424] border-6 border-black rounded-lg w-full max-w-4xl max-h-[92vh] flex flex-col shadow-[inset_-6px_-6px_0_#111,inset_6px_6px_0_#444,0_10px_30px_rgba(0,0,0,0.9)] overflow-hidden">
         {/* Shop Header */}
-        <div className="p-4 bg-zinc-900 border-b-4 border-black flex items-center justify-between">
+        <div className="p-4 bg-zinc-900 border-b-4 border-black flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-amber-600/20 border-2 border-amber-500 rounded text-amber-400">
               <ShoppingBag className="w-6 h-6" />
@@ -163,29 +163,29 @@ export const ShopModal: React.FC<ShopModalProps> = ({
                 sound.playClickSound();
                 onClose();
               }}
-              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-2 border-black rounded cursor-pointer"
+              className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-2 border-black rounded cursor-pointer active:scale-95"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex border-b-2 border-zinc-800 bg-zinc-950 px-3 pt-2 gap-1.5 overflow-x-auto">
+        {/* Navigation Tabs - shrink-0 with explicit height and clear buttons */}
+        <div className="flex shrink-0 border-b-2 border-zinc-800 bg-zinc-950 px-3 py-2.5 gap-2 overflow-x-auto scrollbar-thin">
           {/* Pickaxes */}
           <button
             onClick={() => {
               setActiveTab('pickaxes');
               sound.playClickSound();
             }}
-            className={`px-3 py-2 text-xs font-black rounded-t-lg border-t-2 border-x-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2 text-xs font-black rounded-md border-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
               activeTab === 'pickaxes'
-                ? 'bg-[#242424] text-amber-300 border-b-0 -mb-[2px] shadow-[inset_0_2px_0_#fde047]'
-                : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border-b-2'
+                ? 'bg-amber-500 text-black shadow-[inset_1px_1px_0_#fef08a,0_2px_4px_rgba(0,0,0,0.5)]'
+                : 'bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800'
             }`}
           >
-            <Pickaxe className="w-3.5 h-3.5" />
-            <span>⛏️ {isEn ? 'Pickaxes' : '礦鎬與附魔'}</span>
+            <Pickaxe className="w-4 h-4" />
+            <span>⛏️ {isEn ? 'Pickaxes & Enchants' : '鎬具與附魔'}</span>
           </button>
 
           {/* Axes */}
@@ -194,14 +194,14 @@ export const ShopModal: React.FC<ShopModalProps> = ({
               setActiveTab('axes');
               sound.playClickSound();
             }}
-            className={`px-3 py-2 text-xs font-black rounded-t-lg border-t-2 border-x-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2 text-xs font-black rounded-md border-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
               activeTab === 'axes'
-                ? 'bg-[#242424] text-amber-300 border-b-0 -mb-[2px] shadow-[inset_0_2px_0_#fde047]'
-                : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border-b-2'
+                ? 'bg-amber-500 text-black shadow-[inset_1px_1px_0_#fef08a,0_2px_4px_rgba(0,0,0,0.5)]'
+                : 'bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800'
             }`}
           >
             <span className="text-sm">🪓</span>
-            <span>{isEn ? 'Axes (Wood)' : '斧頭 (採木專用)'}</span>
+            <span>{isEn ? 'Axes (Wood)' : '斧頭 / 伐木專用'}</span>
           </button>
 
           {/* Shovels */}
@@ -210,14 +210,14 @@ export const ShopModal: React.FC<ShopModalProps> = ({
               setActiveTab('shovels');
               sound.playClickSound();
             }}
-            className={`px-3 py-2 text-xs font-black rounded-t-lg border-t-2 border-x-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2 text-xs font-black rounded-md border-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
               activeTab === 'shovels'
-                ? 'bg-[#242424] text-amber-300 border-b-0 -mb-[2px] shadow-[inset_0_2px_0_#fde047]'
-                : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border-b-2'
+                ? 'bg-amber-500 text-black shadow-[inset_1px_1px_0_#fef08a,0_2px_4px_rgba(0,0,0,0.5)]'
+                : 'bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800'
             }`}
           >
             <span className="text-sm">🪏</span>
-            <span>{isEn ? 'Shovels (Soil)' : '鏟子 (掘土泥沙)'}</span>
+            <span>{isEn ? 'Shovels (Soil)' : '鏟子 / 泥土泥沙'}</span>
           </button>
 
           {/* Swords */}
@@ -226,14 +226,14 @@ export const ShopModal: React.FC<ShopModalProps> = ({
               setActiveTab('swords');
               sound.playClickSound();
             }}
-            className={`px-3 py-2 text-xs font-black rounded-t-lg border-t-2 border-x-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2 text-xs font-black rounded-md border-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
               activeTab === 'swords'
-                ? 'bg-[#242424] text-amber-300 border-b-0 -mb-[2px] shadow-[inset_0_2px_0_#fde047]'
-                : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border-b-2'
+                ? 'bg-amber-500 text-black shadow-[inset_1px_1px_0_#fef08a,0_2px_4px_rgba(0,0,0,0.5)]'
+                : 'bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800'
             }`}
           >
-            <Sword className="w-3.5 h-3.5 text-red-400" />
-            <span>⚔️ {isEn ? 'Swords (Combat)' : '神劍 (怪獸武器)'}</span>
+            <Sword className="w-4 h-4 text-red-500" />
+            <span>⚔️ {isEn ? 'Swords (Combat)' : '獵劍 / 討伐魔物'}</span>
           </button>
 
           {/* Themes */}
@@ -242,13 +242,13 @@ export const ShopModal: React.FC<ShopModalProps> = ({
               setActiveTab('themes');
               sound.playClickSound();
             }}
-            className={`px-3 py-2 text-xs font-black rounded-t-lg border-t-2 border-x-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2 text-xs font-black rounded-md border-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
               activeTab === 'themes'
-                ? 'bg-[#242424] text-amber-300 border-b-0 -mb-[2px] shadow-[inset_0_2px_0_#fde047]'
-                : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border-b-2'
+                ? 'bg-amber-500 text-black shadow-[inset_1px_1px_0_#fef08a,0_2px_4px_rgba(0,0,0,0.5)]'
+                : 'bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800'
             }`}
           >
-            <Palette className="w-3.5 h-3.5" />
+            <Palette className="w-4 h-4" />
             <span>🌌 {t('shop.themesTab')}</span>
           </button>
 
@@ -258,13 +258,13 @@ export const ShopModal: React.FC<ShopModalProps> = ({
               setActiveTab('skins');
               sound.playClickSound();
             }}
-            className={`px-3 py-2 text-xs font-black rounded-t-lg border-t-2 border-x-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2 text-xs font-black rounded-md border-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
               activeTab === 'skins'
-                ? 'bg-[#242424] text-amber-300 border-b-0 -mb-[2px] shadow-[inset_0_2px_0_#fde047]'
-                : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border-b-2'
+                ? 'bg-amber-500 text-black shadow-[inset_1px_1px_0_#fef08a,0_2px_4px_rgba(0,0,0,0.5)]'
+                : 'bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800'
             }`}
           >
-            <User className="w-3.5 h-3.5" />
+            <User className="w-4 h-4" />
             <span>👕 {t('shop.skinsTab')}</span>
           </button>
 
@@ -274,13 +274,13 @@ export const ShopModal: React.FC<ShopModalProps> = ({
               setActiveTab('supplies');
               sound.playClickSound();
             }}
-            className={`px-3 py-2 text-xs font-black rounded-t-lg border-t-2 border-x-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-2 text-xs font-black rounded-md border-2 border-black flex items-center gap-1.5 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
               activeTab === 'supplies'
-                ? 'bg-[#242424] text-amber-300 border-b-0 -mb-[2px] shadow-[inset_0_2px_0_#fde047]'
-                : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border-b-2'
+                ? 'bg-amber-500 text-black shadow-[inset_1px_1px_0_#fef08a,0_2px_4px_rgba(0,0,0,0.5)]'
+                : 'bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800'
             }`}
           >
-            <Package className="w-3.5 h-3.5 text-emerald-400" />
+            <Package className="w-4 h-4 text-emerald-400" />
             <span>📦 {t('shop.suppliesTab')}</span>
           </button>
         </div>

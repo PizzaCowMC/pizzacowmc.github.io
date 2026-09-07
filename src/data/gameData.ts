@@ -497,6 +497,114 @@ export const BLOCK_TYPES: BlockType[] = [
     iconText: '🌌',
     description: '蘊含創世星辰爆炸威能的最頂級神秘神礦！',
     pixelType: 'cosmic_nebula_ore'
+  },
+
+  // --- Layer 8: Chrono Singularity (時空裂隙・奇點維度) ---
+  {
+    id: 'chrono_stone',
+    nameZh: '時空暗岩',
+    nameEn: 'Chrono Stone',
+    category: 'singularity',
+    hardness: 6.2,
+    sellPrice: 1100,
+    color: '#4a044e',
+    borderColor: '#701a75',
+    iconText: '⏳',
+    description: '時間力場固化而成的紫黑暗岩，敲擊時會發出微弱鐘擺共振。',
+    pixelType: 'chrono_stone'
+  },
+  {
+    id: 'dark_matter_ore',
+    nameZh: '暗物質礦',
+    nameEn: 'Dark Matter Ore',
+    category: 'singularity',
+    hardness: 7.0,
+    sellPrice: 1650,
+    color: '#18181b',
+    borderColor: '#d946ef',
+    iconText: '🕳️',
+    description: '吸收周遭光線的無重力暗物質礦物，蕴含巨大空間扭曲能。',
+    pixelType: 'dark_matter_ore'
+  },
+  {
+    id: 'temporal_crystal',
+    nameZh: '時間裂變晶體',
+    nameEn: 'Temporal Crystal',
+    category: 'singularity',
+    hardness: 7.8,
+    sellPrice: 2200,
+    color: '#f43f5e',
+    borderColor: '#be123c',
+    iconText: '⌛',
+    description: '凝聚時間微粒的粉紅赤晶，散發時光加速流速之效。',
+    pixelType: 'temporal_crystal'
+  },
+  {
+    id: 'singularity_core',
+    nameZh: '奇異點重力核',
+    nameEn: 'Singularity Core',
+    category: 'singularity',
+    hardness: 8.5,
+    sellPrice: 3200,
+    color: '#09090b',
+    borderColor: '#ec4899',
+    iconText: '🌀',
+    description: '維度坍縮凝結的極度緻密引力奇點，極難開採但價值連城！',
+    pixelType: 'singularity_core'
+  },
+
+  // --- Layer 9: Genesis Omniverse Core (創世神域・終極宇宙母核) ---
+  {
+    id: 'genesis_bedrock',
+    nameZh: '創世源生基岩',
+    nameEn: 'Genesis Bedrock',
+    category: 'genesis',
+    hardness: 8.8,
+    sellPrice: 4200,
+    color: '#2e1065',
+    borderColor: '#7c3aed',
+    iconText: '🪐',
+    description: '世界最古老的第一塊基岩胚芽，蘊藏著創世之初的大霹靂餘燼。',
+    pixelType: 'genesis_bedrock'
+  },
+  {
+    id: 'chaos_essence_ore',
+    nameZh: '混沌原質神礦',
+    nameEn: 'Chaos Essence Ore',
+    category: 'genesis',
+    hardness: 9.6,
+    sellPrice: 5600,
+    color: '#581c87',
+    borderColor: '#a855f7',
+    iconText: '🔮',
+    description: '超維混沌原液結晶化的神秘神礦，內部不斷變換光暈色澤。',
+    pixelType: 'chaos_essence_ore'
+  },
+  {
+    id: 'omniverse_matrix',
+    nameZh: '寰宇神殿矩陣',
+    nameEn: 'Omniverse Matrix',
+    category: 'genesis',
+    hardness: 10.5,
+    sellPrice: 7500,
+    color: '#4c1d95',
+    borderColor: '#c084fc',
+    iconText: '🏛️',
+    description: '銘刻宇宙運行幾何數學法則的造物殿堂矩陣方塊。',
+    pixelType: 'omniverse_matrix'
+  },
+  {
+    id: 'infinity_shard',
+    nameZh: '無限永恆碎片',
+    nameEn: 'Infinity Shard',
+    category: 'genesis',
+    hardness: 12.0,
+    sellPrice: 12000,
+    color: '#0369a1',
+    borderColor: '#38bdf8',
+    iconText: '💠',
+    description: '全知全能終極造物主遺留的無限維度神晶碎片，全宇宙最強之瑰寶！',
+    pixelType: 'infinity_shard'
   }
 ];
 
@@ -597,6 +705,30 @@ export const STRATA_LAYERS: StrataLayer[] = [
     borderGlow: 'border-yellow-400',
     descZh: '超越凡俗的宇宙星辰之巔，純淨日光、天界水晶與創世宇宙星雲神礦！',
     blockIds: ['starlight_stone', 'sunstone', 'celestial_crystal', 'cosmic_nebula_ore']
+  },
+  {
+    id: 'chronos_singularity',
+    nameZh: '第 9 層：時空裂隙・奇點維度',
+    nameEn: 'Layer 9: Chrono Rift & Singularity',
+    order: 8,
+    requiredMinedToUnlock: 100000,
+    icon: '⏳',
+    accentColor: '#ec4899',
+    borderGlow: 'border-pink-500',
+    descZh: '時空交織扭曲的超弦奇點裂隙，蘊含時空暗岩、暗物質礦石與重力奇異點核心。',
+    blockIds: ['chrono_stone', 'dark_matter_ore', 'temporal_crystal', 'singularity_core']
+  },
+  {
+    id: 'genesis_omniverse',
+    nameZh: '第 10 層：創世神域・終極宇宙母核',
+    nameEn: 'Layer 10: Genesis Omniverse Core',
+    order: 9,
+    requiredMinedToUnlock: 100000,
+    icon: '🪐',
+    accentColor: '#a855f7',
+    borderGlow: 'border-purple-400',
+    descZh: '萬物起源之極致神域，流淌著超維混沌原液與純粹創世神光，開採可得至高宇宙源質。',
+    blockIds: ['genesis_bedrock', 'chaos_essence_ore', 'omniverse_matrix', 'infinity_shard']
   }
 ];
 
