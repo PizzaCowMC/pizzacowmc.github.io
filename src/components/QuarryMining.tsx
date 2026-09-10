@@ -38,6 +38,7 @@ interface QuarryMiningProps {
   onEarnExtraCoins?: (coins: number) => void;
   coins?: number;
   onRepairSword?: (cost: number) => void;
+  onOpenEncyclopedia?: () => void;
 }
 
 export const QuarryMining: React.FC<QuarryMiningProps> = ({
@@ -66,7 +67,8 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   onDefeatMonster,
   onEarnExtraCoins,
   coins = 0,
-  onRepairSword
+  onRepairSword,
+  onOpenEncyclopedia
 }) => {
   const { language, getName, t } = useLanguage();
   const isEn = language === 'en';
@@ -691,6 +693,20 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
               <span>{isEn ? 'Explore Monster' : '探尋地穴怪獸'}</span>
             </button>
           )}
+
+          {onOpenEncyclopedia && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenEncyclopedia();
+              }}
+              className="px-2.5 py-1 bg-amber-800/80 hover:bg-amber-700 text-amber-100 text-xs font-black rounded border-2 border-amber-600 active:scale-95 flex items-center gap-1 cursor-pointer font-minecraft shadow transition-all hover:brightness-110"
+              title={isEn ? 'Open Minecraft Encyclopedia & Wiki' : '開啟 Minecraft 百科全書與地層資料'}
+            >
+              <span>📖</span>
+              <span>{isEn ? 'Wiki' : '百科全書'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -705,7 +721,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
           </div>
           <span className="text-xs text-zinc-400 font-mono">
             {isEn ? 'Unlocked Strata: ' : '已解鎖地層：'}
-            <strong className="text-amber-300">{STRATA_LAYERS.filter((_, idx) => idx <= 1 || (layerMinedCounts[STRATA_LAYERS[idx-1]?.id] || 0) >= 100000).length}</strong> / {STRATA_LAYERS.length}
+            <strong className="text-amber-300">{STRATA_LAYERS.filter((_, idx) => idx === 0 || (layerMinedCounts[STRATA_LAYERS[idx-1]?.id] || 0) >= 100000).length}</strong> / {STRATA_LAYERS.length}
           </span>
         </div>
 
@@ -713,8 +729,10 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
           {STRATA_LAYERS.map((layer, index) => {
             const isSelected = layer.id === selectedLayerId;
             const prevLayer = STRATA_LAYERS[index - 1];
-            const unlocked = index <= 1 || (prevLayer && (layerMinedCounts[prevLayer.id] || 0) >= 100000);
+            // Fix bug: Only Layer 1 (index === 0) is unlocked initially. Later layers strictly require 100,000 mined blocks in the previous layer.
+            const unlocked = index === 0 || (prevLayer && (layerMinedCounts[prevLayer.id] || 0) >= 100000);
             const count = layerMinedCounts[layer.id] || 0;
+            const prevCount = prevLayer ? (layerMinedCounts[prevLayer.id] || 0) : 0;
             const layerLabel = getName(layer);
 
             return (
@@ -743,8 +761,10 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
                   <div className={`text-xs font-black truncate ${isSelected ? 'text-amber-300' : unlocked ? 'text-zinc-200' : 'text-zinc-600'}`}>
                     {layerLabel}
                   </div>
-                  <div className="text-[10px] text-zinc-400 truncate">
-                    {!unlocked ? (isEn ? 'Requires 100k' : '需上層挖滿10萬') : (isEn ? `${count.toLocaleString()} mined` : `已挖 ${count.toLocaleString()}`)}
+                  <div className="text-[10px] text-zinc-400 truncate font-mono">
+                    {!unlocked
+                      ? (isEn ? `Need 100k (${prevCount.toLocaleString()}/100k)` : `需上層滿10萬 (${prevCount.toLocaleString()}/10萬)`)
+                      : (isEn ? `${count.toLocaleString()} mined` : `已挖 ${count.toLocaleString()}`)}
                   </div>
                 </div>
               </button>

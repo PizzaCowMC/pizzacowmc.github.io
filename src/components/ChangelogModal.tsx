@@ -16,6 +16,121 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
   const logs = [
     {
+      version: '2.5.2',
+      date: isEn ? '2.5.2 Complete English Localization & Default English & Overworld Map Pixel Aesthetic' : '2.5.2 完整英文翻譯・預設英文語系・大地圖像素風重構與雙語同步',
+      badge: isEn ? '2.5.2 Full English • Default EN • Minecraft Map Style • Bilingual Sync' : '2.5.2 完整英文 • 預設英文 • 麥塊地圖風格 • 雙語全域同步',
+      badgeColor: 'bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white shadow-lg',
+      highlights: [
+        {
+          type: 'feature',
+          title: isEn ? 'Full English Localization & Default English Experience' : '完整英文翻譯與預設英文語系',
+          desc: isEn
+            ? 'The game now strictly defaults to English on first launch. All UI interfaces, including the Overworld Map, Super Cafe, Elevator Tower, Quarry Pit, Encyclopedia, and Tooltips, have received 100% comprehensive English localization.'
+            : '系統首度啟動嚴格預設為英文語系！全遊戲各模組（包含大地圖、超級咖啡廳、紅石電梯塔、地底礦坑、百科全書與系統提示）均完成 100% 深度無縫雙語翻譯支援。'
+        },
+        {
+          type: 'update',
+          title: isEn ? 'Authentic Minecraft Overworld Map Aesthetics' : '大地圖全面翻新：符合 Minecraft 泥土草皮與礦車軌道風格',
+          desc: isEn
+            ? 'Redesigned the overworld canvas away from plain white paper to an authentic 16-bit Minecraft pixelated grass, stone crossroads, and minecart rail road leading directly to the Quarry, complete with directional signposts.'
+            : '全面拋棄原先單調的白紙風格，重構為正宗 Minecraft 像素草皮質地、十字圓石廣場與直通地底礦坑的實木礦車軌道，並新增貼心的十字路口方向路標！'
+        },
+        {
+          type: 'fix',
+          title: isEn ? 'Map Character Avatar & Layout Bottom Padding Fix' : '地圖角色圖示與底部熱鍵欄間距優化',
+          desc: isEn
+            ? 'Corrected the player avatar on the map to display the active pickaxe rather than the coffee cup icon. Added dedicated bottom buffer padding to prevent HUD overlap with the bottom navigation hotbar.'
+            : '修正大地圖上玩家頭像圖示正確顯示為當前鎬具而非咖啡杯。為大地圖加入適度底部內縮留白，確保探索與移動不會被底部熱鍵欄遮擋。'
+        },
+        {
+          type: 'update',
+          title: isEn ? 'Global Version Tag Synchronized to 2.5.2' : '全域版本標籤同步更新至 2.5.2',
+          desc: isEn
+            ? 'Updated version badges, changelog records, and footer buttons across the entire application to v2.5.2.'
+            : '全域同步標籤至 2.5.2，包含頁尾版本按鈕、更新日誌資料表與全域系統識別。'
+        }
+      ]
+    },
+    {
+      version: '2.5.1',
+      date: isEn ? '2.5.1 Strata Ingredients Sync & Encyclopedia & Layer Lock Fix' : '2.5.1 地層產物點餐聯動・全域百科全書・第二層解鎖修復',
+      badge: isEn ? '2.5.1 Strata Sync • Encyclopedia Wiki • Layer 2 Lock Bug Fixed' : '2.5.1 地層食材聯動 • 百科全書圖鑑 • 第二層開採防偷渡修復',
+      badgeColor: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-lg',
+      highlights: [
+        {
+          type: 'fix',
+          title: isEn ? 'Fix Layer 2 Direct Unlock Bug' : '修復第二層淺層礦脈可直接解鎖之重大 Bug',
+          desc: isEn
+            ? 'Resolved the bug where stratum 2 (Shallow Mineral Vein) was mistakenly accessible from the start. All strata deeper than layer 1 now strictly require 100,000 mined blocks in the preceding stratum, fully synchronized across the Quarry and the Elevator!'
+            : '徹底修復原本第 2 層「淺層礦脈」無須條件即可直接開採的錯誤！現在除了初始第 1 層「地表沉積層」之外，所有後續地層均嚴格要求必須在上一層累積開採滿 100,000 格方塊方可解鎖，礦坑切換面板與電梯系統全面精準同步！'
+        },
+        {
+          type: 'feature',
+          title: isEn ? 'Customer Orders Synced to Unlocked Strata Ingredients' : '顧客點餐與已解鎖地層產物方塊深度聯動',
+          desc: isEn
+            ? 'Customers visiting the Super Cafe will now exclusively order dishes crafted from ingredients that are yielded by your currently unlocked strata! Dig deeper into new strata layers to progressively unlock rarer dishes from the 1,000 gourmet recipe collection!'
+            : '咖啡廳顧客現在只會點選由「玩家當前已解鎖之地層」所產出的方塊食材料理！隨著玩家深入開採解鎖更多地層，顧客點餐庫將循序漸進解鎖更奢華深奧的 1,000 道傳奇料理！'
+        },
+        {
+          type: 'feature',
+          title: isEn ? 'Global Minecraft Encyclopedia Quick Access' : '加入百科全書：大地圖、咖啡廳與地底礦坑全景快捷入口',
+          desc: isEn
+            ? 'Added direct "📖 Encyclopedia" buttons across the Overworld Map, Cafe Interior, and Quarry Mining interfaces. Instant access to full block classifications, hardness ratings, drop rates, monster codex, and cooking recipes anywhere in the world!'
+            : '在大地圖控制列、咖啡廳頂部以及地底採掘礦坑全面配置「📖 百科全書」快捷按鈕！玩家隨時隨地可即時查閱所有方塊硬度、掉落倍率、地穴怪物弱點以及 1,000 道烹飪食材維基！'
+        },
+        {
+          type: 'update',
+          title: isEn ? 'Global Version Number Synchronized to v2.5.1' : '全域版本號同步更新至 2.5.1',
+          desc: isEn
+            ? 'Updated application footer versioning, changelog records, and system notifications to reflect the latest v2.5.1 release.'
+            : '同步更新頁尾版本號標記、更新日誌資料庫與全域版本資訊至 2.5.1。'
+        }
+      ]
+    },
+    {
+      version: '2.5.0 超級咖啡廳',
+      date: isEn ? '2.5.0 Super Cafe & Overworld Map & Elevator Ascent' : '2.5.0 超級咖啡廳・手繪大地圖行走探索・紅石直達電梯與返回地面',
+      badge: isEn ? '2.5.0 Super Cafe • 1,000 Dishes • Overworld Map • Elevator Surface Transit' : '2.5.0 超級咖啡廳 • 1,000 道特色料理 • 離開按鈕 • 電梯登陸地面',
+      badgeColor: 'bg-gradient-to-r from-amber-500 via-emerald-600 to-cyan-500 text-white shadow-lg',
+      highlights: [
+        {
+          type: 'feature',
+          title: isEn ? '2.5.0 Super Mining Cafe & 1,000 Gourmet Recipes' : '2.5.0 超級咖啡廳：1,000 道獨創料理與客席點餐模擬',
+          desc: isEn
+            ? 'Transformed the experience into a Super Cafe Management simulation! Cook 1,000 unique dishes across 10 distinct categories. Mined blocks and ores directly fuel your cooking recipes to serve waiting guests and earn coins and tips!'
+            : '全新進化為「2.5.0 超級咖啡廳」！打造橫跨 10 大主題、整整 1,000 道獨一無二的特色料理。地下採掘的礦石方塊直接化為食材，款待入座顧客並賺取豐厚金幣與小費！'
+        },
+        {
+          type: 'feature',
+          title: isEn ? 'Exit Buttons in Cafe & Mine & Overworld Map' : '咖啡廳與礦坑全面加入【離開按鈕】',
+          desc: isEn
+            ? 'Added dedicated, prominent Exit buttons in both the Cafe and Quarry Mine interfaces, allowing players to smoothly return to the 1F Overworld Map walking exploration!'
+            : '在咖啡廳介面與礦坑介面均配備清晰醒目的「🚪 離開」按鈕，隨時一鍵返回 1F 大地圖步道，自由探索世界！'
+        },
+        {
+          type: 'feature',
+          title: isEn ? 'Elevator Ascent Rule: Deep Mine to Surface & Cafe' : '地底升陸法則：必須搭乘紅石蒸氣電梯才能返回地面與進入咖啡廳',
+          desc: isEn
+            ? 'As deep underground strata are isolated by sheer bedrock cliffs, players must ride the Redstone Steam Elevator to ascend to the surface Overworld map or directly into the 2F Cafe!'
+            : '由於地底礦坑深達萬丈，玩家身處礦坑時，必須搭乘「紅石蒸氣高速電梯」才能突破岩層上到地面大地圖，或直達 2F 咖啡廳！'
+        },
+        {
+          type: 'feature',
+          title: isEn ? 'Hand-Drawn Overworld Walking Map (Faithful to Sketch)' : '手繪風格大地圖行走探索系統（完美依照手繪圖還原）',
+          desc: isEn
+            ? 'Interactive overworld walking map matching the user sketch: Cafe on the top-left, Mine Quarry on the bottom-left, green highway path, and the elevator on the right. Walk freely with WASD, arrow keys, or mouse/touch clicks!'
+            : '完全依照玩家手繪圖紙打造互動式大地圖：左上方為咖啡廳、左下方為採掘礦坑、中央為綠色草地公路步道、右側為直達電梯！支援 WASD、方向鍵或點擊行走！'
+        },
+        {
+          type: 'upgrade',
+          title: isEn ? 'Cafe Upgrades, Auto-Waiter Cat & Atmosphere' : '超級咖啡廳擴建、三花貓自動店員與香氛設施',
+          desc: isEn
+            ? 'Expand up to 8 dining tables, hire an adorable Auto-Waiter Kitten to deliver prepared dishes automatically, install the Golden Espresso Roaster for +20% tips, and use the Lavender Aroma Diffuser for +50% customer patience!'
+            : '可將座席擴充至 8 張桌位，聘請超萌三花貓店員自動幫忙端出備餐料理，升級黃金義式高壓咖啡機賺取額外 20% 小費，並安裝薰衣草氛香儀延長客人 50% 等候耐心！'
+        }
+      ]
+    },
+    {
       version: 'v2.4.0',
       date: isEn ? 'Level 100 System & 10 Strata Layers & Quest NaN Fix' : '等級系統開放至100級・10大地層全開放・晉升任務 NaN Bug 徹底修復',
       badge: isEn ? 'Lv.100 Ascendance & 10 Strata Layers & NaN Fix' : '等級上限至 Lv.100・101組冒險稱號・10大地層・晉升任務進度 NaN 修復',

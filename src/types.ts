@@ -223,3 +223,71 @@ export interface GameStats {
   themesUnlocked: number;
   friendsCount: number;
 }
+
+export type DishCategory =
+  | 'coffee'
+  | 'tea_beverage'
+  | 'pastry'
+  | 'hot_meal'
+  | 'void'
+  | 'deep_dark'
+  | 'celestial'
+  | 'singularity'
+  | 'genesis'
+  | 'mythic';
+
+export type DishRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
+
+export interface CafeDish {
+  id: string; // 'dish_1' ~ 'dish_1000'
+  number: number; // 1 ~ 1000
+  nameZh: string;
+  nameEn: string;
+  category: DishCategory;
+  rarity: DishRarity;
+  sellPrice: number;
+  xpReward: number;
+  icon: string;
+  requiredIngredients: { blockId: string; count: number }[];
+  descZh: string;
+  descEn: string;
+}
+
+export interface CustomerOrder {
+  id: string;
+  customerNameZh: string;
+  customerNameEn: string;
+  customerAvatar: string;
+  customerType: string;
+  tableIndex: number;
+  dishId: string;
+  patienceTotal: number;
+  patienceRemaining: number;
+  tipMultiplier: number;
+  status: 'waiting' | 'eating' | 'finished';
+  dialogueZh: string;
+  dialogueEn: string;
+}
+
+export interface CafeState {
+  cafeLevel: number;
+  cafeXp: number;
+  reputation: number;
+  totalDishesServed: number;
+  unlockedTables: number;
+  dishInventory: Record<string, number>;
+  dishesCookedHistory: Record<string, number>;
+  hasAutoWaiter: boolean;
+  hasGoldenStove: boolean;
+  hasAromaDiffuser: boolean;
+}
+
+export type OverworldZone = 'overworld' | 'cafe' | 'quarry' | 'elevator' | 'building';
+
+export interface MapPosition {
+  x: number; // 0 to 100 %
+  y: number; // 0 to 100 %
+  facing: 'left' | 'right' | 'up' | 'down';
+  isMoving: boolean;
+}
+

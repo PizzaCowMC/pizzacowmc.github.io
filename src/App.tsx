@@ -19,6 +19,10 @@ import { FestivalsModal } from './components/FestivalsModal';
 import { FestivalParticles } from './components/FestivalParticles';
 import { LevelModal } from './components/LevelModal';
 import { EncyclopediaModal } from './components/EncyclopediaModal';
+import { OverworldMap } from './components/OverworldMap';
+import { CafeInterior } from './components/CafeInterior';
+import { ElevatorView } from './components/ElevatorView';
+import { CafeState, OverworldZone } from './types';
 import { getLevelQuest, getLevelTitle, checkQuestProgress, calculateBlockXp, PlayerStatsForQuest, MAX_PLAYER_LEVEL } from './utils/levelSystem';
 import { sound } from './utils/soundEffects';
 import {
@@ -251,6 +255,10 @@ export default function App() {
       return 'steve';
     }
   });
+
+  const currentSkin = useMemo(() => {
+    return PLAYER_SKINS.find(s => s.id === currentSkinId) || PLAYER_SKINS[0];
+  }, [currentSkinId]);
 
   const [ownedSkins, setOwnedSkins] = useState<string[]>(() => {
     try {
@@ -503,6 +511,76 @@ export default function App() {
 
   // Active zone filter in layout
   const [activeView, setActiveView] = useState<'all' | 'quarry' | 'building'>('all');
+  
+  // Overworld Zone Navigation (Overworld map, Cafe, Quarry, Elevator, Building)
+  const [currentZone, setCurrentZone] = useState<OverworldZone>('overworld');
+  const [overworldSpawnPos, setOverworldSpawnPos] = useState<{ x: number; y: number }>({ x: 50, y: 44 });
+
+  // Steam Elevator transit animation state
+  const [elevatorTransit, setElevatorTransit] = useState<{
+    targetZone: OverworldZone;
+    targetFloorName: string;
+  } | null>(null);
+
+  const handleElevatorAscent = useCallback((targetZone: OverworldZone, floorName: string) => {
+    sound.playUpgradeSound();
+    setElevatorTransit({
+      targetZone,
+      targetFloorName: floorName
+    });
+    if (targetZone === 'overworld') {
+      // Land right in front of the elevator doors on the overworld map
+      setOverworldSpawnPos({ x: 76, y: 44 });
+    }
+    setTimeout(() => {
+      setCurrentZone(targetZone);
+      setElevatorTransit(null);
+    }, 950);
+  }, []);
+
+  // Cafe Game State (Level, Reputation, 1,000 Dishes Inventory & History, Upgrades)
+  const [cafeState, setCafeState] = useState<CafeState>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_cafe_state`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      cafeLevel: 1,
+      cafeXp: 0,
+      reputation: 100,
+      totalDishesServed: 0,
+      unlockedTables: 3,
+      dishInventory: { dish_1: 2, dish_2: 1 },
+      dishesCookedHistory: { dish_1: 2, dish_2: 1 },
+      hasAutoWaiter: false,
+      hasGoldenStove: false,
+      hasAromaDiffuser: false
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_cafe_state`, JSON.stringify(cafeState));
+  }, [cafeState]);
+
+  const handleConsumeIngredients = useCallback((ingredients: { blockId: string; count: number }[]): boolean => {
+    let canAfford = true;
+    for (const req of ingredients) {
+      if ((inventory[req.blockId] || 0) < req.count) {
+        canAfford = false;
+        break;
+      }
+    }
+    if (!canAfford) return false;
+
+    setInventory(prev => {
+      const next = { ...prev };
+      for (const req of ingredients) {
+        next[req.blockId] = Math.max(0, (next[req.blockId] || 0) - req.count);
+      }
+      return next;
+    });
+    return true;
+  }, [inventory]);
 
   // Player Level & XP Progression System (Real Level, starts at 0)
   const [playerLevel, setPlayerLevel] = useState<number>(() => {
@@ -2355,61 +2433,233 @@ export default function App() {
           </div>
         )}
 
-        {/* SECTION 1: 挖掘場 (Quarry Field) */}
-        {(activeView === 'all' || activeView === 'quarry') && (
-          <QuarryMining
-            pickaxeState={pickaxeState}
+        {/* ZONE 1: OVERWORLD MAP EXPLORATION */}
+        {currentZone === 'overworld' && (
+          <div className="w-full pb-20 sm:pb-24">
+            <OverworldMap
+              onEnterZone={(zone) => {
+                if (zone === 'cafe') {
+                  sound.playDoorSound ? sound.playDoorSound() : sound.playClickSound();
+                } else {
+                  sound.playClickSound();
+                }
+                setCurrentZone(zone);
+              }}
+              isEn={isEn}
+              coins={coins}
+              activeOrdersCount={cafeState.unlockedTables}
+              readyDishesCount={Object.values(cafeState.dishInventory).reduce((a: number, b: number) => a + b, 0)}
+              playerName={isEn ? currentSkin.nameEn : currentSkin.nameZh}
+              avatarIcon={currentSkin.avatarEmoji || '⛏️'}
+              initialPos={overworldSpawnPos}
+              onOpenEncyclopedia={() => {
+                sound.playClickSound();
+                setIsEncyclopediaOpen(true);
+              }}
+            />
+          </div>
+        )}
+
+        {/* ZONE 2: CAFE INTERIOR & GUESTS (1,000 DISHES) */}
+        {currentZone === 'cafe' && (
+          <CafeInterior
+            cafeState={cafeState}
+            onUpdateCafeState={setCafeState}
             inventory={inventory}
-            selectedLayerId={selectedLayerId}
-            onSelectLayer={setSelectedLayerId}
-            layerMinedCounts={layerMinedCounts}
-            onMineSuccess={handleMineSuccess}
-            onDurabilityLoss={handleDurabilityLoss}
-            onToolDurabilityLoss={handleToolDurabilityLoss}
-            onOpenShopToPickaxes={() => {
-              sound.playClickSound();
-              setShopInitialTab('pickaxes');
-              setIsShopOpen(true);
-            }}
-            onOpenShopTab={(tab) => {
-              sound.playClickSound();
-              setShopInitialTab(tab);
-              setIsShopOpen(true);
-            }}
-            totalBlocksMined={stats.totalBlocksMined}
-            hasteRemainingSeconds={hasteRemainingSeconds}
-            hasAutoMiner={hasAutoMiner}
-            extremeHasteSeconds={extremeHasteSeconds}
-            doubleCoinsSeconds={doubleCoinsSeconds}
-            zeroDurabilitySeconds={zeroDurabilitySeconds}
-            activeTool={activeTool}
-            onChangeTool={setActiveTool}
-            autoSwitchTool={autoSwitchTool}
-            onToggleAutoSwitch={() => setAutoSwitchTool(prev => !prev)}
-            axeState={axeState}
-            shovelState={shovelState}
-            swordState={swordState}
-            onDefeatMonster={handleDefeatMonster}
-            onEarnExtraCoins={(c) => {
+            onConsumeIngredients={handleConsumeIngredients}
+            coins={coins}
+            onAddCoins={(c) => {
               setCoins(prev => prev + c);
               setStats(prev => ({ ...prev, totalCoinsEarned: prev.totalCoinsEarned + c }));
             }}
-            coins={coins}
-            onRepairSword={handleRepairSword}
+            isEn={isEn}
+            onGoToQuarry={() => {
+              handleElevatorAscent('quarry', isEn ? 'Underground Mine' : '地下採掘礦坑');
+            }}
+            onGoToMap={() => {
+              setOverworldSpawnPos({ x: 33, y: 24 });
+              setCurrentZone('overworld');
+            }}
+            layerMinedCounts={layerMinedCounts}
+            onOpenEncyclopedia={() => {
+              sound.playClickSound();
+              setIsEncyclopediaOpen(true);
+            }}
           />
         )}
 
-        {/* SECTION 2: 100 格建築創作區 (Building Zone) */}
-        {(activeView === 'all' || activeView === 'building') && (
-          <BuildingZone
-            grid={buildGrid}
-            inventory={inventory}
-            selectedBlockId={selectedBlockId}
-            onPlaceBlock={handlePlaceBlock}
-            onReclaimBlock={handleReclaimBlock}
-            onClearAll={handleClearAllBlocks}
-            onLoadPreset={handleLoadPreset}
+        {/* ZONE 3: ELEVATOR VIEW */}
+        {currentZone === 'elevator' && (
+          <ElevatorView
+            onSelectFloor={(zone, layerId) => {
+              if (layerId) setSelectedLayerId(layerId);
+              if (zone === 'overworld') {
+                setOverworldSpawnPos({ x: 76, y: 44 });
+              }
+              setCurrentZone(zone);
+            }}
+            onClose={() => {
+              setOverworldSpawnPos({ x: 76, y: 44 });
+              setCurrentZone('overworld');
+            }}
+            isEn={isEn}
+            selectedLayerId={selectedLayerId}
+            totalBlocksMined={stats.totalBlocksMined}
+            layerMinedCounts={layerMinedCounts}
           />
+        )}
+
+        {/* ZONE 4: QUARRY MINING */}
+        {currentZone === 'quarry' && (
+          <div className="space-y-3">
+            <div className="p-3.5 bg-zinc-950/95 border-3 border-amber-900/60 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-amber-950 border-2 border-amber-500 flex items-center justify-center text-2xl shadow">
+                  ⛏️
+                </div>
+                <div>
+                  <div className="text-xs sm:text-sm font-black text-amber-300 font-minecraft flex flex-wrap items-center gap-2">
+                    <span>{isEn ? 'Underground Mine Quarry' : '地底深層採掘礦坑'}</span>
+                    <span className="text-[10px] bg-red-950/80 text-red-300 px-2 py-0.5 rounded border border-red-700 font-mono">
+                      {isEn ? 'Deep Shaft • Elevator Required' : '深層作業中・必須使用電梯'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-zinc-400">
+                    {isEn
+                      ? 'Deep underground! You must ride the Redstone Steam Elevator to ascend to the surface or enter the Cafe!'
+                      : '身處萬丈地底，玩家必須搭乘紅石蒸氣電梯才能上到地面大地圖、進入咖啡廳！'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Elevator Ascent & Exit Controls */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    handleElevatorAscent('overworld', isEn ? '1F Overworld Map' : '1F 地面大地圖');
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm rounded-xl border-2 border-black shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#6ee7b7] active:scale-95 flex items-center gap-2 cursor-pointer transition-all hover:brightness-110"
+                  title={isEn ? 'Ascend via elevator to the overworld surface' : '搭乘紅石電梯升至 1F 地面大地圖'}
+                >
+                  <span className="text-base">🚪</span>
+                  <span>{isEn ? 'Exit Mine (Ride Elevator to Surface)' : '離開礦坑 (搭乘電梯返回地面)'}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    handleElevatorAscent('cafe', isEn ? '2F Mining Cafe' : '2F 礦業咖啡廳');
+                  }}
+                  className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs sm:text-sm rounded-xl border-2 border-black shadow-[inset_-2px_-2px_0_#b45309,inset_2px_2px_0_#fef08a] active:scale-95 flex items-center gap-1.5 cursor-pointer transition-all hover:brightness-110"
+                  title={isEn ? 'Ascend directly to 2F Cafe Kitchen' : '搭乘紅石電梯直達 2F 咖啡廳'}
+                >
+                  <span className="text-base">🛗</span>
+                  <span>{isEn ? 'Elevator to Cafe' : '搭乘電梯直達咖啡廳'}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    sound.playClickSound();
+                    setCurrentZone('elevator');
+                  }}
+                  className="px-3 py-2 bg-cyan-800 hover:bg-cyan-700 text-cyan-200 font-bold text-xs sm:text-sm rounded-xl border border-cyan-600 shadow active:scale-95 flex items-center gap-1 cursor-pointer transition-all hover:brightness-110"
+                  title={isEn ? 'Open Elevator Floor Selector' : '開啟紅石電梯樓層面板'}
+                >
+                  <span>🛗</span>
+                  <span>{isEn ? 'Elevator Panel' : '電梯面板'}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    sound.playClickSound();
+                    setIsEncyclopediaOpen(true);
+                  }}
+                  className="px-3 py-2 bg-amber-800/90 hover:bg-amber-700 text-amber-100 font-bold text-xs sm:text-sm rounded-xl border border-amber-600 shadow active:scale-95 flex items-center gap-1 cursor-pointer transition-all hover:brightness-110 font-minecraft"
+                  title={isEn ? 'Open Minecraft Encyclopedia' : '開啟 Minecraft 百科全書'}
+                >
+                  <span>📖</span>
+                  <span>{isEn ? 'Wiki' : '百科全書'}</span>
+                </button>
+              </div>
+            </div>
+
+            <QuarryMining
+              pickaxeState={pickaxeState}
+              inventory={inventory}
+              selectedLayerId={selectedLayerId}
+              onSelectLayer={setSelectedLayerId}
+              layerMinedCounts={layerMinedCounts}
+              onMineSuccess={handleMineSuccess}
+              onDurabilityLoss={handleDurabilityLoss}
+              onToolDurabilityLoss={handleToolDurabilityLoss}
+              onOpenShopToPickaxes={() => {
+                sound.playClickSound();
+                setShopInitialTab('pickaxes');
+                setIsShopOpen(true);
+              }}
+              onOpenShopTab={(tab) => {
+                sound.playClickSound();
+                setShopInitialTab(tab);
+                setIsShopOpen(true);
+              }}
+              totalBlocksMined={stats.totalBlocksMined}
+              hasteRemainingSeconds={hasteRemainingSeconds}
+              hasAutoMiner={hasAutoMiner}
+              extremeHasteSeconds={extremeHasteSeconds}
+              doubleCoinsSeconds={doubleCoinsSeconds}
+              zeroDurabilitySeconds={zeroDurabilitySeconds}
+              activeTool={activeTool}
+              onChangeTool={setActiveTool}
+              autoSwitchTool={autoSwitchTool}
+              onToggleAutoSwitch={() => setAutoSwitchTool(prev => !prev)}
+              axeState={axeState}
+              shovelState={shovelState}
+              swordState={swordState}
+              onDefeatMonster={handleDefeatMonster}
+              onEarnExtraCoins={(c) => {
+                setCoins(prev => prev + c);
+                setStats(prev => ({ ...prev, totalCoinsEarned: prev.totalCoinsEarned + c }));
+              }}
+              coins={coins}
+              onRepairSword={handleRepairSword}
+              onOpenEncyclopedia={() => {
+                sound.playClickSound();
+                setIsEncyclopediaOpen(true);
+              }}
+            />
+          </div>
+        )}
+
+        {/* ZONE 5: 100 格建築創作區 (Building Zone) */}
+        {currentZone === 'building' && (
+          <div className="space-y-3">
+            <div className="p-3.5 bg-zinc-950/90 border-2 border-zinc-800 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-center gap-2 text-xs text-zinc-300">
+                <span className="text-xl">🧱</span>
+                <span>{isEn ? 'Design custom architecture and cafe decorations in the 100-grid zone!' : '在 100 格創作區自由設計特色建築與咖啡館裝潢！'}</span>
+              </div>
+              <button
+                onClick={() => {
+                  sound.playClickSound();
+                  setOverworldSpawnPos({ x: 50, y: 44 });
+                  setCurrentZone('overworld');
+                }}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm rounded-xl border-2 border-black shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#6ee7b7] active:scale-95 flex items-center gap-2 cursor-pointer transition-all hover:brightness-110"
+              >
+                <span>🚪</span>
+                <span>{isEn ? 'Exit Workshop (Return to Map)' : '離開工坊 (返回大地圖)'}</span>
+              </button>
+            </div>
+
+            <BuildingZone
+              grid={buildGrid}
+              inventory={inventory}
+              selectedBlockId={selectedBlockId}
+              onPlaceBlock={handlePlaceBlock}
+              onReclaimBlock={handleReclaimBlock}
+              onClearAll={handleClearAllBlocks}
+              onLoadPreset={handleLoadPreset}
+            />
+          </div>
         )}
       </main>
 
@@ -2426,7 +2676,7 @@ export default function App() {
             }}
             className="text-amber-400 hover:underline flex items-center gap-1 font-mono cursor-pointer"
           >
-            <span>{isEn ? 'v2.4.0 (Changelog)' : 'v2.4.0 (更新日誌)'}</span>
+            <span>{isEn ? 'v2.5.2 (Changelog)' : 'v2.5.2 (更新日誌)'}</span>
           </button>
         </div>
 
@@ -2733,6 +2983,44 @@ export default function App() {
         onClose={() => setIsEncyclopediaOpen(false)}
         isEn={isEn}
       />
+
+      {/* STEAM ELEVATOR TRANSIT OVERLAY */}
+      {elevatorTransit && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-zinc-950 border-3 border-amber-600/80 rounded-2xl p-6 sm:p-8 max-w-md w-full text-center shadow-[0_0_50px_rgba(217,119,6,0.3)] flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-2xl bg-amber-950/80 border-2 border-amber-500 flex items-center justify-center text-4xl shadow-inner animate-pulse">
+                🛗
+              </div>
+              <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-cyan-500"></span>
+              </span>
+            </div>
+
+            <div>
+              <div className="text-amber-400 font-minecraft font-black text-base sm:text-lg tracking-wide">
+                {isEn ? 'REDSTONE STEAM ELEVATOR' : '紅石蒸氣高速電梯'}
+              </div>
+              <div className="text-xs text-zinc-300 mt-1">
+                {isEn
+                  ? `Ascending to ${elevatorTransit.targetFloorName}...`
+                  : `正在搭乘蒸氣電梯前往【${elevatorTransit.targetFloorName}】...`}
+              </div>
+            </div>
+
+            {/* Animated Elevator Shaft Gauge */}
+            <div className="w-full bg-zinc-900 h-3 rounded-full overflow-hidden border border-zinc-700 p-0.5">
+              <div className="bg-gradient-to-r from-amber-500 via-yellow-400 to-cyan-400 h-full rounded-full animate-pulse w-full" />
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono">
+              <span className="animate-spin">⚙️</span>
+              <span>{isEn ? 'Ascending Shaft Gears Engaged • Pressure Normal' : '深井齒輪運轉中・升降氣壓穩定'}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

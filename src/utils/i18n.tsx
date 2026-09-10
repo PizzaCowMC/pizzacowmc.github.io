@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 
 export type Language = 'en' | 'zh';
 
-const STORAGE_KEY = 'minecraft_workshop_language';
+const STORAGE_KEY = 'minecraft_workshop_language_v252';
 
 export interface I18nContextType {
   language: Language;
