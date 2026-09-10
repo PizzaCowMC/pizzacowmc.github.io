@@ -4,6 +4,12 @@
 
 # Run and deploy your AI Studio app
 
+This is a Minecraft-style game.
+
+**Notice:** this is NOT an official Mojang product.
+
+Enjoy the game :D
+
 This contains everything you need to run your app locally.
 
 View your app in AI Studio: https://ai.studio/apps/066d58d4-5b05-4797-b2f5-82fc70992391
@@ -18,3 +24,4 @@ View your app in AI Studio: https://ai.studio/apps/066d58d4-5b05-4797-b2f5-82fc7
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
