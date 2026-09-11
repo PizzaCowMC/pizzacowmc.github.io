@@ -48,6 +48,19 @@ export const BGM_TRACKS: BgmTrack[] = [
     discLabel: 'THEME',
     bpm: 96,
     suitableArea: 'elevator'
+  },
+  {
+    id: 'lazy_afternoon',
+    nameEn: 'Lazy Afternoon Brew',
+    nameZh: '慵懶午後時光',
+    discName: 'Chill Disc Warmth - Golden Hour',
+    composer: 'Redstone Steam Workshop',
+    descEn: 'A relaxed, easy-going tune with soft rolling piano and a gentle sub-bass sway — perfect for slow, unhurried moments.',
+    descZh: '輕鬆悠閒的曲調，柔和的鋼琴滾動旋律搭配溫暖的低音搖擺，適合慢下來、無所事事的午後時光。',
+    discColor: '#f97316',
+    ringColor: '#c2410c',
+    discLabel: 'CHILL',
+    bpm: 78
   }
 ];
 
@@ -98,6 +111,44 @@ function getTrackEvents(_trackId: string): { totalBeats: number; events: NoteEve
   events.push({ time: 4, duration: 3.5, note: 'C2', instrument: 'subbass', velocity: 0.42 });
   events.push({ time: 8, duration: 3.5, note: 'E2', instrument: 'subbass', velocity: 0.42 });
   events.push({ time: 12, duration: 3.5, note: 'D2', instrument: 'subbass', velocity: 0.42 });
+
+  if (_trackId === 'lazy_afternoon') {
+    return getLazyAfternoonEvents();
+  }
+
+  return { totalBeats: 16, events };
+}
+
+// Musical score for the relaxed track: Lazy Afternoon Brew (慵懶午後時光)
+function getLazyAfternoonEvents(): { totalBeats: number; events: NoteEvent[] } {
+  const events: NoteEvent[] = [];
+
+  // Warm, unhurried piano melody drifting over 16 beats (loose swung feel)
+  const melody = [
+    { t: 0, n: 'E4', d: 1.4 }, { t: 1.5, n: 'G4', d: 0.9 }, { t: 2.5, n: 'A4', d: 1.4 },
+    { t: 4, n: 'B4', d: 1.4 }, { t: 5.5, n: 'G4', d: 0.9 }, { t: 6.5, n: 'E4', d: 1.4 },
+    { t: 8, n: 'D4', d: 1.4 }, { t: 9.5, n: 'E4', d: 0.9 }, { t: 10.5, n: 'F#4', d: 1.4 },
+    { t: 12, n: 'A4', d: 1.4 }, { t: 13.5, n: 'G4', d: 0.9 }, { t: 14.5, n: 'E4', d: 1.4 }
+  ];
+  melody.forEach(m => {
+    events.push({ time: m.t, duration: m.d, note: m.n, instrument: 'piano', velocity: 0.4 });
+  });
+
+  // Soft rhodes-style backing chords, one per phrase
+  events.push({ time: 0, duration: 3.6, note: 'C4', instrument: 'epiano', velocity: 0.18 });
+  events.push({ time: 4, duration: 3.6, note: 'G3', instrument: 'epiano', velocity: 0.18 });
+  events.push({ time: 8, duration: 3.6, note: 'A3', instrument: 'epiano', velocity: 0.18 });
+  events.push({ time: 12, duration: 3.6, note: 'F3', instrument: 'epiano', velocity: 0.18 });
+
+  // Gentle ambient pad wash underneath
+  events.push({ time: 0, duration: 7.5, note: 'C3', instrument: 'pad', velocity: 0.22 });
+  events.push({ time: 8, duration: 7.5, note: 'A2', instrument: 'pad', velocity: 0.22 });
+
+  // Slow, sparse sub-bass sway
+  events.push({ time: 0, duration: 3.8, note: 'C2', instrument: 'subbass', velocity: 0.3 });
+  events.push({ time: 4, duration: 3.8, note: 'G1', instrument: 'subbass', velocity: 0.3 });
+  events.push({ time: 8, duration: 3.8, note: 'A1', instrument: 'subbass', velocity: 0.3 });
+  events.push({ time: 12, duration: 3.8, note: 'F1', instrument: 'subbass', velocity: 0.3 });
 
   return { totalBeats: 16, events };
 }

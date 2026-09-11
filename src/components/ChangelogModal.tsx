@@ -32,8 +32,35 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
   const logs = [
     {
-      version: '2.5.30',
+      version: '2.5.31',
       isLatest: true,
+      date: isEn
+        ? '2.5.31 New BGM Track: Lazy Afternoon Brew'
+        : '2.5.31 全新背景音樂：慵懶午後時光',
+      badge: isEn
+        ? '2.5.31 Chill Disc • Lazy Afternoon Brew • Jukebox Expansion'
+        : '2.5.31 悠閒唱片 • 慵懶午後時光 • 唱片機曲庫擴充',
+      badgeColor: 'bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white shadow-lg',
+      summary: isEn
+        ? 'Added a brand new relaxed BGM track to the Jukebox with soft piano melodies and warm ambient pads.'
+        : '為紅石唱片機新增一首全新悠閒風格背景音樂，柔和鋼琴旋律搭配溫暖環境音墊。',
+      highlights: [
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '🎵 New Track' : '🎵 新增曲目',
+          tagColor: 'bg-orange-900/60 text-orange-300 border-orange-500/40',
+          title: isEn
+            ? 'New BGM Track: Lazy Afternoon Brew'
+            : '全新背景音樂：慵懶午後時光',
+          desc: isEn
+            ? 'Added a relaxed new track to the Jukebox playlist, featuring gentle rolling piano, soft Rhodes-style chords, warm ambient pads, and a slow sub-bass sway. Perfect for unhurried moments in the cafe or overworld.'
+            : '為紅石唱片機曲庫新增一首全新休閒風格樂曲！柔和滾動的鋼琴旋律搭配溫暖電鋼琴和弦、悠然環境音墊與緩慢低音搖擺，適合在咖啡廳或大地圖上悠閒漫步時聆聽。'
+        }
+      ]
+    },
+    {
+      version: '2.5.30',
+      isLatest: false,
       date: isEn
         ? '2.5.30 Cross-Device Cloud Sync & 6-Digit Migration & 50k Strata & Multi-Floor Cafe'
         : '2.5.30 全端跨裝置帳號同步・6位數引繼碼・50,000格地層挖滿・咖啡廳4層星級制',
@@ -706,7 +733,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
                   📜 {t('changelog.title')}
                 </h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded font-bold">
-                  v2.5.30
+                  v2.5.31
                 </span>
               </div>
               <p className="text-xs text-zinc-400 mt-0.5">{t('changelog.subtitle')}</p>
@@ -897,7 +924,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
         {/* Footer */}
         <div className="bg-[#181818] px-6 py-3 border-t-2 border-[#333] flex items-center justify-between text-xs text-zinc-400">
-          <span>{isEn ? 'Minecraft Quarry & Workshop v2.5.30' : 'Minecraft 挖掘場與建築工坊 v2.5.30'}</span>
+          <span>{isEn ? 'Minecraft Quarry & Workshop v2.5.31' : 'Minecraft 挖掘場與建築工坊 v2.5.31'}</span>
           <button
             onClick={() => {
               sound.playClickSound();
