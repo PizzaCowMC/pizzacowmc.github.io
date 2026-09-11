@@ -14,6 +14,7 @@ interface HotbarProps {
   coins: number;
   onOpenMarket: () => void;
   onOpenShop: () => void;
+  onOpenMusicPlayer?: () => void;
 }
 
 export const Hotbar: React.FC<HotbarProps> = ({
@@ -23,7 +24,8 @@ export const Hotbar: React.FC<HotbarProps> = ({
   pickaxeState,
   coins,
   onOpenMarket,
-  onOpenShop
+  onOpenShop,
+  onOpenMusicPlayer
 }) => {
   const { language, getName, t } = useLanguage();
   const currentPick = PICKAXE_TIERS.find(p => p.id === pickaxeState.currentTierId) || PICKAXE_TIERS[0];
@@ -59,6 +61,23 @@ export const Hotbar: React.FC<HotbarProps> = ({
             </span>
           )}
         </button>
+
+        {onOpenMusicPlayer && (
+          <>
+            <span className="text-zinc-600">|</span>
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenMusicPlayer();
+              }}
+              title={isEn ? 'Open Jukebox' : '開啟唱片機'}
+              className="flex items-center gap-1 text-amber-300 hover:text-amber-200 font-bold transition-colors cursor-pointer text-xs"
+            >
+              <span>💽</span>
+              <span className="hidden sm:inline">{isEn ? 'BGM' : '音樂'}</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Main hotbar box */}

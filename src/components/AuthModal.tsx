@@ -13,7 +13,10 @@ import {
   LogIn,
   UserPlus,
   LogOut,
-  User as UserIcon
+  User as UserIcon,
+  Smartphone,
+  Copy,
+  CheckCheck
 } from 'lucide-react';
 import { sound } from '../utils/soundEffects';
 import {
@@ -22,7 +25,9 @@ import {
   logoutUser,
   saveFirebaseConfig,
   getSavedFirebaseConfig,
-  FirebaseConfigOptions
+  FirebaseConfigOptions,
+  generateSyncCode,
+  redeemSyncCode
 } from '../services/firebase';
 import { useLanguage } from '../utils/i18n';
 
@@ -48,12 +53,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onUserLoggedIn
 }) => {
   const { language, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'cloud' | 'config'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'cloud' | 'sync' | 'config'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  // Sync Code state
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [inputSyncCode, setInputSyncCode] = useState('');
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const isEn = language === 'en';
 
@@ -75,7 +85,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setStatusMsg({ text, type });
     setTimeout(() => {
       setStatusMsg(null);
-    }, 4000);
+    }, 4500);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -91,17 +101,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(false);
     if (res.user) {
       sound.playAchievementSound();
-      showMsg(
-        isEn
-          ? `✅ Logged in successfully! Welcome back, ${res.user.displayName || cleanName}`
-          : `✅ 登入成功！歡迎回來，${res.user.displayName || cleanName}`,
-        'success'
-      );
       onUserLoggedIn({
         uid: res.user.uid,
         displayName: res.user.displayName || cleanName,
         email: res.user.email
       });
+
+      if (res.hasCloudSave) {
+        try {
+          await onCloudLoad();
+          showMsg(
+            isEn
+              ? `✅ Welcome back, ${res.user.displayName}! Cloud save automatically restored.`
+              : `✅ 登入成功！已自動為您載入跨裝置雲端存檔（最後儲存：${res.saveSummary?.savedAt ? new Date(res.saveSummary.savedAt).toLocaleTimeString() : '最新'}）。`,
+            'success'
+          );
+        } catch (_) {
+          showMsg(
+            isEn
+              ? `✅ Logged in successfully! Welcome back, ${res.user.displayName || cleanName}`
+              : `✅ 登入成功！歡迎回來，${res.user.displayName || cleanName}`,
+            'success'
+          );
+        }
+      } else {
+        showMsg(
+          isEn
+            ? `✅ Logged in successfully! Welcome back, ${res.user.displayName || cleanName}`
+            : `✅ 登入成功！歡迎回來，${res.user.displayName || cleanName}`,
+          'success'
+        );
+      }
       setActiveTab('cloud');
     } else {
       sound.playHitSound(2);
@@ -136,8 +166,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       sound.playAchievementSound();
       showMsg(
         isEn
-          ? `🎉 Miner "${cleanName}" registered successfully & logged in!`
-          : `🎉 玩家「${cleanName}」註冊成功並已自動登入！`,
+          ? `🎉 Miner "${cleanName}" registered successfully & logged in across all devices!`
+          : `🎉 玩家「${cleanName}」跨裝置帳號註冊成功，並已自動登入！`,
         'success'
       );
       onUserLoggedIn({
@@ -161,81 +191,131 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   const handleSaveToCloud = async () => {
-    setLoading(true);
     sound.playClickSound();
+    setLoading(true);
     const res = await onCloudSave();
     setLoading(false);
     if (res.success) {
       sound.playAchievementSound();
-      showMsg(isEn ? '☁️ Progress successfully saved to Cloud Database!' : '☁️ 進度已成功儲存至雲端資料庫！', 'success');
+      showMsg(
+        isEn
+          ? '☁️ Game progress successfully saved & synced across devices!'
+          : '☁️ 遊戲進度已成功同步至跨裝置伺服器！',
+        'success'
+      );
     } else {
       sound.playHitSound(2);
-      showMsg(isEn ? `❌ Cloud save failed: ${res.error}` : `❌ 雲端存檔失敗：${res.error}`, 'error');
+      showMsg(isEn ? `❌ Cloud sync failed: ${res.error}` : `❌ 雲端存檔失敗：${res.error}`, 'error');
     }
   };
 
   const handleLoadFromCloud = async () => {
-    setLoading(true);
     sound.playClickSound();
+    setLoading(true);
     const res = await onCloudLoad();
     setLoading(false);
     if (res.success) {
       sound.playAchievementSound();
-      showMsg(isEn ? '📥 Cloud progress successfully loaded and applied!' : '📥 雲端進度已成功載入覆蓋！', 'success');
+      showMsg(
+        isEn
+          ? '☁️ Cloud progress successfully loaded & applied!'
+          : '☁️ 跨裝置雲端進度已成功載入並套用！',
+        'success'
+      );
     } else {
       sound.playHitSound(2);
-      showMsg(isEn ? `❌ Cloud load failed: ${res.error}` : `❌ 雲端進度讀取失敗：${res.error}`, 'error');
+      showMsg(isEn ? `❌ Failed to load save: ${res.error}` : `❌ 讀取雲端存檔失敗：${res.error}`, 'error');
     }
   };
 
-  const handleParseRawJson = () => {
-    try {
-      let cleaned = rawConfigJson.trim();
-      if (cleaned.includes('{')) {
-        const start = cleaned.indexOf('{');
-        const end = cleaned.lastIndexOf('}');
-        if (start !== -1 && end !== -1) {
-          cleaned = cleaned.substring(start, end + 1);
-        }
-      }
-      const jsonLike = cleaned
-        .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')
-        .replace(/'/g, '"');
-      const parsed = JSON.parse(jsonLike);
-      if (parsed.apiKey && parsed.projectId) {
-        setConfigForm({
-          apiKey: parsed.apiKey || '',
-          authDomain: parsed.authDomain || '',
-          projectId: parsed.projectId || '',
-          storageBucket: parsed.storageBucket || '',
-          messagingSenderId: parsed.messagingSenderId || '',
-          appId: parsed.appId || ''
-        });
-        showMsg(
-          isEn
-            ? '✅ Successfully parsed Cloud Config! Click "Apply & Save Config" below.'
-            : '✅ 成功解析雲端專案配置！請點擊「套用並保存設定」完成連線。',
-          'success'
-        );
-      } else {
-        showMsg(isEn ? '⚠️ Parse failed: apiKey or projectId fields not found!' : '⚠️ 解析失敗：未找到 apiKey 或 projectId 欄位！', 'error');
-      }
-    } catch {
-      showMsg(isEn ? '⚠️ Invalid JSON format, please check or fill the form fields manually!' : '⚠️ JSON 格式有誤，請手動在下方表單填寫或檢查格式！', 'error');
+  const handleGenerateSyncCode = async () => {
+    sound.playClickSound();
+    if (!currentUser?.uid) {
+      showMsg(isEn ? 'Please login or register first to generate sync code!' : '請先登入或註冊帳號以產生同步碼！', 'error');
+      return;
     }
+    setLoading(true);
+    const res = await generateSyncCode(currentUser.uid);
+    setLoading(false);
+    if (res.success && res.code) {
+      sound.playAchievementSound();
+      setGeneratedCode(res.code);
+      showMsg(isEn ? `📱 Sync Code generated: ${res.code}` : `📱 跨裝置引繼碼已產生：${res.code}`, 'success');
+    } else {
+      sound.playHitSound(2);
+      showMsg(isEn ? `❌ Failed: ${res.error}` : `❌ 產生失敗：${res.error}`, 'error');
+    }
+  };
+
+  const handleRedeemSyncCode = async () => {
+    const clean = inputSyncCode.trim().toUpperCase();
+    if (!clean) {
+      showMsg(isEn ? 'Please enter a valid 6-digit sync code!' : '請輸入有效的同步引繼碼！', 'error');
+      return;
+    }
+    sound.playClickSound();
+    setLoading(true);
+    const res = await redeemSyncCode(clean);
+    setLoading(false);
+    if (res.success && res.user) {
+      sound.playAchievementSound();
+      onUserLoggedIn(res.user);
+      try {
+        await onCloudLoad();
+      } catch (_) {}
+      showMsg(
+        isEn
+          ? `🎉 Sync Code redeemed! Logged in as ${res.user.displayName} & progress restored.`
+          : `🎉 引繼成功！已登入為「${res.user.displayName}」並同步還原進度！`,
+        'success'
+      );
+      setInputSyncCode('');
+      setActiveTab('cloud');
+    } else {
+      sound.playHitSound(2);
+      showMsg(isEn ? `❌ Invalid code: ${res.error}` : `❌ 兌換失敗：${res.error}`, 'error');
+    }
+  };
+
+  const handleCopyCode = (code: string) => {
+    sound.playClickSound();
+    navigator.clipboard.writeText(code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+    showMsg(isEn ? 'Copied sync code to clipboard!' : '已複製跨裝置引繼碼至剪貼簿！', 'info');
   };
 
   const handleSaveConfig = () => {
+    sound.playClickSound();
     if (!configForm.apiKey || !configForm.projectId) {
-      showMsg(isEn ? 'Please fill in at least API Key and Project ID!' : '請至少填寫 API Key 與 Project ID！', 'error');
+      showMsg(isEn ? 'API Key and Project ID are required!' : '請至少填寫 API Key 與 Project ID！', 'error');
       return;
     }
     const ok = saveFirebaseConfig(configForm);
     if (ok) {
       sound.playAchievementSound();
-      showMsg(isEn ? '🚀 Cloud project config saved and re-initialized!' : '🚀 雲端專案配置已保存並重新初始化！', 'success');
+      showMsg(isEn ? 'Custom Firebase configuration saved!' : '自訂 Firebase 專案設定已儲存！', 'success');
     } else {
-      showMsg(isEn ? 'Failed to save config, ensure localStorage is available.' : '儲存設定失敗，請確認瀏覽器支援 localStorage。', 'error');
+      showMsg(isEn ? 'Failed to save Firebase config.' : '儲存設定失敗。', 'error');
+    }
+  };
+
+  const handleParseRawJson = () => {
+    try {
+      const parsed = JSON.parse(rawConfigJson);
+      setConfigForm({
+        apiKey: parsed.apiKey || '',
+        authDomain: parsed.authDomain || '',
+        projectId: parsed.projectId || '',
+        storageBucket: parsed.storageBucket || '',
+        messagingSenderId: parsed.messagingSenderId || '',
+        appId: parsed.appId || ''
+      });
+      sound.playAchievementSound();
+      showMsg(isEn ? 'Parsed Firebase JSON successfully!' : '已成功解析 Firebase JSON 格式！', 'success');
+    } catch (e) {
+      sound.playHitSound(2);
+      showMsg(isEn ? 'Invalid JSON format. Please verify your snippet.' : 'JSON 格式錯誤，請確認內容！', 'error');
     }
   };
 
@@ -269,7 +349,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Tab navigation */}
-        <div className="bg-[#1b1b1b] border-b border-[#303030] px-4 pt-2 flex gap-2">
+        <div className="bg-[#1b1b1b] border-b border-[#303030] px-4 pt-2 flex gap-2 flex-wrap">
           {currentUser ? (
             <button
               onClick={() => {
@@ -317,6 +397,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </>
           )}
+
+          <button
+            onClick={() => {
+              sound.playClickSound();
+              setActiveTab('sync');
+            }}
+            className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'sync'
+                ? 'bg-[#282828] text-purple-400 border-t-2 border-purple-500'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>{isEn ? 'Device Sync' : '跨裝置引繼碼'}</span>
+          </button>
 
           <button
             onClick={() => {
@@ -573,7 +668,91 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* TAB 4: FIREBASE PROJECT CONFIGURATION */}
+          {/* TAB 4: CROSS-DEVICE SYNC CODE (引繼碼) */}
+          {activeTab === 'sync' && (
+            <div className="space-y-4">
+              <div className="bg-purple-950/30 border border-purple-600/40 p-3.5 rounded-lg space-y-2">
+                <div className="flex items-center gap-2 text-purple-300 font-bold text-xs">
+                  <Smartphone className="w-4 h-4" />
+                  <span>{isEn ? 'Cross-Device Migration & Transfer (Sync Code)' : '跨裝置資料轉移・引繼碼'}</span>
+                </div>
+                <p className="text-xs text-zinc-300 leading-relaxed">
+                  {isEn
+                    ? 'Generate a unique 6-digit Sync Code on your current device, and input it on your phone, tablet, or another browser to instantly transfer your account & progress without re-typing passwords!'
+                    : '在目前裝置產生一組 6 位數專屬引繼碼，即可在手機、平板或新瀏覽器上無痛一鍵轉移所有遊戲進度與帳號，有效期限 30 天！'}
+                </p>
+              </div>
+
+              {/* Section 1: Generate Code */}
+              <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-4 space-y-3">
+                <div className="text-xs font-bold text-zinc-200 flex items-center justify-between">
+                  <span>{isEn ? '1. Export Current Device Save' : '【步驟一】從此裝置導出引繼碼'}</span>
+                  {currentUser && (
+                    <span className="text-[11px] text-emerald-400 font-mono">
+                      ● {currentUser.displayName}
+                    </span>
+                  )}
+                </div>
+
+                {generatedCode ? (
+                  <div className="p-3 bg-[#111] border-2 border-purple-500/60 rounded-lg text-center space-y-2">
+                    <div className="text-xs text-zinc-400">{isEn ? 'Your Migration Code:' : '您的跨裝置專屬引繼碼：'}</div>
+                    <div className="text-2xl font-black font-mono tracking-widest text-purple-300 py-1 select-all">
+                      {generatedCode}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCode(generatedCode)}
+                      className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-lg inline-flex items-center gap-1.5 transition-all cursor-pointer shadow"
+                    >
+                      {copiedCode ? <CheckCheck className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedCode ? (isEn ? 'Copied!' : '已複製！') : (isEn ? 'Copy Code' : '複製引繼碼')}</span>
+                    </button>
+                    <div className="text-[10px] text-zinc-500">
+                      {isEn ? 'Valid for 30 days. Enter this code on another device.' : '30 天內有效，請在另一台裝置輸入此代碼以完成無痛移轉。'}
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleGenerateSyncCode}
+                    disabled={loading || !currentUser}
+                    className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow transition-all active:scale-98 cursor-pointer"
+                  >
+                    <Smartphone className="w-4 h-4" />
+                    <span>{currentUser ? (isEn ? 'Generate 6-Digit Sync Code' : '產生跨裝置 6 位數引繼碼') : (isEn ? 'Please login first' : '請先登入帳號以產生引繼碼')}</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Section 2: Redeem Code */}
+              <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-4 space-y-3">
+                <div className="text-xs font-bold text-zinc-200">
+                  {isEn ? '2. Import Save from Another Device' : '【步驟二】在另一台裝置輸入引繼碼'}
+                </div>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={inputSyncCode}
+                    onChange={(e) => setInputSyncCode(e.target.value)}
+                    placeholder="MC-XXXXXX"
+                    className="w-full bg-[#181818] border border-[#383838] focus:border-purple-500 rounded-lg px-3 py-2 text-center text-base font-mono font-bold tracking-wider text-white placeholder-zinc-600 outline-none uppercase"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRedeemSyncCode}
+                    disabled={loading || !inputSyncCode.trim()}
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow transition-all active:scale-98 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>{isEn ? 'Redeem & Sync Save Instantly' : '兌換引繼碼並同步載入存檔'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: FIREBASE PROJECT CONFIGURATION */}
           {activeTab === 'config' && (
             <div className="space-y-4">
               <div className="bg-amber-950/20 border border-amber-600/30 p-3 rounded-lg text-xs text-amber-300 leading-relaxed">

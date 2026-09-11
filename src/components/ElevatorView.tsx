@@ -142,8 +142,9 @@ export const ElevatorView: React.FC<ElevatorViewProps> = ({
               const isSelected = selectedLayerId === layer.id;
               const prevLayer = STRATA_LAYERS[idx - 1];
               const prevCount = prevLayer ? (layerMinedCounts[prevLayer.id] || 0) : 0;
-              // Layer 1 is unlocked initially; subsequent strata strictly require 100,000 blocks in previous layer
-              const isLocked = idx > 0 && prevCount < 100000;
+              const requiredMined = layer.requiredMinedToUnlock || 0;
+              // Layer 1 is unlocked initially; subsequent strata require requiredMinedToUnlock blocks in previous layer
+              const isLocked = idx > 0 && prevCount < requiredMined;
 
               return (
                 <button
@@ -172,7 +173,7 @@ export const ElevatorView: React.FC<ElevatorViewProps> = ({
                       </div>
                       <div className="text-[10px] text-zinc-400 font-mono">
                         {isLocked
-                          ? (isEn ? `Requires 100k in B${idx} (${prevCount.toLocaleString()}/100k)` : `需上一層開採滿 10 萬格 (${prevCount.toLocaleString()}/10萬)`)
+                          ? (isEn ? `Requires ${requiredMined.toLocaleString()} in B${idx} (${prevCount.toLocaleString()}/${requiredMined.toLocaleString()})` : `需上一層開採滿 ${requiredMined.toLocaleString()} 格 (${prevCount.toLocaleString()}/${requiredMined.toLocaleString()})`)
                           : (isEn ? 'Culinary minerals available' : '富含珍稀烹飪礦石')}
                       </div>
                     </div>

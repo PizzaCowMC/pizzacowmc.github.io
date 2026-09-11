@@ -721,7 +721,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
           </div>
           <span className="text-xs text-zinc-400 font-mono">
             {isEn ? 'Unlocked Strata: ' : '已解鎖地層：'}
-            <strong className="text-amber-300">{STRATA_LAYERS.filter((_, idx) => idx === 0 || (layerMinedCounts[STRATA_LAYERS[idx-1]?.id] || 0) >= 100000).length}</strong> / {STRATA_LAYERS.length}
+            <strong className="text-amber-300">{STRATA_LAYERS.filter((l, idx) => idx === 0 || (layerMinedCounts[STRATA_LAYERS[idx-1]?.id] || 0) >= (l.requiredMinedToUnlock || 0)).length}</strong> / {STRATA_LAYERS.length}
           </span>
         </div>
 
@@ -729,8 +729,8 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
           {STRATA_LAYERS.map((layer, index) => {
             const isSelected = layer.id === selectedLayerId;
             const prevLayer = STRATA_LAYERS[index - 1];
-            // Fix bug: Only Layer 1 (index === 0) is unlocked initially. Later layers strictly require 100,000 mined blocks in the previous layer.
-            const unlocked = index === 0 || (prevLayer && (layerMinedCounts[prevLayer.id] || 0) >= 100000);
+            const requiredMined = layer.requiredMinedToUnlock || 0;
+            const unlocked = index === 0 || (prevLayer && (layerMinedCounts[prevLayer.id] || 0) >= requiredMined);
             const count = layerMinedCounts[layer.id] || 0;
             const prevCount = prevLayer ? (layerMinedCounts[prevLayer.id] || 0) : 0;
             const layerLabel = getName(layer);
@@ -763,7 +763,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
                   </div>
                   <div className="text-[10px] text-zinc-400 truncate font-mono">
                     {!unlocked
-                      ? (isEn ? `Need 100k (${prevCount.toLocaleString()}/100k)` : `需上層滿10萬 (${prevCount.toLocaleString()}/10萬)`)
+                      ? (isEn ? `Need ${requiredMined.toLocaleString()} (${prevCount.toLocaleString()}/${requiredMined.toLocaleString()})` : `需上層滿${requiredMined.toLocaleString()}格 (${prevCount.toLocaleString()}/${requiredMined.toLocaleString()})`)
                       : (isEn ? `${count.toLocaleString()} mined` : `已挖 ${count.toLocaleString()}`)}
                   </div>
                 </div>

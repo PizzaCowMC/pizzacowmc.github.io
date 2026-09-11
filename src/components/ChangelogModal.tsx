@@ -1,5 +1,18 @@
-import React from 'react';
-import { Scroll, X, Sparkles, CheckCircle2, ExternalLink } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  Scroll,
+  X,
+  Sparkles,
+  CheckCircle2,
+  ExternalLink,
+  Filter,
+  Smartphone,
+  Pickaxe,
+  Coffee,
+  ShieldCheck,
+  Layers,
+  Award
+} from 'lucide-react';
 import { sound } from '../utils/soundEffects';
 import { useLanguage } from '../utils/i18n';
 
@@ -8,46 +21,123 @@ interface ChangelogModalProps {
   onClose: () => void;
 }
 
+type LogCategory = 'all' | 'feature' | 'sync' | 'balance' | 'fix';
+
 export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose }) => {
   const { language, t } = useLanguage();
+  const [selectedCategory, setSelectedCategory] = useState<LogCategory>('all');
   if (!isOpen) return null;
 
   const isEn = language === 'en';
 
   const logs = [
     {
-      version: '2.5.2',
-      date: isEn ? '2.5.2 Complete English Localization & Default English & Overworld Map Pixel Aesthetic' : '2.5.2 完整英文翻譯・預設英文語系・大地圖像素風重構與雙語同步',
-      badge: isEn ? '2.5.2 Full English • Default EN • Minecraft Map Style • Bilingual Sync' : '2.5.2 完整英文 • 預設英文 • 麥塊地圖風格 • 雙語全域同步',
-      badgeColor: 'bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white shadow-lg',
+      version: '2.5.30',
+      isLatest: true,
+      date: isEn
+        ? '2.5.30 Cross-Device Cloud Sync & 6-Digit Migration & 50k Strata & Multi-Floor Cafe'
+        : '2.5.30 全端跨裝置帳號同步・6位數引繼碼・50,000格地層挖滿・咖啡廳4層星級制',
+      badge: isEn
+        ? '2.5.30 Cloud Sync Engine • 6-Digit Sync Code • 50,000 Strata • F1-S3 Stars'
+        : '2.5.30 跨裝置雲端同步引擎 • 6位數引繼碼 • 50,000格地層 • 咖啡廳F1~S3星級制',
+      badgeColor: 'bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 text-white shadow-lg animate-pulse',
+      summary: isEn
+        ? 'Major release introducing true cross-device login, 6-digit sync code transfer, 50k block requirement across strata, and interactive update format.'
+        : '重磅釋出：全端跨裝置伺服器帳號登入、6 位數快速引繼碼、前置地層挖滿 50,000 格挑戰與全新分級更新日誌格式！',
       highlights: [
         {
-          type: 'feature',
+          category: 'sync',
+          categoryLabel: isEn ? '📱 Cross-Device Cloud' : '📱 跨裝置雲端',
+          tagColor: 'bg-purple-900/60 text-purple-300 border-purple-500/40',
+          title: isEn
+            ? 'Full-Stack Cross-Device Account & Cloud Save Engine'
+            : '全端跨裝置帳號與雲端存檔同步系統（徹底解決跨裝置無法登入）',
+          desc: isEn
+            ? 'Transitioned to an authoritative server-backed database supporting cross-device user login. Players can now seamlessly sign into the exact same account across any smartphone, tablet, or PC without save loss or credential mismatch.'
+            : '全面導入後端權威資料庫與跨裝置存檔引擎！徹底根除先前僅存於單一瀏覽器快取導致「無法跨裝置登入、密碼錯誤、進度遺失」的異常，支援任何電腦、手機與平板無縫同帳號遊玩。'
+        },
+        {
+          category: 'sync',
+          categoryLabel: isEn ? '🔑 Sync Code' : '🔑 6位數引繼碼',
+          tagColor: 'bg-indigo-900/60 text-indigo-300 border-indigo-500/40',
+          title: isEn
+            ? 'Instant 6-Digit Migration Code (Cross-Device Sync)'
+            : '全新 6 位數專屬跨裝置引繼碼（無痛一鍵轉移進度）',
+          desc: isEn
+            ? 'Under Account & Cloud, tap "Device Sync" to generate a 6-digit migration code (e.g. MC-892104) with 1-click clipboard copy. Enter this code on another device or browser to restore your miner progress in 1 second!'
+            : '在帳號面板中新增「跨裝置引繼碼」專區，可一鍵生成專屬 6 位數引繼代碼（如 MC-892104）並支援剪貼簿複製。在任何新手機或新瀏覽器輸入此碼，即可 1 秒瞬間還原並同步全部進度！'
+        },
+        {
+          category: 'balance',
+          categoryLabel: isEn ? '⛏️ Strata Balance' : '⛏️ 地層數值',
+          tagColor: 'bg-amber-900/60 text-amber-300 border-amber-500/40',
+          title: isEn
+            ? '50,000 Blocks Strata Excavation Requirement & Unlock Check'
+            : '前方所有地層需挖滿 50,000 格方塊方可解鎖之平衡調整',
+          desc: isEn
+            ? 'In strict alignment with the mining progression rules, strata beyond Layer 1 now require a dedicated 50,000 mined blocks in the preceding stratum. Includes excavation percentage counters and elevator status synchronization.'
+            : '嚴格響應地層開採規則，自第 2 層起至第 10 層，各層均須於前一層開採挖滿 50,000 格方塊方可解鎖！地底礦坑與紅石電梯塔已全面即時同步開採達成數與解鎖狀態。'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '☕ Cafe Expansion' : '☕ 咖啡廳擴建',
+          tagColor: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/40',
+          title: isEn
+            ? 'Multi-Floor Super Cafe (1F-4F) & F1~S3 Star Progression'
+            : '咖啡廳擴建 1F~4F 露天酒吧全設施・F1~S3 二十一階星級收益系統',
+          desc: isEn
+            ? 'Super Cafe expanded to 4 distinct levels: 1F Main Hall, 2F Balcony Lounge, 3F VIP Terrace, and 4F Open-Air Rooftop Bar! Upgradable facilities now feature 21 distinct star ranks (F1~F3, E1~E3, D1~D3, C1~C3, B1~B3, A1~A3, S1~S3) generating dynamic passive coin royalties.'
+            : '超級咖啡廳升級為 4 大樓層（1F 大廳、2F 景觀包廂、3F VIP 露台、4F 露天酒吧）！設施全面支援 F1 至 S3 共 21 階星級升級，顧客即時在席消費並為玩家帶來豐厚被動金幣分紅。'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '🎨 Format Upgrade' : '🎨 更新日誌格式',
+          tagColor: 'bg-cyan-900/60 text-cyan-300 border-cyan-500/40',
+          title: isEn
+            ? 'Brand New Categorized & Filterable Changelog Format'
+            : '2.5.30 全新分級互動更新日誌格式（支援類別篩選與狀態標籤）',
+          desc: isEn
+            ? 'Redesigned the changelog UI with high-contrast Minecraft badges, interactive category filters (All, Features, Cloud, Strata, Fixes), and quick-scan release cards.'
+            : '啟用 2.5.30 全新更新排版格式！支援頂部類別過濾器（全部、新功能、跨裝置、數值平衡、修復優化），每條更新均有精準分類標籤與色彩對比，閱讀更直觀清晰。'
+        },
+        {
+          category: 'fix',
+          categoryLabel: isEn ? '🛡️ Auth Fix' : '🛡️ 登入異常修復',
+          tagColor: 'bg-rose-900/60 text-rose-300 border-rose-500/40',
+          title: isEn
+            ? 'Fixed "Weird Login" & Cross-Device Account Conflict Bugs'
+            : '修復「登入怪怪的」與跨裝置帳號判定異常',
+          desc: isEn
+            ? 'Fixed issues where special character normalization, token expirations, and device browser cache mismatches caused login errors. Login now automatically detects cloud saves and loads your latest progress immediately.'
+            : '徹底修復玩家名稱大小寫判定、瀏覽器無痕模式快取隔離以及登入驗證回傳異常；現在登入時若檢測到雲端已有存檔，將自動完成即時同步與載入。'
+        }
+      ]
+    },
+    {
+      version: '2.5.2',
+      isLatest: false,
+      date: isEn ? '2.5.2 Multi-Track BGM & English Default' : '2.5.2 多重背景音樂 (BGM)・完整英文預設',
+      badge: isEn ? '2.5.2 Multi-BGM Jukebox • English Default' : '2.5.2 多曲目唱片機 • 完整英文預設 • 像素美學',
+      badgeColor: 'bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white shadow-lg',
+      summary: isEn ? 'Introduced 6 procedural BGM tracks and refined Minecraft aesthetics.' : '打造 6 首純程式化合成的懷舊 Minecraft 音樂唱片與像素地圖美化。',
+      highlights: [
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '🎵 Audio' : '🎵 音樂音效',
+          tagColor: 'bg-blue-900/60 text-blue-300 border-blue-500/40',
+          title: isEn ? 'Multiple Procedural BGM Tracks & Redstone Jukebox' : '加入多個背景音樂 (BGM) 與紅石唱片機',
+          desc: isEn
+            ? 'Introduced nostalgic procedural 8-bit/16-bit musical tracks inspired by Minecraft with Jukebox controls.'
+            : '打造懷舊風格音樂唱片：寧靜白晝、溫馨爐火、深層地鳴、煉獄熾焰、虛空輓歌與天界星環，隨場景自動切換。'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '🌐 Localization' : '🌐 雙語系',
+          tagColor: 'bg-teal-900/60 text-teal-300 border-teal-500/40',
           title: isEn ? 'Full English Localization & Default English Experience' : '完整英文翻譯與預設英文語系',
           desc: isEn
-            ? 'The game now strictly defaults to English on first launch. All UI interfaces, including the Overworld Map, Super Cafe, Elevator Tower, Quarry Pit, Encyclopedia, and Tooltips, have received 100% comprehensive English localization.'
-            : '系統首度啟動嚴格預設為英文語系！全遊戲各模組（包含大地圖、超級咖啡廳、紅石電梯塔、地底礦坑、百科全書與系統提示）均完成 100% 深度無縫雙語翻譯支援。'
-        },
-        {
-          type: 'update',
-          title: isEn ? 'Authentic Minecraft Overworld Map Aesthetics' : '大地圖全面翻新：符合 Minecraft 泥土草皮與礦車軌道風格',
-          desc: isEn
-            ? 'Redesigned the overworld canvas away from plain white paper to an authentic 16-bit Minecraft pixelated grass, stone crossroads, and minecart rail road leading directly to the Quarry, complete with directional signposts.'
-            : '全面拋棄原先單調的白紙風格，重構為正宗 Minecraft 像素草皮質地、十字圓石廣場與直通地底礦坑的實木礦車軌道，並新增貼心的十字路口方向路標！'
-        },
-        {
-          type: 'fix',
-          title: isEn ? 'Map Character Avatar & Layout Bottom Padding Fix' : '地圖角色圖示與底部熱鍵欄間距優化',
-          desc: isEn
-            ? 'Corrected the player avatar on the map to display the active pickaxe rather than the coffee cup icon. Added dedicated bottom buffer padding to prevent HUD overlap with the bottom navigation hotbar.'
-            : '修正大地圖上玩家頭像圖示正確顯示為當前鎬具而非咖啡杯。為大地圖加入適度底部內縮留白，確保探索與移動不會被底部熱鍵欄遮擋。'
-        },
-        {
-          type: 'update',
-          title: isEn ? 'Global Version Tag Synchronized to 2.5.2' : '全域版本標籤同步更新至 2.5.2',
-          desc: isEn
-            ? 'Updated version badges, changelog records, and footer buttons across the entire application to v2.5.2.'
-            : '全域同步標籤至 2.5.2，包含頁尾版本按鈕、更新日誌資料表與全域系統識別。'
+            ? 'The game defaults to English on first launch with 100% comprehensive English localization.'
+            : '系統首度啟動預設為英文語系，全遊戲各模組均具備流暢雙語切換支援。'
         }
       ]
     },
@@ -58,28 +148,36 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
       badgeColor: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-lg',
       highlights: [
         {
-          type: 'fix',
+          category: 'fix',
+          categoryLabel: isEn ? '🛡️ Fix' : '🛡️ 修復',
+          tagColor: 'bg-rose-900/60 text-rose-300 border-rose-500/40',
           title: isEn ? 'Fix Layer 2 Direct Unlock Bug' : '修復第二層淺層礦脈可直接解鎖之重大 Bug',
           desc: isEn
             ? 'Resolved the bug where stratum 2 (Shallow Mineral Vein) was mistakenly accessible from the start. All strata deeper than layer 1 now strictly require 100,000 mined blocks in the preceding stratum, fully synchronized across the Quarry and the Elevator!'
             : '徹底修復原本第 2 層「淺層礦脈」無須條件即可直接開採的錯誤！現在除了初始第 1 層「地表沉積層」之外，所有後續地層均嚴格要求必須在上一層累積開採滿 100,000 格方塊方可解鎖，礦坑切換面板與電梯系統全面精準同步！'
         },
         {
-          type: 'feature',
+          category: 'feature',
+          categoryLabel: isEn ? '☕ Cafe' : '☕ 咖啡廳',
+          tagColor: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/40',
           title: isEn ? 'Customer Orders Synced to Unlocked Strata Ingredients' : '顧客點餐與已解鎖地層產物方塊深度聯動',
           desc: isEn
             ? 'Customers visiting the Super Cafe will now exclusively order dishes crafted from ingredients that are yielded by your currently unlocked strata! Dig deeper into new strata layers to progressively unlock rarer dishes from the 1,000 gourmet recipe collection!'
             : '咖啡廳顧客現在只會點選由「玩家當前已解鎖之地層」所產出的方塊食材料理！隨著玩家深入開採解鎖更多地層，顧客點餐庫將循序漸進解鎖更奢華深奧的 1,000 道傳奇料理！'
         },
         {
-          type: 'feature',
+          category: 'feature',
+          categoryLabel: isEn ? '📖 Wiki' : '📖 百科',
+          tagColor: 'bg-teal-900/60 text-teal-300 border-teal-500/40',
           title: isEn ? 'Global Minecraft Encyclopedia Quick Access' : '加入百科全書：大地圖、咖啡廳與地底礦坑全景快捷入口',
           desc: isEn
             ? 'Added direct "📖 Encyclopedia" buttons across the Overworld Map, Cafe Interior, and Quarry Mining interfaces. Instant access to full block classifications, hardness ratings, drop rates, monster codex, and cooking recipes anywhere in the world!'
             : '在大地圖控制列、咖啡廳頂部以及地底採掘礦坑全面配置「📖 百科全書」快捷按鈕！玩家隨時隨地可即時查閱所有方塊硬度、掉落倍率、地穴怪物弱點以及 1,000 道烹飪食材維基！'
         },
         {
-          type: 'update',
+          category: 'update',
+          categoryLabel: isEn ? '🏷️ Version' : '🏷️ 版本',
+          tagColor: 'bg-zinc-800 text-zinc-300 border-zinc-600/40',
           title: isEn ? 'Global Version Number Synchronized to v2.5.1' : '全域版本號同步更新至 2.5.1',
           desc: isEn
             ? 'Updated application footer versioning, changelog records, and system notifications to reflect the latest v2.5.1 release.'
@@ -555,6 +653,44 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
     }
   ];
 
+  const categoryCounts = {
+    all: logs.reduce((acc, l) => acc + l.highlights.length, 0),
+    feature: logs.reduce(
+      (acc, l) =>
+        acc +
+        l.highlights.filter(
+          (h: any) => h.category === 'feature' || h.type === 'feature' || h.type === 'upgrade'
+        ).length,
+      0
+    ),
+    sync: logs.reduce((acc, l) => acc + l.highlights.filter((h: any) => h.category === 'sync').length, 0),
+    balance: logs.reduce(
+      (acc, l) =>
+        acc +
+        l.highlights.filter(
+          (h: any) => h.category === 'balance' || h.type === 'level' || h.type === 'strata'
+        ).length,
+      0
+    ),
+    fix: logs.reduce(
+      (acc, l) =>
+        acc +
+        l.highlights.filter(
+          (h: any) => h.category === 'fix' || h.type === 'fix' || h.type === 'bugfix' || h.type === 'combat'
+        ).length,
+      0
+    )
+  };
+
+  const matchesCategory = (item: any) => {
+    if (selectedCategory === 'all') return true;
+    if (selectedCategory === 'sync') return item.category === 'sync';
+    if (selectedCategory === 'feature') return item.category === 'feature' || item.type === 'feature' || item.type === 'upgrade';
+    if (selectedCategory === 'balance') return item.category === 'balance' || item.type === 'level' || item.type === 'strata';
+    if (selectedCategory === 'fix') return item.category === 'fix' || item.type === 'fix' || item.type === 'bugfix' || item.type === 'combat';
+    return true;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-[#242424] border-4 border-[#3c3c3c] rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-white font-sans">
@@ -565,9 +701,14 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
               <Scroll className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-amber-400 font-minecraft tracking-wide">
-                📜 {t('changelog.title')}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black text-amber-400 font-minecraft tracking-wide">
+                  📜 {t('changelog.title')}
+                </h2>
+                <span className="text-[10px] font-mono px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded font-bold">
+                  v2.5.30
+                </span>
+              </div>
               <p className="text-xs text-zinc-400 mt-0.5">{t('changelog.subtitle')}</p>
             </div>
           </div>
@@ -579,6 +720,84 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
             className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Filter Category Bar (2.5.30 New Format) */}
+        <div className="bg-[#1b1b1b] px-6 py-2.5 border-b border-[#333] flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+          <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1 mr-1 shrink-0">
+            <Filter className="w-3.5 h-3.5 text-zinc-400" />
+            <span>{isEn ? 'Filter:' : '篩選：'}</span>
+          </span>
+
+          <button
+            onClick={() => setSelectedCategory('all')}
+            className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+              selectedCategory === 'all'
+                ? 'bg-zinc-100 text-zinc-900 shadow'
+                : 'bg-[#282828] text-zinc-300 hover:bg-[#333]'
+            }`}
+          >
+            <span>{isEn ? 'All' : '全部'}</span>
+            <span className="text-[10px] px-1.5 py-0.2 bg-black/20 rounded-full font-mono">
+              {categoryCounts.all}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setSelectedCategory('feature')}
+            className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+              selectedCategory === 'feature'
+                ? 'bg-emerald-500 text-white shadow'
+                : 'bg-[#282828] text-zinc-300 hover:bg-[#333]'
+            }`}
+          >
+            <span>🚀 {isEn ? 'Features' : '新功能'}</span>
+            <span className="text-[10px] px-1.5 py-0.2 bg-black/20 rounded-full font-mono">
+              {categoryCounts.feature}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setSelectedCategory('sync')}
+            className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+              selectedCategory === 'sync'
+                ? 'bg-purple-600 text-white shadow'
+                : 'bg-[#282828] text-zinc-300 hover:bg-[#333]'
+            }`}
+          >
+            <span>📱 {isEn ? 'Cross-Device' : '跨裝置同步'}</span>
+            <span className="text-[10px] px-1.5 py-0.2 bg-black/20 rounded-full font-mono">
+              {categoryCounts.sync}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setSelectedCategory('balance')}
+            className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+              selectedCategory === 'balance'
+                ? 'bg-amber-600 text-white shadow'
+                : 'bg-[#282828] text-zinc-300 hover:bg-[#333]'
+            }`}
+          >
+            <span>⛏️ {isEn ? 'Strata & Balance' : '地層平衡'}</span>
+            <span className="text-[10px] px-1.5 py-0.2 bg-black/20 rounded-full font-mono">
+              {categoryCounts.balance}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setSelectedCategory('fix')}
+            className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+              selectedCategory === 'fix'
+                ? 'bg-rose-600 text-white shadow'
+                : 'bg-[#282828] text-zinc-300 hover:bg-[#333]'
+            }`}
+          >
+            <span>🛡️ {isEn ? 'Fixes' : '修復'}</span>
+            <span className="text-[10px] px-1.5 py-0.2 bg-black/20 rounded-full font-mono">
+              {categoryCounts.fix}
+            </span>
           </button>
         </div>
 
@@ -613,40 +832,72 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
             </a>
           </div>
 
-          {logs.map((ver, idx) => (
-            <div key={idx} className="border-2 border-[#3a3a3a] bg-[#1c1c1c] rounded-xl p-4 shadow-md">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#333] pb-3 mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-black text-amber-300 font-mono">{ver.version}</span>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${ver.badgeColor}`}
-                  >
-                    {ver.badge}
-                  </span>
-                </div>
-                <span className="text-xs text-zinc-400 font-mono">{ver.date}</span>
-              </div>
+          {logs.map((ver, idx) => {
+            const filteredHighlights = ver.highlights.filter(matchesCategory);
+            if (filteredHighlights.length === 0) return null;
 
-              <div className="space-y-3">
-                {ver.highlights.map((item, itemIdx) => (
-                  <div key={itemIdx} className="flex items-start gap-2.5 bg-[#252525] p-2.5 rounded-lg border border-[#303030]">
-                    <div className="mt-0.5 text-emerald-400">
-                      <CheckCircle2 className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-zinc-100">{item.title}</h4>
-                      <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">{item.desc}</p>
-                    </div>
+            return (
+              <div
+                key={idx}
+                className={`border-2 rounded-xl p-4 shadow-md transition-all ${
+                  (ver as any).isLatest
+                    ? 'border-purple-500/60 bg-gradient-to-b from-[#241a2e] to-[#1c1c1c]'
+                    : 'border-[#3a3a3a] bg-[#1c1c1c]'
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#333] pb-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-black text-amber-300 font-mono">{ver.version}</span>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${ver.badgeColor}`}
+                    >
+                      {ver.badge}
+                    </span>
                   </div>
-                ))}
+                  <span className="text-xs text-zinc-400 font-mono">{ver.date}</span>
+                </div>
+
+                {(ver as any).summary && (
+                  <p className="text-xs text-zinc-300 mb-3 bg-[#161616] p-2.5 rounded-lg border border-[#2a2a2a] leading-relaxed">
+                    💡 {(ver as any).summary}
+                  </p>
+                )}
+
+                <div className="space-y-3">
+                  {filteredHighlights.map((item: any, itemIdx: number) => (
+                    <div
+                      key={itemIdx}
+                      className="flex items-start gap-2.5 bg-[#252525] p-3 rounded-lg border border-[#303030] hover:border-[#444] transition-all"
+                    >
+                      <div className="mt-0.5 text-emerald-400 shrink-0">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <h4 className="text-sm font-bold text-zinc-100">{item.title}</h4>
+                          {item.categoryLabel && (
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                                item.tagColor || 'bg-zinc-800 text-zinc-300 border-zinc-700'
+                              }`}
+                            >
+                              {item.categoryLabel}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-zinc-400 leading-relaxed">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Footer */}
         <div className="bg-[#181818] px-6 py-3 border-t-2 border-[#333] flex items-center justify-between text-xs text-zinc-400">
-          <span>{isEn ? 'Minecraft Quarry & Workshop v2.4.0' : 'Minecraft 挖掘場與建築工坊 v2.4.0'}</span>
+          <span>{isEn ? 'Minecraft Quarry & Workshop v2.5.30' : 'Minecraft 挖掘場與建築工坊 v2.5.30'}</span>
           <button
             onClick={() => {
               sound.playClickSound();

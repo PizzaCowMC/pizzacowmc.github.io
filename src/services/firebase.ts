@@ -165,6 +165,18 @@ export function isFirebaseConfigured(): boolean {
   return !!getSavedFirebaseConfig() && !!authInstance && !!dbInstance;
 }
 
+export interface LoginResult {
+  user: PlayerUserSession | null;
+  error?: string;
+  hasCloudSave?: boolean;
+  saveSummary?: {
+    coins: number;
+    level: number;
+    totalMined: number;
+    savedAt?: string;
+  };
+}
+
 export async function registerUserWithUsername(
   username: string,
   pass: string
@@ -178,6 +190,25 @@ export async function registerUserWithUsername(
   }
   if (!pass || pass.length < 6) {
     return { user: null, error: '密碼強度不足，請至少輸入 6 位字元！' };
+  }
+
+  // 1. Try persistent cross-device server API first
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: cleanName, password: pass })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { user: null, error: data.error || '註冊失敗' };
+    }
+    if (data.user) {
+      setActiveSession(data.user);
+      return { user: data.user };
+    }
+  } catch (apiErr) {
+    console.warn('Server auth register unavailable, checking Firebase or local fallback:', apiErr);
   }
 
   const { auth, db } = initFirebase();
@@ -254,13 +285,36 @@ export async function registerUserWithUsername(
 export async function loginUserWithUsername(
   username: string,
   pass: string
-): Promise<{ user: PlayerUserSession | null; error?: string }> {
+): Promise<LoginResult> {
   const cleanName = username.trim();
   if (!cleanName) {
     return { user: null, error: '請輸入玩家名稱！' };
   }
   if (!pass) {
     return { user: null, error: '請輸入密碼！' };
+  }
+
+  // 1. Try persistent cross-device server API first
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: cleanName, password: pass })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { user: null, error: data.error || '登入失敗，請檢查帳號密碼' };
+    }
+    if (data.user) {
+      setActiveSession(data.user);
+      return {
+        user: data.user,
+        hasCloudSave: !!data.hasCloudSave,
+        saveSummary: data.saveSummary
+      };
+    }
+  } catch (apiErr) {
+    console.warn('Server auth login unavailable, falling back to Firebase or local:', apiErr);
   }
 
   const { auth } = initFirebase();
@@ -434,7 +488,7 @@ export function subscribeToAuth(callback: (user: PlayerUserSession | null) => vo
   };
 }
 
-export async function saveUserData(uid: string, gameData: any): Promise<{ success: boolean; error?: string }> {
+export async function saveUserData(uid: string, gameData: any): Promise<{ success: boolean; savedAt?: string; error?: string }> {
   // Always persist local cloud backup
   try {
     localStorage.setItem(`${CLOUD_BACKUP_PREFIX}${uid}`, JSON.stringify(gameData));
@@ -442,10 +496,25 @@ export async function saveUserData(uid: string, gameData: any): Promise<{ succes
     console.warn('Local cloud backup save warning:', e);
   }
 
+  // 1. Try server-side persistent cloud save (works across all devices!)
+  try {
+    const res = await fetch('/api/cloud/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, gameData })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, savedAt: data.savedAt };
+    }
+  } catch (apiErr) {
+    console.warn('Server cloud save failed, falling back to Firestore/local:', apiErr);
+  }
+
   const { db } = initFirebase();
   if (!db) {
     // Successfully saved locally
-    return { success: true };
+    return { success: true, savedAt: new Date().toISOString() };
   }
 
   try {
@@ -455,15 +524,31 @@ export async function saveUserData(uid: string, gameData: any): Promise<{ succes
       updatedAt: serverTimestamp(),
       lastSavedLocalTime: new Date().toISOString()
     }, { merge: true });
-    return { success: true };
+    return { success: true, savedAt: new Date().toISOString() };
   } catch (err: any) {
     console.error('Failed to save to Firestore:', err);
-    // If local save succeeded, report success with warning or retry
-    return { success: true };
+    return { success: true, savedAt: new Date().toISOString() };
   }
 }
 
-export async function loadUserData(uid: string): Promise<{ data: any | null; error?: string }> {
+export async function loadUserData(uid: string): Promise<{ data: any | null; savedAt?: string; error?: string }> {
+  // 1. Try server-side persistent cloud load first (works across all devices!)
+  try {
+    const res = await fetch(`/api/cloud/load/${encodeURIComponent(uid)}`);
+    if (res.ok) {
+      const result = await res.json();
+      if (result.data) {
+        // Also update local cache
+        try {
+          localStorage.setItem(`${CLOUD_BACKUP_PREFIX}${uid}`, JSON.stringify(result.data));
+        } catch (_) {}
+        return { data: result.data, savedAt: result.savedAt };
+      }
+    }
+  } catch (apiErr) {
+    console.warn('Server cloud load failed, falling back to Firestore/local:', apiErr);
+  }
+
   const { db } = initFirebase();
   if (db) {
     try {
@@ -488,4 +573,46 @@ export async function loadUserData(uid: string): Promise<{ data: any | null; err
   }
 
   return { data: null };
+}
+
+export async function generateSyncCode(
+  uid: string,
+  gameData?: any
+): Promise<{ success: boolean; code?: string; expiresAt?: string; error?: string }> {
+  try {
+    const res = await fetch('/api/cloud/generate-sync-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, gameData })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.error || '產生同步碼失敗' };
+    }
+    return { success: true, code: data.code, expiresAt: data.expiresAt };
+  } catch (err: any) {
+    return { success: false, error: '伺服器連線失敗：' + (err.message || '網路異常') };
+  }
+}
+
+export async function redeemSyncCode(
+  code: string
+): Promise<{ success: boolean; user?: PlayerUserSession; data?: any; error?: string }> {
+  try {
+    const res = await fetch('/api/cloud/redeem-sync-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code.trim().toUpperCase() })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.error || '兌換同步碼失敗' };
+    }
+    if (data.user) {
+      setActiveSession(data.user);
+    }
+    return { success: true, user: data.user, data: data.data };
+  } catch (err: any) {
+    return { success: false, error: '伺服器連線失敗：' + (err.message || '網路異常') };
+  }
 }

@@ -269,6 +269,96 @@ export interface CustomerOrder {
   dialogueEn: string;
 }
 
+export type StarRank =
+  | 'F1' | 'F2' | 'F3'
+  | 'E1' | 'E2' | 'E3'
+  | 'D1' | 'D2' | 'D3'
+  | 'C1' | 'C2' | 'C3'
+  | 'B1' | 'B2' | 'B3'
+  | 'A1' | 'A2' | 'A3'
+  | 'S1' | 'S2' | 'S3';
+
+export type CafeFloorId = '1F' | '2F' | '3F' | 'rooftop';
+export type CafeVenueId = 'main' | 'branch_2';
+
+export type CafeRoleId =
+  | 'manager'       // 店長
+  | 'barista'       // 首席咖啡師
+  | 'chef'          // 紅石主廚
+  | 'waiter'        // 外場領班
+  | 'mixologist'    // 蒸氣調酒師
+  | 'sommelier'     // 神域品鑑官
+  | 'procurement';   // 地底採購專員
+
+export type StaffRank = 'Junior' | 'Senior' | 'Master' | 'Grandmaster' | 'Mythic';
+
+export interface StaffMember {
+  id: string;
+  nameZh: string;
+  nameEn: string;
+  avatar: string;
+  roleId: CafeRoleId;
+  level: number;
+  rank: StaffRank;
+  assignedVenue: CafeVenueId;
+  assignedStation: string;
+  isCrossDispatched: boolean; // 是否正在跨請/跨樓調度支援
+  crossDispatchTarget?: string; // 跨請目的地 (例如: '2F 閣樓' 或 '二號分館・星空祕境')
+  hireCost: number;
+  isHired: boolean;
+  isGuestLegend?: boolean; // 異次元/跨界特聘傳奇顧問
+  legendTitleZh?: string;
+  legendTitleEn?: string;
+  efficiencyBonus: number; // % bonus
+}
+
+export interface CafePromotionQuest {
+  id: string;
+  rankLevel: number;
+  titleZh: string;
+  titleEn: string;
+  descZh: string;
+  descEn: string;
+  targetType:
+    | 'dishes_served'
+    | 'mined_blocks'
+    | 'staff_count'
+    | 'master_staff'
+    | 'coins_earned'
+    | 'facility_stars'
+    | 'cross_dispatch'
+    | 'branch2_served';
+  targetValue: number;
+  rewardCoins: number;
+  rewardReputation: number;
+}
+
+export interface CafePromotionTier {
+  rank: number;
+  nameZh: string;
+  nameEn: string;
+  badge: string;
+  icon: string;
+  titleHonorZh: string;
+  titleHonorEn: string;
+  tipMultiplierBonus: number;
+  passiveDividendBonus: number;
+  requiredQuests: CafePromotionQuest[];
+}
+
+export interface CafeFacility {
+  id: string;
+  floorId: CafeFloorId;
+  nameZh: string;
+  nameEn: string;
+  icon: string;
+  descZh: string;
+  descEn: string;
+  category: 'espresso' | 'dining' | 'pastry' | 'brew' | 'bakery' | 'lounge' | 'tea' | 'vip' | 'bar' | 'stage';
+  decorEmoji: string;
+  gridArea: string; // CSS position
+}
+
 export interface CafeState {
   cafeLevel: number;
   cafeXp: number;
@@ -280,6 +370,16 @@ export interface CafeState {
   hasAutoWaiter: boolean;
   hasGoldenStove: boolean;
   hasAromaDiffuser: boolean;
+  facilityStars?: Record<string, StarRank>;
+  currentFloorView?: CafeFloorId;
+  // v2.5.40 Promotions, Roles, Map & Cross-Hire
+  promotionRank?: number; // 1 to 7
+  completedPromotionQuests?: Record<string, boolean>;
+  staffMembers?: StaffMember[];
+  crossDispatchHistoryCount?: number;
+  currentVenue?: CafeVenueId;
+  branch2Unlocked?: boolean;
+  branch2Reputation?: number;
 }
 
 export type OverworldZone = 'overworld' | 'cafe' | 'quarry' | 'elevator' | 'building';

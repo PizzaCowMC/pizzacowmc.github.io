@@ -22,9 +22,12 @@ import { EncyclopediaModal } from './components/EncyclopediaModal';
 import { OverworldMap } from './components/OverworldMap';
 import { CafeInterior } from './components/CafeInterior';
 import { ElevatorView } from './components/ElevatorView';
+import { MusicPlayerModal } from './components/MusicPlayerModal';
 import { CafeState, OverworldZone } from './types';
+import { INITIAL_STAFF_MEMBERS } from './data/cafeStaffAndPromotionData';
 import { getLevelQuest, getLevelTitle, checkQuestProgress, calculateBlockXp, PlayerStatsForQuest, MAX_PLAYER_LEVEL } from './utils/levelSystem';
 import { sound } from './utils/soundEffects';
+import { bgmSystem, BgmTrack } from './utils/bgmSystem';
 import {
   ShoppingBag,
   Coins,
@@ -538,11 +541,49 @@ export default function App() {
     }, 950);
   }, []);
 
-  // Cafe Game State (Level, Reputation, 1,000 Dishes Inventory & History, Upgrades)
+  // Music & BGM Player State
+  const [isMusicPlayerOpen, setIsMusicPlayerOpen] = useState<boolean>(false);
+  const [activeBgmTrack, setActiveBgmTrack] = useState<BgmTrack>(bgmSystem.getCurrentTrack());
+  const [isBgmPlaying, setIsBgmPlaying] = useState<boolean>(bgmSystem.isPlaying());
+  const [bgmToast, setBgmToast] = useState<string | null>(null);
+  const bgmToastTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const unsub = bgmSystem.subscribe((track, playing) => {
+      setActiveBgmTrack(track);
+      setIsBgmPlaying(playing);
+      if (playing) {
+        if (bgmToastTimerRef.current) clearTimeout(bgmToastTimerRef.current);
+        const title = isEn ? `${track.discName} • ${track.nameEn}` : `${track.discName} • ${track.nameZh}`;
+        setBgmToast(`${isEn ? 'Now Playing:' : '正在播放：'} ${title}`);
+        bgmToastTimerRef.current = window.setTimeout(() => {
+          setBgmToast(null);
+        }, 3500);
+      }
+    });
+    return unsub;
+  }, [isEn]);
+
+  // Sync BGM with current overworld zone if area adaptive mode is enabled
+  useEffect(() => {
+    bgmSystem.onZoneChange(currentZone);
+  }, [currentZone]);
+
+  // Cafe Game State (Level, Reputation, 1,000 Dishes Inventory & History, Staff, Promotion, Venues)
   const [cafeState, setCafeState] = useState<CafeState>(() => {
     try {
       const saved = localStorage.getItem(`${STORAGE_KEY}_cafe_state`);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          promotionRank: parsed.promotionRank || 1,
+          staffMembers: parsed.staffMembers && parsed.staffMembers.length > 0 ? parsed.staffMembers : INITIAL_STAFF_MEMBERS,
+          currentVenue: parsed.currentVenue || 'main',
+          branch2Unlocked: parsed.branch2Unlocked ?? false,
+          branch2Reputation: parsed.branch2Reputation ?? 10
+        };
+      }
     } catch {}
     return {
       cafeLevel: 1,
@@ -554,7 +595,13 @@ export default function App() {
       dishesCookedHistory: { dish_1: 2, dish_2: 1 },
       hasAutoWaiter: false,
       hasGoldenStove: false,
-      hasAromaDiffuser: false
+      hasAromaDiffuser: false,
+      promotionRank: 1,
+      staffMembers: INITIAL_STAFF_MEMBERS,
+      currentVenue: 'main',
+      branch2Unlocked: false,
+      branch2Reputation: 10,
+      crossDispatchHistoryCount: 0
     };
   });
 
@@ -2328,6 +2375,29 @@ export default function App() {
               <span className="text-sm">📖</span>
               <span className="hidden sm:inline">{isEn ? 'Wiki' : '百科全書'}</span>
             </button>
+
+            {/* 💽 BGM Jukebox Player Button */}
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                setIsMusicPlayerOpen(true);
+              }}
+              title={isEn ? 'Minecraft Jukebox (Multiple BGM Tracks)' : '紅石唱片機 (多首背景音樂)'}
+              className="px-2.5 py-1 bg-gradient-to-r from-[#2c2419] to-[#1c1813] hover:from-[#3a3022] hover:to-[#28221b] text-amber-300 font-bold border-2 border-amber-600/70 rounded-lg active:scale-95 text-xs flex items-center gap-1.5 cursor-pointer font-minecraft shadow-sm group"
+            >
+              <span className={`text-sm ${isBgmPlaying ? 'animate-[spin_4s_linear_infinite]' : ''}`}>
+                💽
+              </span>
+              <span className="hidden sm:inline max-w-[110px] truncate text-[11px]">
+                {isEn ? activeBgmTrack.nameEn : activeBgmTrack.nameZh}
+              </span>
+              <span className="sm:hidden text-[11px]">
+                BGM
+              </span>
+              {isBgmPlaying && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              )}
+            </button>
           </div>
         </div>
       </header>
@@ -2352,6 +2422,14 @@ export default function App() {
       {supplyToastMsg && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-5 py-3 bg-zinc-950/95 border-3 border-amber-400 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.8),inset_1px_1px_0_#fde047] flex items-center gap-3 text-amber-300 font-bold text-xs sm:text-sm animate-bounce max-w-md text-center">
           <span>{supplyToastMsg}</span>
+        </div>
+      )}
+
+      {/* Minecraft Style Jukebox "Now Playing" Actionbar Toast */}
+      {bgmToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-black/90 text-amber-300 border-2 border-amber-500/90 rounded-xl shadow-[0_4px_25px_rgba(245,158,11,0.4)] flex items-center gap-2.5 text-xs font-black font-minecraft animate-in fade-in slide-in-from-bottom-2 pointer-events-none">
+          <span className="text-base animate-[spin_3s_linear_infinite]">💽</span>
+          <span>{bgmToast}</span>
         </div>
       )}
 
@@ -2456,6 +2534,7 @@ export default function App() {
                 sound.playClickSound();
                 setIsEncyclopediaOpen(true);
               }}
+              onOpenMusicPlayer={() => setIsMusicPlayerOpen(true)}
             />
           </div>
         )}
@@ -2481,10 +2560,12 @@ export default function App() {
               setCurrentZone('overworld');
             }}
             layerMinedCounts={layerMinedCounts}
+            totalBlocksMined={stats.totalBlocksMined}
             onOpenEncyclopedia={() => {
               sound.playClickSound();
               setIsEncyclopediaOpen(true);
             }}
+            onOpenMusicPlayer={() => setIsMusicPlayerOpen(true)}
           />
         )}
 
@@ -2714,6 +2795,7 @@ export default function App() {
           setShopInitialTab('pickaxes');
           setIsShopOpen(true);
         }}
+        onOpenMusicPlayer={() => setIsMusicPlayerOpen(true)}
       />
 
       {/* POPUP: Achievement Unlocked Toast Notification */}
@@ -2787,7 +2869,15 @@ export default function App() {
         }}
         volume={volume}
         onChangeVolume={handleSetVolume}
+        onOpenMusicPlayer={() => setIsMusicPlayerOpen(true)}
         onResetProgress={handleResetProgress}
+      />
+
+      {/* MINECRAFT JUKEBOX & BGM PLAYER MODAL */}
+      <MusicPlayerModal
+        isOpen={isMusicPlayerOpen}
+        onClose={() => setIsMusicPlayerOpen(false)}
+        isEn={isEn}
       />
 
       {/* CHANGELOG MODAL */}

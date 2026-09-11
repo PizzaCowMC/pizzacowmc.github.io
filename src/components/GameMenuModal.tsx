@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Pickaxe,
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { sound } from '../utils/soundEffects';
 import { useLanguage } from '../utils/i18n';
+import { bgmSystem, BgmTrack } from '../utils/bgmSystem';
 
 interface GameMenuModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ interface GameMenuModalProps {
   onOpenFestivals?: () => void;
   onOpenLevel?: () => void;
   onOpenEncyclopedia?: () => void;
+  onOpenMusicPlayer?: () => void;
   playerLevel?: number;
   onResetProgress?: () => void;
   currentUser: { email: string | null; displayName: string | null } | null;
@@ -67,10 +69,23 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
   soundEnabled,
   onToggleSound,
   volume,
-  onChangeVolume
+  onChangeVolume,
+  onOpenMusicPlayer
 }) => {
   const { language, toggleLanguage, t } = useLanguage();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [bgmTrack, setBgmTrack] = useState<BgmTrack>(bgmSystem.getCurrentTrack());
+  const [isBgmPlaying, setIsBgmPlaying] = useState<boolean>(bgmSystem.isPlaying());
+  const [bgmVol, setBgmVol] = useState<number>(Math.round(bgmSystem.getVolume() * 100));
+
+  useEffect(() => {
+    const unsub = bgmSystem.subscribe((track, playing) => {
+      setBgmTrack(track);
+      setIsBgmPlaying(playing);
+      setBgmVol(Math.round(bgmSystem.getVolume() * 100));
+    });
+    return unsub;
+  }, []);
 
   if (!isOpen) return null;
 
@@ -335,6 +350,73 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
             </div>
           </div>
 
+          {/* BGM Music Volume & Jukebox Section */}
+          <div className="bg-[#1a1816] p-3.5 rounded-xl border-2 border-amber-900/60 space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-bold text-amber-200">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    sound.playClickSound();
+                    bgmSystem.togglePlay();
+                  }}
+                  className={`p-1.5 border rounded cursor-pointer transition-colors ${
+                    isBgmPlaying
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
+                      : 'bg-[#282828] text-zinc-400 border-[#444]'
+                  }`}
+                  title={isBgmPlaying ? (isEn ? 'Pause BGM' : '暫停背景音樂') : (isEn ? 'Play BGM' : '播放背景音樂')}
+                >
+                  <span className={`inline-block ${isBgmPlaying ? 'animate-[spin_4s_linear_infinite]' : ''}`}>
+                    💽
+                  </span>
+                </button>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span>{isEn ? 'BGM Music Volume' : '背景音樂音量'}</span>
+                    <span className="text-[10px] text-amber-400 font-minecraft">
+                      ({isEn ? bgmTrack.nameEn : bgmTrack.nameZh})
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs font-bold text-amber-400 bg-black/60 px-2 py-0.5 rounded border border-amber-800/60">
+                  {bgmVol}%
+                </span>
+                {onOpenMusicPlayer && (
+                  <button
+                    onClick={() => {
+                      sound.playClickSound();
+                      onOpenMusicPlayer();
+                    }}
+                    className="px-2 py-0.5 bg-amber-700 hover:bg-amber-600 text-white rounded text-[11px] font-minecraft font-bold border border-black cursor-pointer active:scale-95 shadow"
+                  >
+                    {isEn ? 'Discs 🎵' : '唱片機 🎵'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* BGM Slider track */}
+            <div className="flex items-center gap-3 px-1">
+              <VolumeX className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={bgmVol}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setBgmVol(val);
+                  bgmSystem.setVolume(val / 100);
+                }}
+                className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-400 hover:accent-amber-300 transition-all"
+              />
+              <Volume2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            </div>
+          </div>
+
           {/* Language Switcher Setting */}
           <div className="pt-2 border-t border-[#333]">
             <button
@@ -385,7 +467,7 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
                   <ul className="list-disc list-inside space-y-0.5 text-zinc-300 pl-1">
                     <li>{isEn ? 'All coins and inventory blocks' : '所有金幣與庫存方塊'}</li>
                     <li>{isEn ? 'All pickaxe tiers, durability and enchantments' : '所有鎬具階級、耐久與附魔強化'}</li>
-                    <li>{isEn ? '8 stratum layers progress and excavation stats' : '8 大礦脈層 100,000 格拓荒與挖掘紀錄'}</li>
+                    <li>{isEn ? '10 stratum layers progress and excavation stats' : '10 大礦脈層拓荒與挖掘紀錄'}</li>
                     <li>{isEn ? '1,000 achievements & progression rewards' : '1,000 個成就與歷史挖掘統計'}</li>
                     <li>{isEn ? '100-block creative building canvas' : '100 格建築作品'}</li>
                   </ul>

@@ -13,6 +13,7 @@ interface OverworldMapProps {
   avatarIcon?: string;
   initialPos?: { x: number; y: number };
   onOpenEncyclopedia?: () => void;
+  onOpenMusicPlayer?: () => void;
 }
 
 export const OverworldMap: React.FC<OverworldMapProps> = ({
@@ -24,7 +25,8 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
   playerName = 'Miner Barista',
   avatarIcon = '⛏️',
   initialPos,
-  onOpenEncyclopedia
+  onOpenEncyclopedia,
+  onOpenMusicPlayer
 }) => {
   // Player coordinate on map (in percentage: 0 to 100)
   // Default spawn at the central crossroads
@@ -178,6 +180,21 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
             </button>
           )}
 
+          {onOpenMusicPlayer && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                sound.playClickSound();
+                onOpenMusicPlayer();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-950 to-[#2c2214] hover:from-amber-900 border border-amber-500/80 rounded-lg text-amber-200 font-bold font-minecraft active:scale-95 cursor-pointer shadow transition-all hover:brightness-110"
+              title={isEn ? 'Open Jukebox & BGM Tracks' : '開啟紅石唱片機'}
+            >
+              <span>💽</span>
+              <span>{isEn ? 'Jukebox' : '唱片機'}</span>
+            </button>
+          )}
+
           <div className="px-2.5 py-1 bg-zinc-900 rounded-lg border border-zinc-700 text-zinc-300 flex items-center gap-1">
             <span>🪙</span>
             <strong className="text-amber-300">{coins.toLocaleString()}</strong>
@@ -273,6 +290,26 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
             <div>{isEn ? '➡ Elevator' : '➡ 直達電梯'}</div>
           </div>
           <div className="w-1.5 h-4 bg-amber-950 mx-auto" />
+        </div>
+
+        {/* Interactive Minecraft Jukebox Block on Crossroads Plaza */}
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            sound.playClickSound();
+            if (onOpenMusicPlayer) onOpenMusicPlayer();
+          }}
+          className="absolute left-[52%] top-[40%] z-10 cursor-pointer group flex flex-col items-center hover:scale-110 transition-transform"
+          title={isEn ? 'Redstone Jukebox (Click to open BGM Player)' : '紅石唱片機 (點擊開啟音樂播放器)'}
+        >
+          <div className="w-8 h-8 rounded bg-[#452817] border-2 border-[#824d2c] shadow-lg flex items-center justify-center relative group-hover:border-amber-400">
+            <span className="text-sm">💽</span>
+            {/* Animated musical note floats */}
+            <span className="absolute -top-3 -right-2 text-[10px] animate-bounce">🎵</span>
+          </div>
+          <span className="text-[8px] bg-black/85 px-1 py-0.2 rounded font-minecraft text-amber-300 whitespace-nowrap mt-0.5 border border-amber-700/80 shadow">
+            {isEn ? 'Jukebox' : '唱片機'}
+          </span>
         </div>
 
         {/* ================= 1. CAFE BUILDING (Top-Left) ================= */}

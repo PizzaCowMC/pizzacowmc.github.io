@@ -329,7 +329,7 @@ export const ENCYCLOPEDIA_ENTRIES: EncyclopediaEntry[] = [
     descriptionEn: 'Explore 10 expansive geological and cosmic layers: Layer 1 Topsoil down to Nether Core, The End Void, Ancient Deep Dark, Aether Celestial, Chrono Rift & Singularity, and the supreme Layer 10 Genesis Omniverse Core.',
     stats: [
       { labelZh: '地層總數', labelEn: 'Total Layers', value: '10 大地質層' },
-      { labelZh: '解鎖格數要求', labelEn: 'Blocks To Unlock', value: '前置層累計開採 100,000 方塊' },
+      { labelZh: '解鎖格數要求', labelEn: 'Blocks To Unlock', value: '循序漸進解鎖 (100 ~ 5,000 方塊)' },
       { labelZh: '終極神物', labelEn: 'Ultimate Relic', value: '無限永恆碎片 (Infinity Shard)' }
     ],
     tipsZh: [
