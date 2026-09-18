@@ -12,6 +12,7 @@ import { FriendsModal } from './components/FriendsModal';
 import { AchievementsModal } from './components/AchievementsModal';
 import { GameMenuModal } from './components/GameMenuModal';
 import { ChangelogModal } from './components/ChangelogModal';
+import { VersionUpdateModal } from './components/VersionUpdateModal';
 import { AuthModal } from './components/AuthModal';
 import { ChangeNameModal } from './components/ChangeNameModal';
 import { AvatarSelectModal } from './components/AvatarSelectModal';
@@ -23,11 +24,12 @@ import { OverworldMap } from './components/OverworldMap';
 import { CafeInterior } from './components/CafeInterior';
 import { ElevatorView } from './components/ElevatorView';
 import { MusicPlayerModal } from './components/MusicPlayerModal';
-import { CafeState, OverworldZone } from './types';
+import { CafeState, OverworldZone, CharacterOutfit } from './types';
 import { INITIAL_STAFF_MEMBERS } from './data/cafeStaffAndPromotionData';
 import { getLevelQuest, getLevelTitle, checkQuestProgress, calculateBlockXp, PlayerStatsForQuest, MAX_PLAYER_LEVEL } from './utils/levelSystem';
 import { sound } from './utils/soundEffects';
 import { bgmSystem, BgmTrack } from './utils/bgmSystem';
+import { APP_VERSION, checkAppVersionUpdate, isAutoUpdateEnabled, createSaveSafetyBackup } from './utils/version';
 import {
   ShoppingBag,
   Coins,
@@ -272,6 +274,37 @@ export default function App() {
     }
   });
 
+  // v2.5.41 Outfits & Wardrobe state
+  const [currentOutfitId, setCurrentOutfitId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_outfit`);
+      return saved ? JSON.parse(saved) : 'classic_miner';
+    } catch {
+      return 'classic_miner';
+    }
+  });
+
+  const [ownedOutfits, setOwnedOutfits] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_owned_outfits`);
+      return saved ? JSON.parse(saved) : ['classic_miner'];
+    } catch {
+      return ['classic_miner'];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_outfit`, JSON.stringify(currentOutfitId));
+    } catch {}
+  }, [currentOutfitId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_owned_outfits`, JSON.stringify(ownedOutfits));
+    } catch {}
+  }, [ownedOutfits]);
+
   // 100-slot building canvas
   const [buildGrid, setBuildGrid] = useState<(string | null)[]>(() => {
     try {
@@ -471,6 +504,8 @@ export default function App() {
   const [isEncyclopediaOpen, setIsEncyclopediaOpen] = useState<boolean>(false);
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState<boolean>(false);
+  const [isVersionUpdateOpen, setIsVersionUpdateOpen] = useState<boolean>(false);
+  const [updateStatusTag, setUpdateStatusTag] = useState<'checking' | 'latest' | 'available'>('latest');
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState<boolean>(false);
   const [isChangeNameOpen, setIsChangeNameOpen] = useState<boolean>(false);
@@ -682,6 +717,34 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // 2.5.32 Bottom Tag Auto-Update & Save Safeguard Engine
+  useEffect(() => {
+    // 1. Create safety snapshot of player save on app start
+    createSaveSafetyBackup();
+
+    // 2. If auto-update checking is enabled, perform background check
+    if (isAutoUpdateEnabled()) {
+      setUpdateStatusTag('checking');
+      checkAppVersionUpdate()
+        .then((info) => {
+          if (info.hasUpdate) {
+            setUpdateStatusTag('available');
+            setCloudToast(
+              isEn
+                ? `🚀 New version ${info.latestVersion} available! Click bottom tag to view & update safely.`
+                : `🚀 偵測到新版本 ${info.latestVersion}！點擊底部版本標籤查看更新與安全備份。`
+            );
+            setTimeout(() => setCloudToast(null), 5500);
+          } else {
+            setUpdateStatusTag('latest');
+          }
+        })
+        .catch(() => {
+          setUpdateStatusTag('latest');
+        });
+    }
+  }, [isEn]);
 
   // Cloud Save Handler
   const handleCloudSave = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
@@ -1678,6 +1741,28 @@ export default function App() {
     setCurrentSkinId(skin.id);
   }, [coins]);
 
+  const handleBuyOutfit = useCallback((outfit: CharacterOutfit) => {
+    if (coins < outfit.cost) return;
+    setCoins(prev => prev - outfit.cost);
+    setOwnedOutfits(prev => (prev.includes(outfit.id) ? prev : [...prev, outfit.id]));
+    setCurrentOutfitId(outfit.id);
+  }, [coins]);
+
+  const handleAssignStaffOutfit = useCallback((staffId: string, outfitId: string) => {
+    setCafeState(prev => {
+      const existingStaff = prev.staffMembers || INITIAL_STAFF_MEMBERS;
+      const updatedStaff = existingStaff.map(s => s.id === staffId ? { ...s, outfitId } : s);
+      return {
+        ...prev,
+        staffMembers: updatedStaff,
+        staffOutfits: {
+          ...(prev.staffOutfits || {}),
+          [staffId]: outfitId
+        }
+      };
+    });
+  }, []);
+
   // --- Handlers: Consumable Supplies & Artifacts ---
   const handleBuySupply = useCallback((supply: ShopSupplyItem) => {
     if (coins < supply.cost) return;
@@ -2529,6 +2614,7 @@ export default function App() {
               readyDishesCount={Object.values(cafeState.dishInventory).reduce((a: number, b: number) => a + b, 0)}
               playerName={isEn ? currentSkin.nameEn : currentSkin.nameZh}
               avatarIcon={currentSkin.avatarEmoji || '⛏️'}
+              outfitId={currentOutfitId}
               initialPos={overworldSpawnPos}
               onOpenEncyclopedia={() => {
                 sound.playClickSound();
@@ -2547,6 +2633,7 @@ export default function App() {
             inventory={inventory}
             onConsumeIngredients={handleConsumeIngredients}
             coins={coins}
+            ownedOutfits={ownedOutfits}
             onAddCoins={(c) => {
               setCoins(prev => prev + c);
               setStats(prev => ({ ...prev, totalCoinsEarned: prev.totalCoinsEarned + c }));
@@ -2746,19 +2833,59 @@ export default function App() {
 
       {/* Footer with PizzaCowMC link and status */}
       <footer className="max-w-6xl mx-auto px-4 mt-12 mb-16 pt-6 border-t-2 border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-400">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-base">🎮</span>
           <span className="font-bold text-zinc-300">{t('app.title')}</span>
           <span className="text-zinc-600">|</span>
-          <button
-            onClick={() => {
-              sound.playClickSound();
-              setIsChangelogOpen(true);
-            }}
-            className="text-amber-400 hover:underline flex items-center gap-1 font-mono cursor-pointer"
-          >
-            <span>{isEn ? 'v2.5.2 (Changelog)' : 'v2.5.2 (更新日誌)'}</span>
-          </button>
+
+          {/* Bottom tag 2.5.32 with Auto-Update System & Stability Safeguard */}
+          <div className="flex items-center gap-1.5 bg-zinc-900/90 border border-zinc-700/80 rounded-lg px-2.5 py-1 shadow-sm">
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                setIsVersionUpdateOpen(true);
+              }}
+              className="text-amber-400 hover:text-amber-300 flex items-center gap-1.5 font-mono font-bold cursor-pointer transition-colors"
+              title={isEn ? 'Click to open Auto-Update & Stability Safeguard' : `點擊開啟 v${APP_VERSION} 自動更新與存檔穩定性管理`}
+            >
+              <span>v{APP_VERSION}</span>
+              {/* Dynamic Auto-Update Status Indicator */}
+              <span className={`flex items-center gap-1 text-[10px] font-sans font-semibold px-1.5 py-0.5 rounded-full border ${
+                updateStatusTag === 'available'
+                  ? 'bg-amber-950/80 border-amber-500/50 text-amber-300'
+                  : updateStatusTag === 'checking'
+                  ? 'bg-blue-950/80 border-blue-500/50 text-blue-300'
+                  : 'bg-emerald-950/80 border-emerald-500/50 text-emerald-400'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  updateStatusTag === 'available'
+                    ? 'bg-amber-400 animate-bounce'
+                    : updateStatusTag === 'checking'
+                    ? 'bg-blue-400 animate-pulse'
+                    : 'bg-emerald-400 animate-pulse'
+                }`} />
+                {updateStatusTag === 'available'
+                  ? (isEn ? 'Update Available' : '發現更新')
+                  : updateStatusTag === 'checking'
+                  ? (isEn ? 'Checking...' : '檢查中...')
+                  : (isEn ? 'Auto-Update Active' : '自動更新中')}
+              </span>
+            </button>
+
+            <span className="text-zinc-600">·</span>
+
+            {/* Quick Changelog button */}
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                setIsChangelogOpen(true);
+              }}
+              className="text-zinc-400 hover:text-white underline cursor-pointer text-[11px]"
+              title={isEn ? 'View Version Changelog' : '查看版本更新日誌'}
+            >
+              {isEn ? 'Changelog' : '更新日誌'}
+            </button>
+          </div>
         </div>
 
         {/* Prominent PizzaCowMC GitHub Credit */}
@@ -2886,6 +3013,17 @@ export default function App() {
         onClose={() => setIsChangelogOpen(false)}
       />
 
+      {/* 2.5.32 VERSION & AUTO-UPDATE SAFEGUARD MODAL */}
+      <VersionUpdateModal
+        isOpen={isVersionUpdateOpen}
+        onClose={() => setIsVersionUpdateOpen(false)}
+        onOpenChangelog={() => setIsChangelogOpen(true)}
+        onNotify={(msg) => {
+          setCloudToast(msg);
+          setTimeout(() => setCloudToast(null), 4500);
+        }}
+      />
+
       {/* CHANGE NAME MODAL */}
       <ChangeNameModal
         isOpen={isChangeNameOpen}
@@ -2903,7 +3041,7 @@ export default function App() {
         isLoggedIn={!!currentUser}
       />
 
-      {/* AVATAR SELECT MODAL */}
+      {/* AVATAR & WARDROBE STUDIO MODAL */}
       <AvatarSelectModal
         isOpen={isAvatarSelectOpen}
         onClose={() => setIsAvatarSelectOpen(false)}
@@ -2919,6 +3057,27 @@ export default function App() {
         onBuySkin={(skin) => {
           handleBuySkin(skin);
           setCloudToast(isEn ? '🎉 New avatar unlocked & equipped!' : '🎉 新頭像造型已解鎖並裝備！');
+          setTimeout(() => setCloudToast(null), 2500);
+          handleCloudSave();
+        }}
+        currentOutfitId={currentOutfitId}
+        ownedOutfits={ownedOutfits}
+        onEquipOutfit={(outfitId) => {
+          setCurrentOutfitId(outfitId);
+          setCloudToast(isEn ? '👕 Outfit equipped! Model updated!' : '👕 時裝已穿戴！人型模型已更新！');
+          setTimeout(() => setCloudToast(null), 2500);
+          handleCloudSave();
+        }}
+        onBuyOutfit={(outfit) => {
+          handleBuyOutfit(outfit);
+          setCloudToast(isEn ? `✨ Unlocked: ${outfit.nameEn}!` : `✨ 成功解鎖並穿戴：${outfit.nameZh}！`);
+          setTimeout(() => setCloudToast(null), 2500);
+          handleCloudSave();
+        }}
+        staffMembers={cafeState.staffMembers || INITIAL_STAFF_MEMBERS}
+        onAssignStaffOutfit={(staffId, outfitId) => {
+          handleAssignStaffOutfit(staffId, outfitId);
+          setCloudToast(isEn ? '👔 Staff uniform updated!' : '👔 員工制服已成功調度！');
           setTimeout(() => setCloudToast(null), 2500);
           handleCloudSave();
         }}

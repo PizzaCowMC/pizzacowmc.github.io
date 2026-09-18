@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { StaffMember, CafeRoleId, CafeVenueId, StaffRank } from '../types';
 import { CAFE_ROLES, CafeRoleDefinition } from '../data/cafeStaffAndPromotionData';
+import { CharacterModelRenderer } from './CharacterModelRenderer';
+import { CHARACTER_OUTFITS, getOutfitById } from '../data/outfitsData';
 import { sound } from '../utils/soundEffects';
 import {
   Users,
@@ -16,7 +18,8 @@ import {
   CheckCircle2,
   Building2,
   Crown,
-  Briefcase
+  Briefcase,
+  Shirt
 } from 'lucide-react';
 
 interface CafeStaffModalProps {
@@ -29,6 +32,7 @@ interface CafeStaffModalProps {
   onRecordCrossDispatch?: () => void;
   isEn: boolean;
   branch2Unlocked?: boolean;
+  ownedOutfits?: string[];
 }
 
 export const CafeStaffModal: React.FC<CafeStaffModalProps> = ({
@@ -40,7 +44,8 @@ export const CafeStaffModal: React.FC<CafeStaffModalProps> = ({
   onAddCoins,
   onRecordCrossDispatch,
   isEn,
-  branch2Unlocked = true
+  branch2Unlocked = true,
+  ownedOutfits = ['classic_miner', 'barista_uniform', 'executive_chef', 'royal_tuxedo']
 }) => {
   const [activeTab, setActiveTab] = useState<'positions' | 'cross_dispatch' | 'legends'>('positions');
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
@@ -49,6 +54,24 @@ export const CafeStaffModal: React.FC<CafeStaffModalProps> = ({
   if (!isOpen) return null;
 
   const roleMap = new Map<CafeRoleId, CafeRoleDefinition>(CAFE_ROLES.map(r => [r.id, r]));
+
+  const getStaffOutfitId = (staff: StaffMember): string => {
+    if (staff.outfitId) return staff.outfitId;
+    if (staff.id === 'legend_ender_duke') return 'sommelier_noble';
+    if (staff.id === 'legend_magma_baker') return 'netherite_hazard';
+    if (staff.id === 'legend_aether_chef') return 'celestial_starlight';
+    if (staff.id === 'legend_redstone_director') return 'steampunk_inventor';
+    switch (staff.roleId) {
+      case 'manager': return 'royal_tuxedo';
+      case 'barista': return 'barista_uniform';
+      case 'chef': return 'executive_chef';
+      case 'waiter': return 'maid_cafe_elegance';
+      case 'mixologist': return 'mixologist_neon';
+      case 'sommelier': return 'sommelier_noble';
+      case 'procurement': return 'netherite_hazard';
+      default: return 'classic_miner';
+    }
+  };
 
   // Hire regular or legend staff
   const handleHireStaff = (staffId: string) => {
@@ -294,8 +317,13 @@ export const CafeStaffModal: React.FC<CafeStaffModalProps> = ({
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-black/40 border-2 border-amber-600/40 flex items-center justify-center text-3xl shadow-inner">
-                              {staff.avatar}
+                            <div className="w-14 h-16 rounded-xl bg-black/40 border-2 border-amber-600/40 flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
+                              <CharacterModelRenderer
+                                outfitId={getStaffOutfitId(staff)}
+                                size="sm"
+                                animation="idle"
+                                showShadow={false}
+                              />
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
@@ -343,6 +371,34 @@ export const CafeStaffModal: React.FC<CafeStaffModalProps> = ({
                               </button>
                             ))}
                           </div>
+                        </div>
+
+                        {/* Outfit / Uniform Selector */}
+                        <div className="bg-[#181614] p-2 rounded-lg border border-[#3d2e20] flex items-center justify-between gap-2">
+                          <div className="text-[10px] text-zinc-400 flex items-center gap-1">
+                            <Shirt className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                            <span>{isEn ? 'Uniform:' : '當前制服：'}</span>
+                          </div>
+                          <select
+                            value={staff.outfitId || getStaffOutfitId(staff)}
+                            onChange={(e) => {
+                              sound.playClickSound();
+                              const newOid = e.target.value;
+                              onUpdateStaffMembers(
+                                staffMembers.map(s => s.id === staff.id ? { ...s, outfitId: newOid } : s)
+                              );
+                            }}
+                            className="px-2 py-0.5 bg-zinc-900 border border-amber-600/50 rounded text-[10px] text-amber-200 font-minecraft cursor-pointer max-w-[160px] truncate"
+                          >
+                            {ownedOutfits.map(oid => {
+                              const o = getOutfitById(oid);
+                              return (
+                                <option key={o.id} value={o.id}>
+                                  {o.icon} {isEn ? o.nameEn : o.nameZh}
+                                </option>
+                              );
+                            })}
+                          </select>
                         </div>
 
                         {/* Level up / promotion button */}
@@ -560,8 +616,13 @@ export const CafeStaffModal: React.FC<CafeStaffModalProps> = ({
                         </div>
 
                         <div className="flex items-start gap-3">
-                          <div className="w-14 h-14 rounded-2xl bg-black/60 border-2 border-yellow-500/60 flex items-center justify-center text-3xl shadow-inner shrink-0">
-                            {legend.avatar}
+                          <div className="w-14 h-16 rounded-2xl bg-black/60 border-2 border-yellow-500/60 flex items-center justify-center shadow-inner shrink-0 overflow-hidden">
+                            <CharacterModelRenderer
+                              outfitId={getStaffOutfitId(legend)}
+                              size="sm"
+                              animation="idle"
+                              showShadow={false}
+                            />
                           </div>
                           <div>
                             <div className="text-sm font-black text-amber-200 font-minecraft">

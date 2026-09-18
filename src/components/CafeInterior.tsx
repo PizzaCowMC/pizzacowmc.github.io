@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { sound } from "../utils/soundEffects";
-import { CafeDish, CustomerOrder, CafeState, DishCategory, DishRarity, CafeFloorId, CafeFacility, StarRank } from "../types";
+import { CafeDish, CustomerOrder, CafeState, DishCategory, DishRarity, CafeFloorId, CafeFacility, StarRank, ActiveCookingTask, CafeReceipt } from "../types";
 import { ALL_CAFE_DISHES, CUSTOMER_ARCHETYPES, CustomerArchetype, getDishById } from "../data/cafeDishesData";
 import { BLOCK_TYPES, STRATA_LAYERS } from "../data/gameData";
 import {
@@ -16,6 +16,20 @@ import { CafeStarOverviewModal } from "./CafeStarOverviewModal";
 import { CafeFloorBlueprintMap } from "./CafeFloorBlueprintMap";
 import { CafeStaffModal } from "./CafeStaffModal";
 import { CafePromotionModal } from "./CafePromotionModal";
+import { ReceiptsModal } from "./ReceiptsModal";
+import {
+  calculateCookingDuration,
+  formatCookingDuration,
+  DEFAULT_STOVE_SLOTS,
+  EXPANDED_STOVE_SLOTS,
+  createCookingTask,
+  refreshActiveCookingTasks
+} from "../utils/cookingSystem";
+import {
+  getStoredReceipts,
+  saveStoredReceipt,
+  createCafeReceipt
+} from "../utils/receiptSystem";
 import { INITIAL_STAFF_MEMBERS, getPromotionTier } from "../data/cafeStaffAndPromotionData";
 import {
   Coffee,
@@ -40,7 +54,8 @@ import {
   Map as MapIcon,
   Users,
   Trophy,
-  Crown
+  Crown,
+  Receipt
 } from "lucide-react";
 
 interface CafeInteriorProps {
@@ -57,6 +72,7 @@ interface CafeInteriorProps {
   onOpenEncyclopedia?: () => void;
   onOpenMusicPlayer?: () => void;
   totalBlocksMined?: number;
+  ownedOutfits?: string[];
 }
 
 const CATEGORY_TABS: { id: DishCategory | "all"; nameZh: string; nameEn: string; icon: string; count: number }[] = [
@@ -86,7 +102,8 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
   layerMinedCounts = {},
   onOpenEncyclopedia,
   onOpenMusicPlayer,
-  totalBlocksMined = 0
+  totalBlocksMined = 0,
+  ownedOutfits = ['classic_miner']
 }) => {
   const [activeTab, setActiveTab] = useState<"map" | "dining" | "kitchen" | "facilities_stars" | "upgrades">("map");
   const [currentFloor, setCurrentFloor] = useState<CafeFloorId>(cafeState.currentFloorView || "1F");
@@ -100,8 +117,33 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
   const [onlyCraftable, setOnlyCraftable] = useState<boolean>(false);
   const [cookingToast, setCookingToast] = useState<string | null>(null);
 
+  // 2.5.40 Receipts System & Live Cooking Stoves
+  const [receipts, setReceipts] = useState<CafeReceipt[]>(() => getStoredReceipts());
+  const [showReceiptsModal, setShowReceiptsModal] = useState<boolean>(false);
+  const [nowTime, setNowTime] = useState<number>(Date.now());
+
   // Customer Orders per Table (16 total: 4 per floor, or 12 for blueprint map)
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
+
+  // 1-second cooking ticker to update countdowns and stove progress
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTime(Date.now());
+      onUpdateCafeState(prev => {
+        const tasks = prev.activeCookingTasks || [];
+        if (tasks.length === 0) return prev;
+        const { updatedTasks, hasNewlyCompleted } = refreshActiveCookingTasks(tasks);
+        if (hasNewlyCompleted) {
+          sound.playAchievementSound();
+        }
+        return {
+          ...prev,
+          activeCookingTasks: updatedTasks
+        };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [onUpdateCafeState]);
 
   // Calculate Cafe Total Bonuses from Facility Star Ratings (F1 ~ S3)
   const totalBonuses = useMemo(() => {
@@ -222,8 +264,22 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
     });
   }, [inventory]);
 
-  // Cook a dish
-  const handleCookDish = useCallback((dish: CafeDish, count: number = 1) => {
+  // 2.5.40 Start Cooking on Stove (Cooking Duration 5s ~ 600s / 10 mins based on complexity)
+  const handleStartCooking = useCallback((dish: CafeDish, count: number = 1) => {
+    const maxStoveSlots = cafeState.hasGoldenStove ? EXPANDED_STOVE_SLOTS : DEFAULT_STOVE_SLOTS;
+    const currentTasks = cafeState.activeCookingTasks || [];
+
+    if (currentTasks.length >= maxStoveSlots) {
+      sound.playHitSound(1);
+      setCookingToast(
+        isEn
+          ? `⚠️ All ${maxStoveSlots} cooking stoves are busy! Collect finished dishes first.`
+          : `⚠️ 所有 ${maxStoveSlots} 口烹飪灶台都在使用中！請先收取已完成的料理。`
+      );
+      setTimeout(() => setCookingToast(null), 2500);
+      return;
+    }
+
     const totalIngredients = dish.requiredIngredients.map(r => ({
       blockId: r.blockId,
       count: r.count * count
@@ -232,41 +288,117 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
     const success = onConsumeIngredients(totalIngredients);
     if (!success) {
       sound.playHitSound(1);
+      setCookingToast(isEn ? "❌ Missing required quarry ingredients!" : "❌ 缺少材料，無法開火烹飪！");
+      setTimeout(() => setCookingToast(null), 2000);
       return;
     }
+
+    sound.playPlaceBlockSound();
+    const newTask = createCookingTask(dish, count);
+
+    onUpdateCafeState(prev => ({
+      ...prev,
+      activeCookingTasks: [...(prev.activeCookingTasks || []), newTask]
+    }));
+
+    const durationText = formatCookingDuration(newTask.totalDurationSeconds, isEn);
+    setCookingToast(
+      isEn
+        ? `🔥 Cooking ${count}x ${dish.nameEn} on Stove! Duration: ${durationText}`
+        : `🔥 已放入灶台烹飪【${dish.nameZh}】x${count}！耗時: ${durationText}`
+    );
+    setTimeout(() => setCookingToast(null), 3000);
+  }, [cafeState.hasGoldenStove, cafeState.activeCookingTasks, onConsumeIngredients, onUpdateCafeState, isEn]);
+
+  // Collect a finished dish from stove
+  const handleClaimCookingTask = useCallback((task: ActiveCookingTask) => {
+    const dish = getDishById(task.dishId);
+    if (!dish) return;
 
     sound.playUpgradeSound();
 
     onUpdateCafeState(prev => {
       const currentStock = prev.dishInventory[dish.id] || 0;
       const currentHistory = prev.dishesCookedHistory[dish.id] || 0;
-      const nextXp = prev.cafeXp + dish.xpReward * count;
+      const nextXp = prev.cafeXp + dish.xpReward * task.count;
       const nextLevel = Math.min(100, Math.floor(nextXp / 150) + 1);
+      const remaining = (prev.activeCookingTasks || []).filter(t => t.id !== task.id);
 
       return {
         ...prev,
         cafeLevel: nextLevel,
         cafeXp: nextXp,
+        activeCookingTasks: remaining,
         dishInventory: {
           ...prev.dishInventory,
-          [dish.id]: currentStock + count
+          [dish.id]: currentStock + task.count
         },
         dishesCookedHistory: {
           ...prev.dishesCookedHistory,
-          [dish.id]: currentHistory + count
+          [dish.id]: currentHistory + task.count
         }
       };
     });
 
     setCookingToast(
       isEn
-        ? `✨ Prepared ${count}x ${dish.nameEn}! (+${dish.xpReward * count} XP)`
-        : `✨ 成功製作 ${count} 份【${dish.nameZh}】！(+${dish.xpReward * count} 經驗)`
+        ? `🍲 Cooked & collected ${task.count}x ${dish.nameEn}! (+${dish.xpReward * task.count} XP)`
+        : `🍲 烹飪出爐！成功收取 ${task.count} 份【${dish.nameZh}】！(+${dish.xpReward * task.count} 經驗)`
     );
-    setTimeout(() => setCookingToast(null), 2500);
-  }, [onConsumeIngredients, onUpdateCafeState, isEn]);
+    setTimeout(() => setCookingToast(null), 3000);
+  }, [onUpdateCafeState, isEn]);
 
-  // Serve meal to customer (includes facility star price, staff roles, and promotion bonuses!)
+  // Collect all ready dishes from stoves
+  const handleClaimAllReadyTasks = useCallback(() => {
+    const tasks = cafeState.activeCookingTasks || [];
+    const readyTasks = tasks.filter(t => t.status === 'ready' || Date.now() >= t.finishAt);
+    if (readyTasks.length === 0) return;
+
+    sound.playUpgradeSound();
+
+    onUpdateCafeState(prev => {
+      let nextXp = prev.cafeXp;
+      const newInventory = { ...prev.dishInventory };
+      const newHistory = { ...prev.dishesCookedHistory };
+
+      for (const t of readyTasks) {
+        const d = getDishById(t.dishId);
+        if (d) {
+          nextXp += d.xpReward * t.count;
+          newInventory[d.id] = (newInventory[d.id] || 0) + t.count;
+          newHistory[d.id] = (newHistory[d.id] || 0) + t.count;
+        }
+      }
+
+      const nextLevel = Math.min(100, Math.floor(nextXp / 150) + 1);
+      const remaining = (prev.activeCookingTasks || []).filter(
+        t => !(t.status === 'ready' || Date.now() >= t.finishAt)
+      );
+
+      return {
+        ...prev,
+        cafeLevel: nextLevel,
+        cafeXp: nextXp,
+        activeCookingTasks: remaining,
+        dishInventory: newInventory,
+        dishesCookedHistory: newHistory
+      };
+    });
+
+    setCookingToast(
+      isEn
+        ? `🍲 Collected all ${readyTasks.length} finished dishes from stoves!`
+        : `🍲 已一鍵收取所有 ${readyTasks.length} 道已完成烹飪的料理！`
+    );
+    setTimeout(() => setCookingToast(null), 3000);
+  }, [cafeState.activeCookingTasks, onUpdateCafeState, isEn]);
+
+  // Cook a dish directly (or instant rush)
+  const handleCookDish = useCallback((dish: CafeDish, count: number = 1) => {
+    handleStartCooking(dish, count);
+  }, [handleStartCooking]);
+
+  // Serve meal to customer (includes facility star price, staff roles, promotion bonuses, and 2.5.40 receipt generation!)
   const handleServeOrder = useCallback((order: CustomerOrder) => {
     const dish = getDishById(order.dishId);
     if (!dish) return;
@@ -343,6 +475,24 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
     sound.playAchievementSound();
     onAddCoins(totalEarnings);
 
+    // 2.5.40 Generate & Save Official Dining Receipt
+    const receipt = createCafeReceipt({
+      order,
+      dish,
+      venue: cafeState.currentVenue || 'main',
+      basePrice,
+      starRank: cafeState.facilityStars?.['counter_1'] || 'F1',
+      starPriceBonusPct: totalBonuses.totalSellPriceBonusPct,
+      tipMultiplier: effectiveTipMultiplier,
+      speedBonus,
+      staffBonusMultiplier: managerMultiplier * sommelierMultiplier,
+      totalEarnings,
+      patienceRemaining: order.patienceRemaining,
+      patienceTotal: order.patienceTotal
+    });
+    const updatedReceipts = saveStoredReceipt(receipt);
+    setReceipts(updatedReceipts);
+
     // Update Customer State to eating
     setOrders(prev =>
       prev.map(o => (o.id === order.id ? { ...o, status: "eating", patienceRemaining: 0 } : o))
@@ -362,10 +512,10 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
 
     setCookingToast(
       isEn
-        ? `💖 Customer served! +${totalEarnings} Coins (Price: +${totalBonuses.totalSellPriceBonusPct}%, Tip: x${(effectiveTipMultiplier * speedBonus).toFixed(1)}, Staff: x${(managerMultiplier * sommelierMultiplier).toFixed(2)})`
-        : `💖 貴賓讚不絕口！獲得 +${totalEarnings} 金幣（小費加成 x${(effectiveTipMultiplier * speedBonus).toFixed(1)}，職員職位加乘 x${(managerMultiplier * sommelierMultiplier).toFixed(2)}）`
+        ? `🧾 Order served! Receipt #${receipt.receiptNumber} (+${totalEarnings} Coins)`
+        : `🧾 結帳完成！點餐收據 #${receipt.receiptNumber} 已開立（+${totalEarnings} 金幣）`
     );
-    setTimeout(() => setCookingToast(null), 3000);
+    setTimeout(() => setCookingToast(null), 3500);
 
     // Customer leaves after 2.5 seconds and a new customer arrives
     setTimeout(() => {
@@ -377,6 +527,7 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
     cafeState.dishInventory,
     cafeState.staffMembers,
     cafeState.currentVenue,
+    cafeState.facilityStars,
     canCraftDish,
     onConsumeIngredients,
     onUpdateCafeState,
@@ -693,6 +844,23 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
             {currentPromotionTier.badge}
           </span>
         </button>
+
+        {/* Quick Launch: 2.5.40 Receipts Ledger */}
+        <button
+          id="btn_cafe_receipts_system"
+          onClick={() => {
+            sound.playClickSound();
+            setShowReceiptsModal(true);
+          }}
+          className="px-3.5 py-2 bg-gradient-to-r from-blue-700 to-indigo-700 hover:brightness-110 text-white font-black text-xs sm:text-sm rounded-xl border-2 border-blue-400/80 shadow flex items-center gap-1.5 cursor-pointer"
+          title={isEn ? "Open Receipts & Sales History" : "開啟點餐收據與歷史存根"}
+        >
+          <Receipt className="w-4 h-4 text-blue-200" />
+          <span>{isEn ? "Receipts" : "🧾 收據系統"}</span>
+          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-black/60 text-blue-200 font-mono">
+            {receipts.length}
+          </span>
+        </button>
       </div>
 
       {/* 3. TAB CONTENT */}
@@ -738,6 +906,165 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
       {/* TAB 2: KITCHEN & 1,000 RECIPE WORKSHOP */}
       {activeTab === "kitchen" && (
         <div className="space-y-4">
+          {/* 2.5.40 LIVE COOKING STOVES STATION */}
+          <div className="p-4 bg-gradient-to-r from-zinc-950 via-[#1c1611] to-zinc-950 border-2 border-amber-600/70 rounded-2xl shadow-xl space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-zinc-800">
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl animate-pulse">🔥</span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm sm:text-base font-black text-amber-300 font-minecraft">
+                      {isEn ? "Live Kitchen Cooking Stoves Station" : "料理工坊・即時烹飪灶台工作區"}
+                    </h2>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      v2.5.40
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400">
+                    {isEn
+                      ? "Cooking takes real time based on recipe complexity (Min 5s, up to 10 mins). Keep stoves busy!"
+                      : "依食譜複雜度耗費真實烹調時間（最低5秒，最長可達10分鐘）！合理安排灶台高效出餐。"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Collect all ready dishes button */}
+                {(() => {
+                  const readyCount = (cafeState.activeCookingTasks || []).filter(
+                    t => t.status === 'ready' || nowTime >= t.finishAt
+                  ).length;
+                  if (readyCount === 0) return null;
+                  return (
+                    <button
+                      onClick={handleClaimAllReadyTasks}
+                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs rounded-xl shadow-lg flex items-center gap-1.5 animate-bounce cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>{isEn ? `Collect All Ready (${readyCount})` : `一鍵收取全部已完成 (${readyCount})`}</span>
+                    </button>
+                  );
+                })()}
+
+                <button
+                  onClick={() => setShowReceiptsModal(true)}
+                  className="px-3 py-1.5 bg-blue-900/70 hover:bg-blue-800 text-blue-200 font-bold text-xs rounded-xl border border-blue-500/50 shadow flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Receipt className="w-3.5 h-3.5" />
+                  <span>{isEn ? `Receipts Ledger (${receipts.length})` : `收據存根 (${receipts.length})`}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Stoves Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {(() => {
+                const maxSlots = cafeState.hasGoldenStove ? EXPANDED_STOVE_SLOTS : DEFAULT_STOVE_SLOTS;
+                const tasks = cafeState.activeCookingTasks || [];
+
+                return Array.from({ length: maxSlots }).map((_, slotIndex) => {
+                  const task = tasks[slotIndex];
+
+                  if (!task) {
+                    return (
+                      <div
+                        key={`stove_slot_${slotIndex}`}
+                        className="p-3 bg-black/40 border-2 border-dashed border-zinc-800 rounded-xl flex flex-col items-center justify-center gap-1.5 text-center min-h-[110px]"
+                      >
+                        <span className="text-xl opacity-30">🍳</span>
+                        <span className="text-xs font-bold text-zinc-500 font-minecraft">
+                          {isEn ? `Stove #${slotIndex + 1} Idle` : `灶台 #${slotIndex + 1} 空閒中`}
+                        </span>
+                        <span className="text-[10px] text-zinc-600">
+                          {isEn ? "Click 'Cook' on any dish below" : "點選下方料理開始烹調"}
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  const dish = getDishById(task.dishId);
+                  const isReady = task.status === 'ready' || nowTime >= task.finishAt;
+                  const elapsedMs = Math.max(0, nowTime - task.startedAt);
+                  const totalMs = task.totalDurationSeconds * 1000;
+                  const progressPct = isReady ? 100 : Math.min(99.9, (elapsedMs / totalMs) * 100);
+                  const remainingSecs = isReady ? 0 : Math.ceil((task.finishAt - nowTime) / 1000);
+
+                  return (
+                    <div
+                      key={task.id}
+                      className={`p-3 rounded-xl border-2 flex flex-col justify-between gap-2 transition-all relative overflow-hidden ${
+                        isReady
+                          ? "bg-emerald-950/60 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.25)]"
+                          : "bg-zinc-900/90 border-amber-500/60 shadow"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{dish ? dish.icon : "🍲"}</span>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-mono text-zinc-400">#{slotIndex + 1}</span>
+                              <span className="text-xs font-black text-white font-minecraft truncate max-w-[120px]">
+                                {dish ? (isEn ? dish.nameEn : dish.nameZh) : task.dishId}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-amber-400 font-mono font-bold">
+                              x{task.count} {isEn ? "servings" : "份"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {isReady ? (
+                          <span className="px-2 py-0.5 rounded bg-emerald-500 text-black text-[10px] font-black uppercase tracking-wider animate-pulse">
+                            {isEn ? "READY!" : "完成！"}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-600/60 text-[10px] font-mono font-bold flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-amber-400 animate-spin" />
+                            <span>{formatCookingDuration(remainingSecs, isEn)}</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="space-y-1">
+                        <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden border border-zinc-700/60">
+                          <div
+                            className={`h-full transition-all duration-300 ${
+                              isReady
+                                ? "bg-emerald-400"
+                                : "bg-gradient-to-r from-amber-500 to-orange-500"
+                            }`}
+                            style={{ width: `${progressPct}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[9px] font-mono text-zinc-400">
+                          <span>{isReady ? (isEn ? "100% Done" : "100% 烹調完成") : (isEn ? "Cooking..." : "烹飪進行中...")}</span>
+                          <span>{Math.floor(progressPct)}%</span>
+                        </div>
+                      </div>
+
+                      {/* Action */}
+                      {isReady ? (
+                        <button
+                          onClick={() => handleClaimCookingTask(task)}
+                          className="w-full py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-black font-black text-xs rounded-lg shadow cursor-pointer flex items-center justify-center gap-1 active:scale-95"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>{isEn ? `Claim (+${dish ? dish.xpReward * task.count : 0} XP)` : `收取料理 (+${dish ? dish.xpReward * task.count : 0} 經驗)`}</span>
+                        </button>
+                      ) : (
+                        <div className="text-center text-[10px] text-amber-400/80 font-sans italic">
+                          🔥 {isEn ? `Total: ${formatCookingDuration(task.totalDurationSeconds, true)}` : `總耗時: ${formatCookingDuration(task.totalDurationSeconds, false)}`}
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+
           {/* Search & Category Filters */}
           <div className="p-4 bg-zinc-950/90 border-2 border-zinc-800 rounded-2xl space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -836,6 +1163,22 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
                       "{isEn ? dish.descriptionEn : dish.descriptionZh}"
                     </p>
 
+                    {/* 2.5.40 Cooking Duration Badge (5s ~ 600s / 10 mins) */}
+                    {(() => {
+                      const durationSecs = calculateCookingDuration(dish, 1);
+                      return (
+                        <div className="flex items-center justify-between text-[11px] py-1 px-2.5 bg-amber-950/40 border border-amber-500/30 rounded-lg mb-2 text-amber-300">
+                          <div className="flex items-center gap-1 font-bold">
+                            <Flame className="w-3.5 h-3.5 text-amber-400" />
+                            <span>{isEn ? "Cooking Duration:" : "烹飪耗時:"}</span>
+                          </div>
+                          <span className="font-mono font-black text-amber-400">
+                            {formatCookingDuration(durationSecs, isEn)}
+                          </span>
+                        </div>
+                      );
+                    })()}
+
                     {/* Stats Pill */}
                     <div className="flex items-center justify-between text-[11px] py-1 px-2.5 bg-black/40 rounded-lg mb-2 text-zinc-300">
                       <div className="flex items-center gap-1 text-amber-400 font-bold">
@@ -879,10 +1222,10 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
                     </div>
                   </div>
 
-                  {/* Cook Actions */}
+                  {/* Cook Actions with Stove Duration */}
                   <div className="flex items-center gap-2 pt-2 border-t border-zinc-800">
                     <button
-                      onClick={() => handleCookDish(dish, 1)}
+                      onClick={() => handleStartCooking(dish, 1)}
                       disabled={!canCook1}
                       className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         canCook1
@@ -891,18 +1234,22 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
                       }`}
                     >
                       <Flame className="w-3.5 h-3.5" />
-                      <span>{isEn ? "Cook 1x" : "製作 1 份"}</span>
+                      <span>
+                        {isEn
+                          ? `Cook (${formatCookingDuration(calculateCookingDuration(dish, 1), true)})`
+                          : `開火烹調 (${formatCookingDuration(calculateCookingDuration(dish, 1), false)})`}
+                      </span>
                     </button>
 
                     <button
-                      onClick={() => handleCookDish(dish, 5)}
+                      onClick={() => handleStartCooking(dish, 5)}
                       disabled={!canCook5}
                       className={`py-1.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1 transition-all cursor-pointer ${
                         canCook5
                           ? "bg-amber-600 hover:bg-amber-500 text-white shadow active:scale-95"
                           : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
                       }`}
-                      title={isEn ? "Cook 5 in batch" : "批量製作 5 份"}
+                      title={isEn ? "Cook 5 in batch on stove" : "在灶台上批量烹調 5 份"}
                     >
                       <span>5x</span>
                     </button>
@@ -1266,6 +1613,7 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
         coins={coins}
         onAddCoins={onAddCoins}
         isEn={isEn}
+        ownedOutfits={ownedOutfits}
       />
 
       {/* Hardcore Promotion Ascension Modal (超級難的任務・咖啡廳晉級) */}
@@ -1277,6 +1625,15 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
         totalBlocksMined={totalBlocksMined}
         coins={coins}
         onAddCoins={onAddCoins}
+        isEn={isEn}
+      />
+
+      {/* 2.5.40 Official Receipts System Modal (收據系統與財務明細) */}
+      <ReceiptsModal
+        isOpen={showReceiptsModal}
+        onClose={() => setShowReceiptsModal(false)}
+        receipts={receipts}
+        onClearReceipts={() => setReceipts([])}
         isEn={isEn}
       />
 

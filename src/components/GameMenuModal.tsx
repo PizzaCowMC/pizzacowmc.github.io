@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { sound } from '../utils/soundEffects';
 import { useLanguage } from '../utils/i18n';
+import { APP_VERSION } from '../utils/version';
 import { bgmSystem, BgmTrack } from '../utils/bgmSystem';
 
 interface GameMenuModalProps {
@@ -291,10 +292,10 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
             >
               <div className="flex items-center gap-2.5">
                 <Scroll className="w-4 h-4 text-amber-300" />
-                <span>{isEn ? '📜 Release Notes (Changelog v2.4.0)' : '📜 版本更新日誌 (Changelog v2.4.0)'}</span>
+                <span>{isEn ? `📜 Release Notes (Changelog v${APP_VERSION})` : `📜 版本更新日誌 (Changelog v${APP_VERSION})`}</span>
               </div>
               <span className="text-emerald-400 font-mono text-[10px] bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
-                v2.4.0
+                v{APP_VERSION}
               </span>
             </button>
           </div>

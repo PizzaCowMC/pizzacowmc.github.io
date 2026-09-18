@@ -91,8 +91,28 @@ async function startServer() {
   app.get('/api/health', (req, res) => {
     res.json({
       status: 'ok',
-      version: '2.5.30',
+      version: '2.5.41',
       cloudSync: 'active',
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // Dedicated Auto-Update & Version Verification endpoint
+  app.get('/api/version', (req, res) => {
+    res.json({
+      version: '2.5.41',
+      latestVersion: '2.5.41',
+      releaseDate: '2026-09-11',
+      status: 'stable',
+      githubRepo: 'https://github.com/PizzaCowMC/pizzacowmc.github.io',
+      changelogSummaryZh: '2.5.41 完整英語翻譯支援、員工與玩家像素人形模型增強、10套時裝衣物工坊與制服調度系統',
+      changelogSummaryEn: '2.5.41 Full English Translation, Enhanced Humanoid Character Models, and 10 Outfits & Uniforms Wardrobe',
+      features: [
+        '完整英語的翻譯：全方位 UI、收據、時裝、備餐倒數與員工系統英文化',
+        '員工、玩家的模型增強：高精緻像素人型 SVG 模型，具備呼吸、走動、喝采動態與專屬手持物',
+        '衣物時裝工坊：10 套專屬服裝（附帶出餐加速、減免工時等加成），全體員工制服自訂調度',
+        '煮飯耗時（5秒~10分鐘）與點餐收據存根系統持續完善'
+      ],
       timestamp: new Date().toISOString()
     });
   });

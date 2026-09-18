@@ -14,6 +14,7 @@ export interface BgmTrack {
   discLabel: string;
   bpm: number;
   suitableArea?: 'overworld' | 'cafe' | 'quarry' | 'building' | 'elevator';
+  audioSrc?: string; // If set, plays a real audio file instead of the procedural synth
 }
 
 // Standard Note frequency mapping helper
@@ -61,6 +62,62 @@ export const BGM_TRACKS: BgmTrack[] = [
     ringColor: '#c2410c',
     discLabel: 'CHILL',
     bpm: 78
+  },
+  {
+    id: 'starlight_cafe',
+    nameEn: 'Starlight Mining Serenade',
+    nameZh: '星光微醺小夜曲',
+    discName: 'Ambient Disc Shimmer - Starlight Lounge',
+    composer: 'Redstone Steam Workshop',
+    descEn: 'A tranquil piano melody floating over shimmering acoustic bells, warm rhodes pads, and gentle sub-bass — ideal for quiet hours.',
+    descZh: '寧靜柔美的鋼琴旋律浮動於微光鐘音與溫暖氛圍音墊之上，適合深夜採礦與靜謐休憩時光。',
+    discColor: '#6366f1',
+    ringColor: '#4338ca',
+    discLabel: 'SERENE',
+    bpm: 72,
+    suitableArea: 'cafe'
+  },
+  {
+    id: 'demo_track_1',
+    nameEn: 'Golden Hour Wanderer',
+    nameZh: '金色時光漫遊',
+    discName: 'Demo Disc Vol.1 - First Pressing',
+    composer: 'Community Submission',
+    descEn: 'A soft, easygoing recorded track — mellow and unhurried, good for calm background listening.',
+    descZh: '一首柔和、步調輕鬆的錄製曲目，音色溫和不急躁，適合作為安靜的背景音樂。',
+    discColor: '#facc15',
+    ringColor: '#a16207',
+    discLabel: 'DEMO 1',
+    bpm: 90,
+    audioSrc: '/assets/bgm/demo_1.wav'
+  },
+  {
+    id: 'demo_track_2',
+    nameEn: 'Overdrive Groove',
+    nameZh: '熱力全開節奏',
+    discName: 'Demo Disc Vol.2 - First Pressing',
+    composer: 'Community Submission',
+    descEn: 'The most energetic of the recorded tracks — punchy and full-bodied, good for livelier moments.',
+    descZh: '三首錄製曲目中energetic最強的一首，音量飽滿有力，適合氣氛較熱鬧的場景。',
+    discColor: '#ef4444',
+    ringColor: '#b91c1c',
+    discLabel: 'DEMO 2',
+    bpm: 100,
+    audioSrc: '/assets/bgm/demo_2.wav'
+  },
+  {
+    id: 'demo_track_3',
+    nameEn: 'Quiet Harbor',
+    nameZh: '靜謐港灣',
+    discName: 'Demo Disc Vol.3 - First Pressing',
+    composer: 'Community Submission',
+    descEn: 'A gentle, understated recorded track with a settled, restful character.',
+    descZh: '一首低調沉穩的錄製曲目，帶有平靜、休憩般的氛圍。',
+    discColor: '#38bdf8',
+    ringColor: '#0369a1',
+    discLabel: 'DEMO 3',
+    bpm: 85,
+    audioSrc: '/assets/bgm/demo_3.wav'
   }
 ];
 
@@ -115,6 +172,9 @@ function getTrackEvents(_trackId: string): { totalBeats: number; events: NoteEve
   if (_trackId === 'lazy_afternoon') {
     return getLazyAfternoonEvents();
   }
+  if (_trackId === 'starlight_cafe') {
+    return getStarlightCafeEvents();
+  }
 
   return { totalBeats: 16, events };
 }
@@ -153,6 +213,38 @@ function getLazyAfternoonEvents(): { totalBeats: number; events: NoteEvent[] } {
   return { totalBeats: 16, events };
 }
 
+// Musical score for the tranquil track: Starlight Mining Serenade (星光微醺小夜曲)
+function getStarlightCafeEvents(): { totalBeats: number; events: NoteEvent[] } {
+  const events: NoteEvent[] = [];
+
+  // Lyrical acoustic piano melody
+  const melody = [
+    { t: 0, n: 'G4', d: 1.8 }, { t: 2, n: 'D5', d: 1.8 }, { t: 4, n: 'C5', d: 1.8 }, { t: 6, n: 'B4', d: 1.8 },
+    { t: 8, n: 'E4', d: 1.8 }, { t: 10, n: 'G4', d: 1.8 }, { t: 12, n: 'A4', d: 1.8 }, { t: 14, n: 'G4', d: 1.8 }
+  ];
+  melody.forEach(m => {
+    events.push({ time: m.t, duration: m.d, note: m.n, instrument: 'piano', velocity: 0.38 });
+  });
+
+  // Shimmering acoustic bells
+  events.push({ time: 1, duration: 0.8, note: 'B5', instrument: 'bell', velocity: 0.2 });
+  events.push({ time: 5, duration: 0.8, note: 'G5', instrument: 'bell', velocity: 0.2 });
+  events.push({ time: 9, duration: 0.8, note: 'E5', instrument: 'bell', velocity: 0.2 });
+  events.push({ time: 13, duration: 0.8, note: 'D5', instrument: 'bell', velocity: 0.2 });
+
+  // Ambient chords & pad wash
+  events.push({ time: 0, duration: 7.8, note: 'G3', instrument: 'pad', velocity: 0.25 });
+  events.push({ time: 8, duration: 7.8, note: 'C3', instrument: 'pad', velocity: 0.25 });
+
+  // Sub-bass foundation
+  events.push({ time: 0, duration: 3.8, note: 'G2', instrument: 'subbass', velocity: 0.32 });
+  events.push({ time: 4, duration: 3.8, note: 'B1', instrument: 'subbass', velocity: 0.32 });
+  events.push({ time: 8, duration: 3.8, note: 'C2', instrument: 'subbass', velocity: 0.32 });
+  events.push({ time: 12, duration: 3.8, note: 'D2', instrument: 'subbass', velocity: 0.32 });
+
+  return { totalBeats: 16, events };
+}
+
 class BgmEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
@@ -170,6 +262,8 @@ class BgmEngine {
   private loopTimer: number | null = null;
   private loopStartTime: number = 0;
   private listeners: Set<(track: BgmTrack, isPlaying: boolean) => void> = new Set();
+  private audioEl: HTMLAudioElement | null = null;
+  private audioSourceNode: MediaElementAudioSourceNode | null = null;
 
   constructor() {
     try {
@@ -296,7 +390,13 @@ class BgmEngine {
     } catch {}
 
     this.stopCurrentLoop();
-    this.startLoop();
+    this.stopAudioFile();
+
+    if (track.audioSrc) {
+      this.startAudioFile(track.audioSrc);
+    } else {
+      this.startLoop();
+    }
     this.isPlayingState = true;
     this.notify();
   }
@@ -311,12 +411,24 @@ class BgmEngine {
 
   public pause() {
     this.stopCurrentLoop();
+    if (this.audioEl) {
+      this.audioEl.pause();
+    }
     this.isPlayingState = false;
     this.notify();
   }
 
   public resume() {
-    this.startLoop();
+    const track = this.getCurrentTrack();
+    if (track.audioSrc) {
+      if (this.audioEl && this.audioEl.src.endsWith(track.audioSrc)) {
+        this.audioEl.play().catch(() => {});
+      } else {
+        this.startAudioFile(track.audioSrc);
+      }
+    } else {
+      this.startLoop();
+    }
     this.isPlayingState = true;
     this.notify();
   }
@@ -340,6 +452,32 @@ class BgmEngine {
     if (matched && matched.id !== this.currentTrackId) {
       this.playTrack(matched.id);
     }
+  }
+
+  private stopAudioFile() {
+    if (this.audioEl) {
+      this.audioEl.pause();
+      this.audioEl.currentTime = 0;
+    }
+  }
+
+  private startAudioFile(src: string) {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    this.initAudioChain(ctx);
+
+    if (!this.audioEl || !this.audioEl.src.endsWith(src)) {
+      this.audioEl = new Audio(src);
+      this.audioEl.loop = true;
+      this.audioEl.crossOrigin = 'anonymous';
+      try {
+        this.audioSourceNode = ctx.createMediaElementSource(this.audioEl);
+        this.audioSourceNode.connect(this.filterNode!);
+      } catch {
+        // Fallback: if a MediaElementSource already exists for this element, ignore
+      }
+    }
+    this.audioEl.play().catch(() => {});
   }
 
   private stopCurrentLoop() {

@@ -9,6 +9,7 @@ import {
 } from '../types';
 import { getDishById } from '../data/cafeDishesData';
 import { CAFE_ROLES } from '../data/cafeStaffAndPromotionData';
+import { CharacterModelRenderer } from './CharacterModelRenderer';
 import { sound } from '../utils/soundEffects';
 import {
   Users,
@@ -226,8 +227,32 @@ export const CafeFloorBlueprintMap: React.FC<CafeFloorBlueprintMapProps> = ({
                       {isEn ? 'STAFF' : '員工'}
                     </span>
 
-                    {/* Staff Avatar */}
-                    <span className="text-2xl mt-0.5">{staff.avatar}</span>
+                    {/* Enhanced Animated Staff Model */}
+                    <div className="my-0.5 pointer-events-none">
+                      <CharacterModelRenderer
+                        outfitId={
+                          staff.outfitId ||
+                          (staff.roleId === 'manager'
+                            ? 'royal_tuxedo'
+                            : staff.roleId === 'barista'
+                            ? 'barista_uniform'
+                            : staff.roleId === 'chef'
+                            ? 'executive_chef'
+                            : staff.roleId === 'waiter'
+                            ? 'maid_cafe_elegance'
+                            : staff.roleId === 'mixologist'
+                            ? 'mixologist_neon'
+                            : staff.roleId === 'sommelier'
+                            ? 'sommelier_noble'
+                            : staff.roleId === 'procurement'
+                            ? 'netherite_hazard'
+                            : 'classic_miner')
+                        }
+                        size="xs"
+                        animation="idle"
+                        showShadow={false}
+                      />
+                    </div>
 
                     {/* Staff Name & Role */}
                     <div className="text-center">
@@ -235,13 +260,13 @@ export const CafeFloorBlueprintMap: React.FC<CafeFloorBlueprintMapProps> = ({
                         {isEn ? staff.nameEn.split(' ')[0] : staff.nameZh.split(' ')[0]}
                       </div>
                       <div className="text-[9px] text-amber-400 font-bold">
-                        {staff.roleId === 'manager' && '👔 店長'}
-                        {staff.roleId === 'barista' && '☕ 咖啡師'}
-                        {staff.roleId === 'chef' && '👨‍🍳 主廚'}
-                        {staff.roleId === 'waiter' && '🏃‍♂️ 領班'}
-                        {staff.roleId === 'mixologist' && '🍸 調酒師'}
-                        {staff.roleId === 'sommelier' && '🎩 品鑑官'}
-                        {staff.roleId === 'procurement' && '⛏️ 採購'}
+                        {staff.roleId === 'manager' && (isEn ? '👔 Manager' : '👔 店長')}
+                        {staff.roleId === 'barista' && (isEn ? '☕ Barista' : '☕ 咖啡師')}
+                        {staff.roleId === 'chef' && (isEn ? '👨‍🍳 Chef' : '👨‍🍳 主廚')}
+                        {staff.roleId === 'waiter' && (isEn ? '🏃 Waiter' : '🏃‍♂️ 領班')}
+                        {staff.roleId === 'mixologist' && (isEn ? '🍸 Mixologist' : '🍸 調酒師')}
+                        {staff.roleId === 'sommelier' && (isEn ? '🎩 Sommelier' : '🎩 品鑑官')}
+                        {staff.roleId === 'procurement' && (isEn ? '⛏️ Buyer' : '⛏️ 採購')}
                       </div>
                     </div>
 

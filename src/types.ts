@@ -173,6 +173,47 @@ export interface PlayerSkin {
   desc: string;
 }
 
+export type OutfitRarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
+export type OutfitCategory = 'general' | 'cafe_staff' | 'miner' | 'special';
+
+export interface CharacterOutfit {
+  id: string;
+  nameZh: string;
+  nameEn: string;
+  category: OutfitCategory;
+  rarity: OutfitRarity;
+  cost: number;
+  icon: string;
+  badgeZh: string;
+  badgeEn: string;
+  descZh: string;
+  descEn: string;
+  buffZh: string;
+  buffEn: string;
+  headStyle: {
+    hairColor: string;
+    hatType?: 'chef_toque' | 'barista_cap' | 'miner_helmet' | 'crown' | 'tiara' | 'goggles' | 'cat_ears' | 'witch_hat' | 'none';
+    hatColor?: string;
+    accessory?: string;
+  };
+  bodyStyle: {
+    skinTone: string;
+    torsoColor: string;
+    torsoPattern: 'apron' | 'suit' | 'overalls' | 'armor' | 'robe' | 'vest' | 'casual';
+    accentColor?: string;
+    beltColor?: string;
+  };
+  armsStyle: {
+    sleeveColor: string;
+    handColor: string;
+    heldItem?: 'pickaxe' | 'coffee' | 'spatula' | 'tray' | 'shaker' | 'wine' | 'sword' | 'clipboard' | 'lantern' | 'none';
+  };
+  legsStyle: {
+    pantsColor: string;
+    shoesColor: string;
+  };
+}
+
 export type AchievementCategory = 'mining' | 'economy' | 'equipment' | 'building' | 'social' | 'collection';
 
 export interface Achievement {
@@ -310,6 +351,7 @@ export interface StaffMember {
   legendTitleZh?: string;
   legendTitleEn?: string;
   efficiencyBonus: number; // % bonus
+  outfitId?: string; // 2.5.41 Custom Uniform/Outfit
 }
 
 export interface CafePromotionQuest {
@@ -359,6 +401,53 @@ export interface CafeFacility {
   gridArea: string; // CSS position
 }
 
+export interface ActiveCookingTask {
+  id: string;
+  dishId: string;
+  count: number;
+  totalDurationSeconds: number; // 5 seconds to 600 seconds (10 minutes)
+  startedAt: number; // timestamp
+  finishAt: number; // timestamp
+  status: 'cooking' | 'ready';
+}
+
+export interface CafeReceipt {
+  id: string;
+  receiptNumber: string;
+  timestamp: string;
+  orderId: string;
+  customerNameZh: string;
+  customerNameEn: string;
+  customerAvatar: string;
+  customerType: string;
+  tableIndex: number;
+  tableLabelZh: string;
+  tableLabelEn: string;
+  venue: CafeVenueId;
+  dishId: string;
+  dishNameZh: string;
+  dishNameEn: string;
+  dishIcon: string;
+  dishNumber: number;
+  dishCategory: DishCategory;
+  dishRarity: DishRarity;
+  quantity: number;
+  cookingDurationSeconds: number;
+  cookingDurationFormattedZh: string;
+  cookingDurationFormattedEn: string;
+  ingredients: { blockId: string; count: number }[];
+  basePrice: number;
+  starPriceBonusPct: number;
+  starRank: string;
+  tipMultiplier: number;
+  speedBonus: number;
+  staffBonusMultiplier: number;
+  totalEarnings: number;
+  xpEarned: number;
+  patienceAtServe: number;
+  status: 'PAID';
+}
+
 export interface CafeState {
   cafeLevel: number;
   cafeXp: number;
@@ -372,10 +461,13 @@ export interface CafeState {
   hasAromaDiffuser: boolean;
   facilityStars?: Record<string, StarRank>;
   currentFloorView?: CafeFloorId;
+  // v2.5.40 Cooking Tasks & Stove
+  activeCookingTasks?: ActiveCookingTask[];
   // v2.5.40 Promotions, Roles, Map & Cross-Hire
   promotionRank?: number; // 1 to 7
   completedPromotionQuests?: Record<string, boolean>;
   staffMembers?: StaffMember[];
+  staffOutfits?: Record<string, string>; // 2.5.41 Custom staff outfit assignments
   crossDispatchHistoryCount?: number;
   currentVenue?: CafeVenueId;
   branch2Unlocked?: boolean;

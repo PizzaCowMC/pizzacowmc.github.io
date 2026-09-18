@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { sound } from '../utils/soundEffects';
 import { Pickaxe, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { OverworldZone } from '../types';
+import { CharacterModelRenderer } from './CharacterModelRenderer';
 
 interface OverworldMapProps {
   onEnterZone: (zone: OverworldZone) => void;
@@ -11,6 +12,7 @@ interface OverworldMapProps {
   readyDishesCount: number;
   playerName?: string;
   avatarIcon?: string;
+  outfitId?: string;
   initialPos?: { x: number; y: number };
   onOpenEncyclopedia?: () => void;
   onOpenMusicPlayer?: () => void;
@@ -24,6 +26,7 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
   readyDishesCount,
   playerName = 'Miner Barista',
   avatarIcon = '⛏️',
+  outfitId = 'classic_miner',
   initialPos,
   onOpenEncyclopedia,
   onOpenMusicPlayer
@@ -508,22 +511,19 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
         >
           <div className="flex flex-col items-center">
             {/* Player Name Tag */}
-            <div className="px-2 py-0.5 bg-black/85 border border-amber-400/80 rounded-md text-[10px] font-bold text-amber-200 whitespace-nowrap mb-1 shadow-md flex items-center gap-1 font-minecraft">
+            <div className="px-2 py-0.5 bg-black/85 border border-amber-400/80 rounded-md text-[10px] font-bold text-amber-200 whitespace-nowrap mb-0.5 shadow-md flex items-center gap-1 font-minecraft">
               <span>{avatarIcon}</span>
               <span>{playerName}</span>
             </div>
 
-            {/* Walking Character Sprite */}
-            <div
-              className={`w-10 h-10 bg-amber-900 border-2 border-black rounded-xl flex items-center justify-center text-xl shadow-2xl transition-transform ${
-                isWalking ? 'scale-110 -rotate-6' : ''
-              }`}
-            >
-              {avatarIcon}
-            </div>
-
-            {/* Character Shadow */}
-            <div className="w-8 h-2 bg-black/50 rounded-full blur-[1px] mt-0.5" />
+            {/* Enhanced Animated Minecraft Player Model */}
+            <CharacterModelRenderer
+              outfitId={outfitId || 'classic_miner'}
+              size="md"
+              isWalking={isWalking}
+              facing={facing === 'left' ? 'left' : 'right'}
+              showShadow={true}
+            />
           </div>
         </div>
 
