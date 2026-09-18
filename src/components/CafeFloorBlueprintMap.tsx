@@ -9,7 +9,6 @@ import {
 } from '../types';
 import { getDishById } from '../data/cafeDishesData';
 import { CAFE_ROLES } from '../data/cafeStaffAndPromotionData';
-import { CharacterModelRenderer } from './CharacterModelRenderer';
 import { sound } from '../utils/soundEffects';
 import {
   Users,
@@ -68,7 +67,7 @@ export const CafeFloorBlueprintMap: React.FC<CafeFloorBlueprintMapProps> = ({
   const counterStaff = hiredStaff.filter(s =>
     isMain
       ? s.assignedVenue === 'main' || !s.isCrossDispatched
-      : s.assignedVenue === 'branch_2' || s.crossDispatchTarget?.includes('二號分館')
+      : s.assignedVenue === 'branch_2' || s.crossDispatchTarget?.includes('二號分館') || s.crossDispatchTarget?.includes('Branch #2')
   );
 
   // Active orders mapped to 12 blueprint tables (0 to 11 for Main, 4 to 15 for Branch 2)
@@ -179,9 +178,9 @@ export const CafeFloorBlueprintMap: React.FC<CafeFloorBlueprintMapProps> = ({
             </span>
           </div>
           <div className="flex items-center gap-3 text-[11px]">
-            <span>持現金幣: <strong className="text-amber-400 font-mono">{coins.toLocaleString()} 🪙</strong></span>
+            <span>{isEn ? 'Coins: ' : '持現金幣: '}<strong className="text-amber-400 font-mono">{coins.toLocaleString()} 🪙</strong></span>
             <span>•</span>
-            <span>送餐累計: <strong className="text-emerald-400 font-mono">{cafeState.totalDishesServed}</strong></span>
+            <span>{isEn ? 'Total Served: ' : '送餐累計: '}<strong className="text-emerald-400 font-mono">{cafeState.totalDishesServed}</strong></span>
           </div>
         </div>
 
@@ -227,32 +226,8 @@ export const CafeFloorBlueprintMap: React.FC<CafeFloorBlueprintMapProps> = ({
                       {isEn ? 'STAFF' : '員工'}
                     </span>
 
-                    {/* Enhanced Animated Staff Model */}
-                    <div className="my-0.5 pointer-events-none">
-                      <CharacterModelRenderer
-                        outfitId={
-                          staff.outfitId ||
-                          (staff.roleId === 'manager'
-                            ? 'royal_tuxedo'
-                            : staff.roleId === 'barista'
-                            ? 'barista_uniform'
-                            : staff.roleId === 'chef'
-                            ? 'executive_chef'
-                            : staff.roleId === 'waiter'
-                            ? 'maid_cafe_elegance'
-                            : staff.roleId === 'mixologist'
-                            ? 'mixologist_neon'
-                            : staff.roleId === 'sommelier'
-                            ? 'sommelier_noble'
-                            : staff.roleId === 'procurement'
-                            ? 'netherite_hazard'
-                            : 'classic_miner')
-                        }
-                        size="xs"
-                        animation="idle"
-                        showShadow={false}
-                      />
-                    </div>
+                    {/* Staff Avatar */}
+                    <span className="text-2xl mt-0.5">{staff.avatar}</span>
 
                     {/* Staff Name & Role */}
                     <div className="text-center">
@@ -263,10 +238,10 @@ export const CafeFloorBlueprintMap: React.FC<CafeFloorBlueprintMapProps> = ({
                         {staff.roleId === 'manager' && (isEn ? '👔 Manager' : '👔 店長')}
                         {staff.roleId === 'barista' && (isEn ? '☕ Barista' : '☕ 咖啡師')}
                         {staff.roleId === 'chef' && (isEn ? '👨‍🍳 Chef' : '👨‍🍳 主廚')}
-                        {staff.roleId === 'waiter' && (isEn ? '🏃 Waiter' : '🏃‍♂️ 領班')}
+                        {staff.roleId === 'waiter' && (isEn ? '🏃‍♂️ Waiter' : '🏃‍♂️ 領班')}
                         {staff.roleId === 'mixologist' && (isEn ? '🍸 Mixologist' : '🍸 調酒師')}
                         {staff.roleId === 'sommelier' && (isEn ? '🎩 Sommelier' : '🎩 品鑑官')}
-                        {staff.roleId === 'procurement' && (isEn ? '⛏️ Buyer' : '⛏️ 採購')}
+                        {staff.roleId === 'procurement' && (isEn ? '⛏️ Procurement' : '⛏️ 採購')}
                       </div>
                     </div>
 
@@ -280,7 +255,7 @@ export const CafeFloorBlueprintMap: React.FC<CafeFloorBlueprintMapProps> = ({
                   className="p-3 rounded-xl border-2 border-dashed border-amber-500/60 bg-amber-950/20 text-center cursor-pointer hover:bg-amber-900/30 transition-colors"
                 >
                   <span className="text-xs text-amber-300 font-bold font-minecraft">
-                    + {isEn ? 'Assign Staff (員工)' : '配置員工當值'}
+                    + {isEn ? 'Assign Staff' : '配置員工當值'}
                   </span>
                 </div>
               )}
@@ -394,7 +369,9 @@ export const CafeFloorBlueprintMap: React.FC<CafeFloorBlueprintMapProps> = ({
                   {/* Table header & seat number */}
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-mono font-black text-amber-400 bg-black/60 px-2 py-0.5 rounded border border-zinc-700">
-                      {isMain ? `桌號 #${localIdx + 1}` : `星空桌 #${localIdx + 1}`}
+                      {isEn
+                        ? (isMain ? `Table #${localIdx + 1}` : `Starlight #${localIdx + 1}`)
+                        : (isMain ? `桌號 #${localIdx + 1}` : `星空桌 #${localIdx + 1}`)}
                     </span>
 
                     {order && order.status === 'waiting' && (
@@ -408,7 +385,7 @@ export const CafeFloorBlueprintMap: React.FC<CafeFloorBlueprintMapProps> = ({
 
                     {order && order.status === 'eating' && (
                       <span className="text-[10px] font-black text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-600 animate-pulse">
-                        💖 享用中
+                        {isEn ? '💖 Dining' : '💖 享用中'}
                       </span>
                     )}
 
@@ -448,7 +425,7 @@ export const CafeFloorBlueprintMap: React.FC<CafeFloorBlueprintMapProps> = ({
                             <div className="text-[9px] text-zinc-400 flex items-center gap-1 font-mono">
                               <span className="text-amber-400 font-bold">+{dish.sellPrice} 🪙</span>
                               <span>•</span>
-                              <span className="text-emerald-400">x{order.tipMultiplier} 小費</span>
+                              <span className="text-emerald-400">x{order.tipMultiplier} {isEn ? 'Tip' : '小費'}</span>
                             </div>
                           </div>
                         </div>
@@ -462,7 +439,7 @@ export const CafeFloorBlueprintMap: React.FC<CafeFloorBlueprintMapProps> = ({
                               : 'bg-rose-950 text-rose-300 border-rose-800'
                           }`}
                         >
-                          {inStock ? '現貨' : canInstantCook ? '可即煮' : '缺料'}
+                          {inStock ? (isEn ? 'Ready' : '現貨') : canInstantCook ? (isEn ? 'Cook Now' : '可即煮') : (isEn ? 'No Mat' : '缺料')}
                         </span>
                       </div>
                     </div>

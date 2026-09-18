@@ -1,6 +1,6 @@
 {
   "name": "Minecraft 礦業咖啡廳：千味盛宴",
-  "description": "在手繪地圖中自由穿梭於咖啡廳、礦坑與電梯！2.5.41 加入完整英語翻譯、員工與玩家像素人形模型增強、10套時裝衣物工坊與制服調度系統。",
+  "description": "在手繪地圖中自由行走穿梭於咖啡廳、礦坑與電梯之間！開採地層方塊製成千種傳奇料理，招呼源源不絕的顧客！",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

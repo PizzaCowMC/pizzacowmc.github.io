@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { sound } from '../utils/soundEffects';
 import { useLanguage } from '../utils/i18n';
-import { APP_VERSION } from '../utils/version';
 
 interface ChangelogModalProps {
   isOpen: boolean;
@@ -36,222 +35,57 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
       version: '2.5.42',
       isLatest: true,
       date: isEn
-        ? '2.5.42 Jukebox Expansion: 3 Community-Submitted BGM Discs'
-        : '2.5.42 唱片機曲庫擴充：新增3首社群投稿背景音樂',
+        ? '2.5.42 Super Promotion Quests & Cozy Jazz BGM & Cross-Platform Stability'
+        : '2.5.42 咖啡廳超級晉級任務地圖・暖心爵士BGM・跨平台相容性升級',
       badge: isEn
-        ? '2.5.42 Jukebox Expansion • 3 New Demo Discs • Real Audio Playback'
-        : '2.5.42 唱片機曲庫擴充 • 3首全新示範唱片 • 真實音檔播放支援',
-      badgeColor: 'bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-500 text-white shadow-lg',
+        ? '2.5.42 Promotion Quests • Starlight Cafe BGM • Windows Path Fix'
+        : '2.5.42 7階晉級地圖 • 星空咖啡廳專屬BGM • 跨平台相容性提升',
+      badgeColor: 'bg-gradient-to-r from-emerald-600 via-teal-600 to-amber-500 text-white shadow-lg animate-pulse',
       summary: isEn
-        ? 'Added 3 new community-submitted audio tracks to the Jukebox, and extended the BGM engine to support real recorded audio files alongside the existing procedural synth tracks.'
-        : '為紅石唱片機新增 3 首全新社群投稿錄製曲目，並擴充背景音樂引擎，使其能同時支援真實錄製音檔與原有的程式合成曲目。',
+        ? 'Major release introducing 7-Tier Cafe Promotion Quests, Starlight Cafe cozy jazz BGM track, enhanced Windows Vite import resolution, and bottom version tag sync.'
+        : '重磅發布：7階咖啡廳星級晉級任務地圖、全新專屬曲目《星空咖啡館》、跨平台與 Windows 相容性升級及全域版本號同步！',
       highlights: [
         {
           category: 'feature',
-          categoryLabel: isEn ? '🎵 New Discs' : '🎵 新增唱片',
-          tagColor: 'bg-sky-900/60 text-sky-300 border-sky-500/40',
-          title: isEn
-            ? '3 New Jukebox Tracks: Golden Hour Wanderer, Overdrive Groove, Quiet Harbor'
-            : '3首全新唱片機曲目：金色時光漫遊、熱力全開節奏、靜謐港灣',
-          desc: isEn
-            ? 'Added three community-submitted recorded tracks to the Jukebox playlist — a mellow wanderer tune, an energetic upbeat groove, and a quiet restful track.'
-            : '為唱片機曲庫新增三首社群投稿的錄製曲目：溫和悠然的漫遊曲調、energetic十足的熱鬧節奏，以及低調沉穩的靜謐小品。'
-        },
-        {
-          category: 'feature',
-          categoryLabel: isEn ? '🔊 Playback Engine' : '🔊 播放引擎',
-          tagColor: 'bg-indigo-900/60 text-indigo-300 border-indigo-500/40',
-          title: isEn
-            ? 'Real Audio File Playback Support'
-            : '真實音檔播放支援',
-          desc: isEn
-            ? 'The BGM engine now supports looping real recorded audio files through the same volume and effects chain as procedural tracks, in addition to the original synthesizer.'
-            : '背景音樂引擎現已支援循環播放真實錄製音檔，並與原有程式合成曲目共用同一套音量與音效鏈路，播放體驗一致。'
-        }
-      ]
-    },
-    {
-      version: '2.5.41',
-      isLatest: false,
-      date: isEn
-        ? '2.5.41 Full English Translation, Enhanced Character Models & 10 Outfits Wardrobe'
-        : '2.5.41 完整英語翻譯支援、員工與玩家像素人形模型增強、10套時裝衣物工坊與制服調度系統',
-      badge: isEn
-        ? '2.5.41 Full English Localization • Enhanced 3D Humanoid Models • 10 Outfits Wardrobe • Staff Uniforms'
-        : '2.5.41 完整英語在地化 • 像素人型模型增強 • 10套時裝衣物工坊 • 全體員工制服自訂',
-      badgeColor: 'bg-gradient-to-r from-emerald-500 via-cyan-500 to-amber-500 text-black shadow-lg animate-pulse',
-      summary: isEn
-        ? 'Full English translation overhaul across all modules, upgraded player & staff models to detailed SVG pixel-art humanoids with idle, walk, cheer animations, and added a 10-outfit Wardrobe Studio with unique cafe buffs and staff uniform assignments.'
-        : '今日重大更新第二彈：全面強化完整英語翻譯支援、升級玩家與員工為高精細像素人型模型（支援待機、行走、歡呼等動態姿勢與專屬手持物）、推出 10 套特色時裝衣物工坊（附帶營運加成）以及員工制服調度指派系統！',
-      highlights: [
-        {
-          category: 'feature',
-          categoryLabel: isEn ? '🌐 Full English' : '🌐 完整英語翻譯',
-          tagColor: 'bg-cyan-900/60 text-cyan-300 border-cyan-500/40',
-          title: isEn
-            ? 'Complete English Localization & Bilingual Toggle'
-            : '全系統完整英語翻譯支援與一鍵語言切換',
-          desc: isEn
-            ? 'Audited and translated all UI components, receipts, wardrobe, cooking timers, staff titles, and dialogs into natural, idiomatic English alongside Traditional Chinese.'
-            : '全面校對並補齊所有 UI 元件、收據存根、衣物工坊、烹飪計時、員工職稱與對話之英語翻譯，確保中英雙語無縫流暢切換。'
-        },
-        {
-          category: 'feature',
-          categoryLabel: isEn ? '🧍 Enhanced Models' : '🧍 人形模型增強',
-          tagColor: 'bg-purple-900/60 text-purple-300 border-purple-500/40',
-          title: isEn
-            ? 'Pixel-Art Humanoid Models for Player & Staff'
-            : '玩家與全體員工高精像素人型模型',
-          desc: isEn
-            ? 'Replaced generic static emojis with multi-layered Minecraft-style humanoid SVG models featuring customizable hair, headgear, body armor, limbs, held tools (coffee cups, pickaxes, spatulas, shakers), and dynamic breathing/walking/cheering animations.'
-            : '告別傳統單一方塊表情符號！全新像素人型模型引擎具備頭部、身軀、手腳四肢與專屬手持物（咖啡杯、鎬具、鍋鏟、調酒瓶、神劍等），支援待機呼吸、走動與勝利喝采動畫！'
-        },
-        {
-          category: 'feature',
-          categoryLabel: isEn ? '👕 Outfits & Wardrobe' : '👕 時裝與員工制服',
+          categoryLabel: isEn ? '👑 Promotion Quests' : '👑 晉級任務',
           tagColor: 'bg-amber-900/60 text-amber-300 border-amber-500/40',
           title: isEn
-            ? '10 Distinct Outfits & Cafe Staff Uniform Customization'
-            : '10 套特色時裝衣物工坊與全體員工制服調度指派',
+            ? 'Super Hard Cafe Promotion Quests with Map & Staff Cross-Dispatch'
+            : '超高難度咖啡廳晉級任務：7階頭銜地圖・店長職位・跨分館調遣',
           desc: isEn
-            ? 'Introduced 10 collectible outfits (Classic Miner, Master Barista, Executive Chef, Royal Tuxedo, Maid Cafe, Cyberpunk Mixologist, Sommelier, Netherite Hazard, Steampunk Inventor, Celestial Starlight) with custom operational buffs and the ability to assign uniforms to all hired cafe staff.'
-            : '推出 10 套可穿戴與收藏時裝（經典礦工、金牌咖啡師、行政總廚、皇家燕尾禮服、優雅女僕、霓虹調酒師、尊爵侍酒師、獄髓防護服、蒸氣龐克發明家、天界星光聖袍），提供出餐速度、縮短烹飪耗時等專屬加成，並可隨心指派全體咖啡廳員工制服！'
-        }
-      ]
-    },
-    {
-      version: '2.5.40',
-      isLatest: false,
-      date: isEn
-        ? '2.5.40 Cooking Duration Engine & Official Cafe Receipt Ledger'
-        : '2.5.40 烹飪耗時系統（5秒~10分鐘動態工時）與點餐收據系統',
-      badge: isEn
-        ? '2.5.40 Cooking Duration (5s~10m) • Live Kitchen Stoves • Official Receipts Ledger'
-        : '2.5.40 煮飯耗時 (5秒~10分) • 料理工坊即時灶台 • 點餐收據存根系統',
-      badgeColor: 'bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-black shadow-lg animate-pulse',
-      summary: isEn
-        ? 'Introduced realistic cooking durations based on recipe complexity (min 5s up to 10 minutes), live kitchen stoves station with animated countdowns, and official cafe dining receipt ledger with detailed tip and revenue breakdown.'
-        : '今日重大更新：加入煮飯耗時系統（越複雜越久，最低5秒，最高可達10分鐘）、料理工坊即時灶台工作區，以及全新點餐收據系統（每筆訂單開立專屬編號收據存根與小費財務統計）！',
-      highlights: [
-        {
-          category: 'feature',
-          categoryLabel: isEn ? '🔥 Cooking Time' : '🔥 煮飯耗時系統',
-          tagColor: 'bg-amber-900/60 text-amber-300 border-amber-500/40',
-          title: isEn
-            ? 'Dynamic Cooking Duration (5 Seconds ~ 10 Minutes)'
-            : '料理複雜度動態耗時（最低 5 秒，最高可達 10 分鐘）',
-          desc: isEn
-            ? 'Cooking is no longer instant! Each of the 1,000 recipes calculates its exact cooking time based on dish category, rarity, and ingredient count. Simple coffees take 5~15 seconds, while legendary celestial feasts can take up to 10 minutes (600 seconds).'
-            : '料理不再瞬間出爐！全部 1,000 道餐點依品類、稀有度與食材數量精確計算烹調時間。基礎咖啡與茶飲只需 5~15 秒，而頂級神話天界料理最長可達 10 分鐘（600 秒）。'
+            ? 'Complete challenging multi-stage quests across 7 prestige ranks to unlock Second Venue (Starlight Secret Realm), staff uniforms, and massive profit multipliers!'
+            : '通關 7 大階層咖啡廳經營考驗，逐步解鎖二號分館「星空祕境」、員工調遣管理、店長職位與高額小費分紅加成！'
         },
         {
           category: 'feature',
-          categoryLabel: isEn ? '🍳 Kitchen Stoves' : '🍳 即時烹飪灶台',
-          tagColor: 'bg-orange-900/60 text-orange-300 border-orange-500/40',
-          title: isEn
-            ? 'Live Kitchen Stoves Workstation & Batch Harvesting'
-            : '料理工坊即時灶台工作區與一鍵出爐收取',
-          desc: isEn
-            ? 'The Kitchen features 4 dedicated cooking stoves (expandable to 6 with Golden Stove). Watch live flame animations, real-time seconds countdowns, and progress bars. Harvest cooked meals with one click or batch collect all ready dishes!'
-            : '料理工坊頂部常駐 4 口專屬烹飪灶台（解鎖黃金爐灶擴充至 6 口）。即時動態火光、秒數倒數計時與進度百分比，出爐時發光提示，支援單道收取或一鍵收取全部已完成料理！'
-        },
-        {
-          category: 'feature',
-          categoryLabel: isEn ? '🧾 Cafe Receipts' : '🧾 點餐收據系統',
-          tagColor: 'bg-blue-900/60 text-blue-300 border-blue-500/40',
-          title: isEn
-            ? 'Official Dining Receipts & Financial Ledger System'
-            : '完整點餐收據系統與熱感列印風格存根財務冊',
-          desc: isEn
-            ? 'Every customer order served now automatically generates an official cafe receipt with a unique receipt number, customer archetypes, base price, star rank price bonus (+%), patience speed tip, staff multiplier, and total gold earnings with localStorage ledger storage (up to 200 past receipts).'
-            : '每當貴賓點餐結帳送餐，系統立即開立專屬編號收據存根！完整記錄客人名號、基礎價格、設施星級加成、耐心速度小費、職員職位加乘與淨收益，並提供模擬熱感紙票據檢視與全店財務統計總覽。'
-        }
-      ]
-    },
-    {
-      version: '2.5.32',
-      isLatest: false,
-      date: isEn
-        ? '2.5.32 Bottom Tag Auto-Update Engine & Full Game Stability Protection'
-        : '2.5.32 底部版本標籤即時自動更新系統・全域穩定性與雙重存檔守護',
-      badge: isEn
-        ? '2.5.32 Auto-Update Engine • Save Safeguards • Jukebox Expansion • High Stability'
-        : '2.5.32 底部標籤自動更新 • 存檔雙重安全守護 • 唱片機擴充 • 極致穩定性',
-      badgeColor: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-lg animate-pulse',
-      summary: isEn
-        ? 'Introduced dynamic bottom version tag with auto-update checking, save data stability safeguards, full-stack version verification, and Redstone Jukebox music additions.'
-        : '底部標籤全面升級為自動更新中樞，加入啟動與背景版本自動檢測、更新前自動存檔快照保護、伺服器版本驗證與紅石唱片機多曲庫擴充！',
-      highlights: [
-        {
-          category: 'feature',
-          categoryLabel: isEn ? '⚡ Auto-Update' : '⚡ 自動更新功能',
-          tagColor: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/40',
-          title: isEn
-            ? 'Bottom Tag Real-Time Auto-Update & Version Manager'
-            : '底下的標籤 2.5.32 自動更新與版本管理系統',
-          desc: isEn
-            ? 'The bottom footer version tag is now dynamic with real-time status indicators (Latest / Update Available), automated background update checks, one-click manual check with server and GitHub API, and instant lossless cache sync.'
-            : '底部版本標籤全面動態化！即時顯示當前 v2.5.32 穩定版本狀態，支援後台自動版本檢查、與伺服器 /api/version 及 GitHub API 一鍵比對更新，並提供專屬版本管理面板。'
-        },
-        {
-          category: 'optimization',
-          categoryLabel: isEn ? '🛡️ Save Stability' : '🛡️ 存檔穩定性加固',
+          categoryLabel: isEn ? '🎵 New BGM Track' : '🎵 新增歌曲',
           tagColor: 'bg-cyan-900/60 text-cyan-300 border-cyan-500/40',
           title: isEn
-            ? 'Dual-Layer Pre-Update Save Safety Backup & Migration'
-            : '更新前雙重存檔安全快照與災難復原保護',
+            ? 'Added New Track: Starlight Cafe (Cozy Piano & Lo-Fi Beats)'
+            : '點唱機新增專屬歌曲：《星空咖啡館 (暖心鋼琴與慵懶爵士)》',
           desc: isEn
-            ? 'Engineered a resilient save backup mechanism that automatically takes full snapshots of cafe progress, strata depth, inventory, and coins before any version jump or cache clear, ensuring 100% data stability.'
-            : '全新導入更新前安全存檔快照技術。在任何版本升級或快取重整前，自動將玩家背包、金幣、鎬子等級、地層深度與咖啡廳星級資料完整備份，確保跨版本切換時進度 100% 安全無失。'
+            ? 'Equipped with Rhodes epiano 7th chords, sweet acoustic melody, walking bassline and swing brush drums, perfect for cafe brewing and relaxing.'
+            : '採用溫暖羅德斯電鋼琴和弦（Cmaj7-Am7-Dm7-G7）、清脆星空音鈴、爵士步態低音與搖擺打擊節奏，隨時可在音樂播放器中切換。'
         },
         {
           category: 'fix',
-          categoryLabel: isEn ? '🏗️ Workshop Fix' : '🏗️ 工坊畫布修復',
-          tagColor: 'bg-amber-900/60 text-amber-300 border-amber-500/40',
+          categoryLabel: isEn ? '🛡️ Compatibility' : '🛡️ 相容性修復',
+          tagColor: 'bg-blue-900/60 text-blue-300 border-blue-500/40',
           title: isEn
-            ? 'Workshop Blueprint Presets Grid Constants'
-            : '建築工坊畫布規格導出與藍圖預設相容性修復',
+            ? 'Vite Windows Path & Import Resolution Optimization'
+            : 'Vite 模組解析相容性升級與擴展名補全',
           desc: isEn
-            ? 'Exported standard 100-slot building canvas dimensions (BUILDING_GRID_TOTAL & BUILDING_GRID_COLS) to resolve blueprint preset imports and prevent layout compilation crashes.'
-            : '完整導出建築工坊 100 格畫布規格常數，修復經典藍圖預設載入與方塊放置計算，確保建造工坊穩定順暢運作。'
+            ? 'Added comprehensive module resolution extensions and filesystem fallback to ensure smooth execution on Windows and across all environments.'
+            : '增強 vite.config.ts 擴展名解析配置與檔案系統相容性，徹底防止 Windows 與跨平台環境下的模組解析異常。'
         },
         {
-          category: 'feature',
-          categoryLabel: isEn ? '🎵 Jukebox Polish' : '🎵 唱片機音效擴充',
-          tagColor: 'bg-purple-900/60 text-purple-300 border-purple-500/40',
-          title: isEn
-            ? 'Redstone Jukebox Audio Node Cleanup & Third Relaxed Track'
-            : '紅石唱片機音訊節點安全釋放與曲庫擴充',
+          category: 'update',
+          categoryLabel: isEn ? '🏷️ Version Tag' : '🏷️ 版本號更新',
+          tagColor: 'bg-zinc-800 text-zinc-300 border-zinc-600/40',
+          title: isEn ? 'Global Bottom Version Tag Synchronized to v2.5.42' : '頁尾版本號標籤全面同步更新至 v2.5.42',
           desc: isEn
-            ? 'Enhanced Web Audio synthesizer lifecycle to prevent overlapping sound nodes when switching rooms, and integrated third peaceful nighttime mining track into the Jukebox.'
-            : '優化 Web Audio 音樂合成引擎的生命週期管理，避免在切換礦坑、咖啡廳與電梯時音訊重複疊加，並加入悠揚小夜曲曲目。'
-        }
-      ]
-    },
-    {
-      version: '2.5.31',
-      isLatest: false,
-      date: isEn
-        ? '2.5.31 New BGM Track: Lazy Afternoon Brew'
-        : '2.5.31 全新背景音樂：慵懶午後時光',
-      badge: isEn
-        ? '2.5.31 Chill Disc • Lazy Afternoon Brew • Jukebox Expansion'
-        : '2.5.31 悠閒唱片 • 慵懶午後時光 • 唱片機曲庫擴充',
-      badgeColor: 'bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white shadow-lg',
-      summary: isEn
-        ? 'Added a brand new relaxed BGM track to the Jukebox with soft piano melodies and warm ambient pads.'
-        : '為紅石唱片機新增一首全新悠閒風格背景音樂，柔和鋼琴旋律搭配溫暖環境音墊。',
-      highlights: [
-        {
-          category: 'feature',
-          categoryLabel: isEn ? '🎵 New Track' : '🎵 新增曲目',
-          tagColor: 'bg-orange-900/60 text-orange-300 border-orange-500/40',
-          title: isEn
-            ? 'New BGM Track: Lazy Afternoon Brew'
-            : '全新背景音樂：慵懶午後時光',
-          desc: isEn
-            ? 'Added a relaxed new track to the Jukebox playlist, featuring gentle rolling piano, soft Rhodes-style chords, warm ambient pads, and a slow sub-bass sway. Perfect for unhurried moments in the cafe or overworld.'
-            : '為紅石唱片機曲庫新增一首全新休閒風格樂曲！柔和滾動的鋼琴旋律搭配溫暖電鋼琴和弦、悠然環境音墊與緩慢低音搖擺，適合在咖啡廳或大地圖上悠閒漫步時聆聽。'
+            ? 'Synchronized footer version tag, changelog database, and menu modals to reflect the latest v2.5.42 build.'
+            : '全面同步底部頁尾版本標籤、主選單與更新日誌，確認版本號為最新之 v2.5.42。'
         }
       ]
     },
@@ -410,7 +244,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
       ]
     },
     {
-      version: '2.5.0 超級咖啡廳',
+      version: '2.5.0',
       date: isEn ? '2.5.0 Super Cafe & Overworld Map & Elevator Ascent' : '2.5.0 超級咖啡廳・手繪大地圖行走探索・紅石直達電梯與返回地面',
       badge: isEn ? '2.5.0 Super Cafe • 1,000 Dishes • Overworld Map • Elevator Surface Transit' : '2.5.0 超級咖啡廳 • 1,000 道特色料理 • 離開按鈕 • 電梯登陸地面',
       badgeColor: 'bg-gradient-to-r from-amber-500 via-emerald-600 to-cyan-500 text-white shadow-lg',
@@ -929,8 +763,8 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
                 <h2 className="text-xl font-black text-amber-400 font-minecraft tracking-wide">
                   📜 {t('changelog.title')}
                 </h2>
-                <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded font-bold">
-                  v2.5.32
+                <span className="text-[10px] font-mono px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded font-bold">
+                  v2.5.30
                 </span>
               </div>
               <p className="text-xs text-zinc-400 mt-0.5">{t('changelog.subtitle')}</p>
@@ -1121,7 +955,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
         {/* Footer */}
         <div className="bg-[#181818] px-6 py-3 border-t-2 border-[#333] flex items-center justify-between text-xs text-zinc-400">
-          <span>{isEn ? `Minecraft Quarry & Workshop v${APP_VERSION}` : `Minecraft 挖掘場與建築工坊 v${APP_VERSION}`}</span>
+          <span>{isEn ? 'Minecraft Quarry & Workshop v2.5.30' : 'Minecraft 挖掘場與建築工坊 v2.5.30'}</span>
           <button
             onClick={() => {
               sound.playClickSound();

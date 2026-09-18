@@ -5,17 +5,13 @@ import { sound } from '../utils/soundEffects';
 import { Trash2, Hammer } from 'lucide-react';
 import { useLanguage } from '../utils/i18n';
 
-export const BUILDING_GRID_TOTAL = 100;
-export const BUILDING_GRID_COLS = 10;
-
-export interface BuildingZoneProps {
+interface BuildingZoneProps {
   grid: (string | null)[];
   inventory: Record<string, number>;
   selectedBlockId: string;
   onPlaceBlock: (index: number) => void;
   onReclaimBlock: (index: number) => void;
   onClearAll: () => void;
-  onLoadPreset?: (presetId: string) => void;
 }
 
 export const BuildingZone: React.FC<BuildingZoneProps> = ({

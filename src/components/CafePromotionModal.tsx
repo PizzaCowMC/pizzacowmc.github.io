@@ -185,9 +185,9 @@ export const CafePromotionModal: React.FC<CafePromotionModalProps> = ({
               {isEn ? currentTier.titleHonorEn : currentTier.titleHonorZh}
             </div>
             <div className="text-[11px] text-zinc-400 flex items-center gap-2 pt-1 border-t border-[#3d2e20]">
-              <span>小費加成: <strong className="text-amber-400">+{Math.round(currentTier.tipMultiplierBonus * 100)}%</strong></span>
+              <span>{isEn ? 'Tip Bonus: ' : '小費加成: '}<strong className="text-amber-400">+{Math.round(currentTier.tipMultiplierBonus * 100)}%</strong></span>
               <span>•</span>
-              <span>分紅: <strong className="text-yellow-400">+{currentTier.passiveDividendBonus} 🪙</strong></span>
+              <span>{isEn ? 'Dividend: ' : '分紅: '}<strong className="text-yellow-400">+{currentTier.passiveDividendBonus} 🪙</strong></span>
             </div>
           </div>
 
@@ -207,9 +207,9 @@ export const CafePromotionModal: React.FC<CafePromotionModalProps> = ({
                 {isEn ? nextTier.titleHonorEn : nextTier.titleHonorZh}
               </div>
               <div className="text-[11px] text-zinc-300 flex items-center gap-2 pt-1 border-t border-amber-900/40">
-                <span>小費飛躍: <strong className="text-emerald-400">+{Math.round(nextTier.tipMultiplierBonus * 100)}%</strong></span>
+                <span>{isEn ? 'Tip Leap: ' : '小費飛躍: '}<strong className="text-emerald-400">+{Math.round(nextTier.tipMultiplierBonus * 100)}%</strong></span>
                 <span>•</span>
-                <span>分紅提升: <strong className="text-yellow-400">+{nextTier.passiveDividendBonus} 🪙</strong></span>
+                <span>{isEn ? 'Dividend Boost: ' : '分紅提升: '}<strong className="text-yellow-400">+{nextTier.passiveDividendBonus} 🪙</strong></span>
               </div>
             </div>
           ) : (

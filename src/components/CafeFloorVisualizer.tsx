@@ -336,7 +336,7 @@ export const CafeFloorVisualizer: React.FC<CafeFloorVisualizerProps> = ({
                             +{dish.sellPrice} 🪙
                           </span>
                           <span>•</span>
-                          <span className="text-emerald-400">小費 x{order.tipMultiplier}</span>
+                          <span className="text-emerald-400">{isEn ? `Tip x${order.tipMultiplier}` : `小費 x${order.tipMultiplier}`}</span>
                         </div>
                       </div>
                     </div>

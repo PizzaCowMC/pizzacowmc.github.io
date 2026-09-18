@@ -1,5 +1,6 @@
 import React from 'react';
 import { BLOCK_TYPES } from '../data/gameData';
+import { useI18n } from '../utils/i18n';
 
 interface BlockTextureProps {
   blockId: string;
@@ -40,6 +41,8 @@ export const BlockTexture: React.FC<BlockTextureProps> = ({
   className = '',
   showName = false
 }) => {
+  const { language } = useI18n();
+  const isEn = language === 'en';
   const block = BLOCK_TYPES.find(b => b.id === blockId) || BLOCK_TYPES[0];
 
   return (
@@ -81,7 +84,7 @@ export const BlockTexture: React.FC<BlockTextureProps> = ({
           className="relative z-10 text-white text-xs text-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] px-1 leading-tight"
           style={{ fontSize: Math.max(9, Math.floor(size / 5)) }}
         >
-          {block.nameZh}
+          {isEn ? block.nameEn : block.nameZh}
         </span>
       )}
     </div>

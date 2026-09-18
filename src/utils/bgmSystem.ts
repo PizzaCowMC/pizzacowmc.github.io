@@ -14,7 +14,6 @@ export interface BgmTrack {
   discLabel: string;
   bpm: number;
   suitableArea?: 'overworld' | 'cafe' | 'quarry' | 'building' | 'elevator';
-  audioSrc?: string; // If set, plays a real audio file instead of the procedural synth
 }
 
 // Standard Note frequency mapping helper
@@ -51,73 +50,18 @@ export const BGM_TRACKS: BgmTrack[] = [
     suitableArea: 'elevator'
   },
   {
-    id: 'lazy_afternoon',
-    nameEn: 'Lazy Afternoon Brew',
-    nameZh: '慵懶午後時光',
-    discName: 'Chill Disc Warmth - Golden Hour',
-    composer: 'Redstone Steam Workshop',
-    descEn: 'A relaxed, easy-going tune with soft rolling piano and a gentle sub-bass sway — perfect for slow, unhurried moments.',
-    descZh: '輕鬆悠閒的曲調，柔和的鋼琴滾動旋律搭配溫暖的低音搖擺，適合慢下來、無所事事的午後時光。',
-    discColor: '#f97316',
-    ringColor: '#c2410c',
-    discLabel: 'CHILL',
-    bpm: 78
-  },
-  {
     id: 'starlight_cafe',
-    nameEn: 'Starlight Mining Serenade',
-    nameZh: '星光微醺小夜曲',
-    discName: 'Ambient Disc Shimmer - Starlight Lounge',
-    composer: 'Redstone Steam Workshop',
-    descEn: 'A tranquil piano melody floating over shimmering acoustic bells, warm rhodes pads, and gentle sub-bass — ideal for quiet hours.',
-    descZh: '寧靜柔美的鋼琴旋律浮動於微光鐘音與溫暖氛圍音墊之上，適合深夜採礦與靜謐休憩時光。',
-    discColor: '#6366f1',
-    ringColor: '#4338ca',
-    discLabel: 'SERENE',
-    bpm: 72,
-    suitableArea: 'cafe'
-  },
-  {
-    id: 'demo_track_1',
-    nameEn: 'Golden Hour Wanderer',
-    nameZh: '金色時光漫遊',
-    discName: 'Demo Disc Vol.1 - First Pressing',
-    composer: 'Community Submission',
-    descEn: 'A soft, easygoing recorded track — mellow and unhurried, good for calm background listening.',
-    descZh: '一首柔和、步調輕鬆的錄製曲目，音色溫和不急躁，適合作為安靜的背景音樂。',
-    discColor: '#facc15',
-    ringColor: '#a16207',
-    discLabel: 'DEMO 1',
-    bpm: 90,
-    audioSrc: '/assets/bgm/demo_1.wav'
-  },
-  {
-    id: 'demo_track_2',
-    nameEn: 'Overdrive Groove',
-    nameZh: '熱力全開節奏',
-    discName: 'Demo Disc Vol.2 - First Pressing',
-    composer: 'Community Submission',
-    descEn: 'The most energetic of the recorded tracks — punchy and full-bodied, good for livelier moments.',
-    descZh: '三首錄製曲目中energetic最強的一首，音量飽滿有力，適合氣氛較熱鬧的場景。',
-    discColor: '#ef4444',
-    ringColor: '#b91c1c',
-    discLabel: 'DEMO 2',
-    bpm: 100,
-    audioSrc: '/assets/bgm/demo_2.wav'
-  },
-  {
-    id: 'demo_track_3',
-    nameEn: 'Quiet Harbor',
-    nameZh: '靜謐港灣',
-    discName: 'Demo Disc Vol.3 - First Pressing',
-    composer: 'Community Submission',
-    descEn: 'A gentle, understated recorded track with a settled, restful character.',
-    descZh: '一首低調沉穩的錄製曲目，帶有平靜、休憩般的氛圍。',
+    nameEn: 'Starlight Cafe (Cozy Piano & Lo-Fi Beats)',
+    nameZh: '星空咖啡館 (暖心鋼琴與慵懶爵士)',
+    discName: 'Music Disc Cat - Starlight Roast',
+    composer: 'Starlight Cafe Lounge',
+    descEn: 'Cozy Lo-Fi cafe melody with warm Rhodes keys, gentle bell tinkles, relaxing walking subbass & acoustic brush ticks.',
+    descZh: '為咖啡廳出餐與分館時光打造：溫暖的電鋼琴和弦、悠揚的星空音鈴、舒適的爵士低音與輕快節奏，陪伴悠閒時光。',
     discColor: '#38bdf8',
-    ringColor: '#0369a1',
-    discLabel: 'DEMO 3',
-    bpm: 85,
-    audioSrc: '/assets/bgm/demo_3.wav'
+    ringColor: '#0284c7',
+    discLabel: 'CAFE',
+    bpm: 84,
+    suitableArea: 'cafe'
   }
 ];
 
@@ -129,10 +73,74 @@ interface NoteEvent {
   velocity: number; // 0.0 to 1.0
 }
 
-// Musical score generator for the official game theme song: Redstone Clockwork (紅石蒸氣工坊)
-function getTrackEvents(_trackId: string): { totalBeats: number; events: NoteEvent[] } {
+// Musical score generator for BGM tracks
+function getTrackEvents(trackId: string): { totalBeats: number; events: NoteEvent[] } {
   const events: NoteEvent[] = [];
 
+  if (trackId === 'starlight_cafe') {
+    // 16 beats of warm Lo-Fi cafe lounge
+    // Gentle drum brush ticks on every beat with swing on offbeats
+    for (let i = 0; i < 16; i++) {
+      events.push({ time: i, duration: 0.07, note: i % 2 === 0 ? 'F3' : 'C4', instrument: 'tick', velocity: 0.18 });
+      if (i % 2 === 1) {
+        events.push({ time: i + 0.66, duration: 0.05, note: 'G3', instrument: 'tick', velocity: 0.12 });
+      }
+    }
+
+    // Warm Rhodes electric piano chords (Cmaj7 -> Am7 -> Dm7 -> G7)
+    // Beat 0..4: Cmaj7 (C4, E4, G4, B4)
+    events.push({ time: 0, duration: 3.6, note: 'C4', instrument: 'epiano', velocity: 0.28 });
+    events.push({ time: 0, duration: 3.6, note: 'E4', instrument: 'epiano', velocity: 0.26 });
+    events.push({ time: 0, duration: 3.6, note: 'G4', instrument: 'epiano', velocity: 0.24 });
+    events.push({ time: 0, duration: 3.6, note: 'B4', instrument: 'epiano', velocity: 0.25 });
+
+    // Beat 4..8: Am7 (A3, C4, E4, G4)
+    events.push({ time: 4, duration: 3.6, note: 'A3', instrument: 'epiano', velocity: 0.28 });
+    events.push({ time: 4, duration: 3.6, note: 'C4', instrument: 'epiano', velocity: 0.26 });
+    events.push({ time: 4, duration: 3.6, note: 'E4', instrument: 'epiano', velocity: 0.24 });
+    events.push({ time: 4, duration: 3.6, note: 'G4', instrument: 'epiano', velocity: 0.25 });
+
+    // Beat 8..12: Dm7 (D4, F4, A4, C5)
+    events.push({ time: 8, duration: 3.6, note: 'D4', instrument: 'epiano', velocity: 0.28 });
+    events.push({ time: 8, duration: 3.6, note: 'F4', instrument: 'epiano', velocity: 0.26 });
+    events.push({ time: 8, duration: 3.6, note: 'A4', instrument: 'epiano', velocity: 0.24 });
+    events.push({ time: 8, duration: 3.6, note: 'C5', instrument: 'epiano', velocity: 0.25 });
+
+    // Beat 12..16: G7 (G3, B3, D4, F4)
+    events.push({ time: 12, duration: 3.6, note: 'G3', instrument: 'epiano', velocity: 0.28 });
+    events.push({ time: 12, duration: 3.6, note: 'B3', instrument: 'epiano', velocity: 0.26 });
+    events.push({ time: 12, duration: 3.6, note: 'D4', instrument: 'epiano', velocity: 0.24 });
+    events.push({ time: 12, duration: 3.6, note: 'F4', instrument: 'epiano', velocity: 0.25 });
+
+    // Melodic bell/piano touches (sweet coffee shop melody)
+    const melody = [
+      { t: 0.5, n: 'E5' }, { t: 1.5, n: 'D5' }, { t: 2.0, n: 'C5' }, { t: 3.0, n: 'G4' },
+      { t: 4.5, n: 'C5' }, { t: 5.5, n: 'B4' }, { t: 6.0, n: 'A4' }, { t: 7.0, n: 'E4' },
+      { t: 8.5, n: 'F4' }, { t: 9.0, n: 'A4' }, { t: 9.5, n: 'C5' }, { t: 10.5, n: 'E5' }, { t: 11.0, n: 'D5' },
+      { t: 12.5, n: 'B4' }, { t: 13.5, n: 'A4' }, { t: 14.0, n: 'G4' }, { t: 15.0, n: 'D4' }
+    ];
+    melody.forEach(m => {
+      events.push({ time: m.t, duration: 0.75, note: m.n, instrument: 'piano', velocity: 0.35 });
+      // Sparkle bell harmonic accompaniment
+      if (m.t % 2 === 0.5) {
+        events.push({ time: m.t, duration: 0.6, note: m.n, instrument: 'bell', velocity: 0.22 });
+      }
+    });
+
+    // Walking acoustic subbass
+    events.push({ time: 0, duration: 1.8, note: 'C3', instrument: 'subbass', velocity: 0.38 });
+    events.push({ time: 2, duration: 1.8, note: 'E3', instrument: 'subbass', velocity: 0.34 });
+    events.push({ time: 4, duration: 1.8, note: 'A2', instrument: 'subbass', velocity: 0.38 });
+    events.push({ time: 6, duration: 1.8, note: 'C3', instrument: 'subbass', velocity: 0.34 });
+    events.push({ time: 8, duration: 1.8, note: 'D3', instrument: 'subbass', velocity: 0.38 });
+    events.push({ time: 10, duration: 1.8, note: 'F3', instrument: 'subbass', velocity: 0.34 });
+    events.push({ time: 12, duration: 1.8, note: 'G2', instrument: 'subbass', velocity: 0.38 });
+    events.push({ time: 14, duration: 1.8, note: 'B2', instrument: 'subbass', velocity: 0.34 });
+
+    return { totalBeats: 16, events };
+  }
+
+  // Default track: Redstone Clockwork (紅石蒸氣工坊)
   // 16 beats of clockwork pulses, marimba arpeggios, steady subbass & mechanical ticks
   for (let i = 0; i < 16; i++) {
     events.push({ time: i, duration: 0.08, note: i % 4 === 0 ? 'G3' : 'D4', instrument: 'tick', velocity: 0.25 });
@@ -169,79 +177,6 @@ function getTrackEvents(_trackId: string): { totalBeats: number; events: NoteEve
   events.push({ time: 8, duration: 3.5, note: 'E2', instrument: 'subbass', velocity: 0.42 });
   events.push({ time: 12, duration: 3.5, note: 'D2', instrument: 'subbass', velocity: 0.42 });
 
-  if (_trackId === 'lazy_afternoon') {
-    return getLazyAfternoonEvents();
-  }
-  if (_trackId === 'starlight_cafe') {
-    return getStarlightCafeEvents();
-  }
-
-  return { totalBeats: 16, events };
-}
-
-// Musical score for the relaxed track: Lazy Afternoon Brew (慵懶午後時光)
-function getLazyAfternoonEvents(): { totalBeats: number; events: NoteEvent[] } {
-  const events: NoteEvent[] = [];
-
-  // Warm, unhurried piano melody drifting over 16 beats (loose swung feel)
-  const melody = [
-    { t: 0, n: 'E4', d: 1.4 }, { t: 1.5, n: 'G4', d: 0.9 }, { t: 2.5, n: 'A4', d: 1.4 },
-    { t: 4, n: 'B4', d: 1.4 }, { t: 5.5, n: 'G4', d: 0.9 }, { t: 6.5, n: 'E4', d: 1.4 },
-    { t: 8, n: 'D4', d: 1.4 }, { t: 9.5, n: 'E4', d: 0.9 }, { t: 10.5, n: 'F#4', d: 1.4 },
-    { t: 12, n: 'A4', d: 1.4 }, { t: 13.5, n: 'G4', d: 0.9 }, { t: 14.5, n: 'E4', d: 1.4 }
-  ];
-  melody.forEach(m => {
-    events.push({ time: m.t, duration: m.d, note: m.n, instrument: 'piano', velocity: 0.4 });
-  });
-
-  // Soft rhodes-style backing chords, one per phrase
-  events.push({ time: 0, duration: 3.6, note: 'C4', instrument: 'epiano', velocity: 0.18 });
-  events.push({ time: 4, duration: 3.6, note: 'G3', instrument: 'epiano', velocity: 0.18 });
-  events.push({ time: 8, duration: 3.6, note: 'A3', instrument: 'epiano', velocity: 0.18 });
-  events.push({ time: 12, duration: 3.6, note: 'F3', instrument: 'epiano', velocity: 0.18 });
-
-  // Gentle ambient pad wash underneath
-  events.push({ time: 0, duration: 7.5, note: 'C3', instrument: 'pad', velocity: 0.22 });
-  events.push({ time: 8, duration: 7.5, note: 'A2', instrument: 'pad', velocity: 0.22 });
-
-  // Slow, sparse sub-bass sway
-  events.push({ time: 0, duration: 3.8, note: 'C2', instrument: 'subbass', velocity: 0.3 });
-  events.push({ time: 4, duration: 3.8, note: 'G1', instrument: 'subbass', velocity: 0.3 });
-  events.push({ time: 8, duration: 3.8, note: 'A1', instrument: 'subbass', velocity: 0.3 });
-  events.push({ time: 12, duration: 3.8, note: 'F1', instrument: 'subbass', velocity: 0.3 });
-
-  return { totalBeats: 16, events };
-}
-
-// Musical score for the tranquil track: Starlight Mining Serenade (星光微醺小夜曲)
-function getStarlightCafeEvents(): { totalBeats: number; events: NoteEvent[] } {
-  const events: NoteEvent[] = [];
-
-  // Lyrical acoustic piano melody
-  const melody = [
-    { t: 0, n: 'G4', d: 1.8 }, { t: 2, n: 'D5', d: 1.8 }, { t: 4, n: 'C5', d: 1.8 }, { t: 6, n: 'B4', d: 1.8 },
-    { t: 8, n: 'E4', d: 1.8 }, { t: 10, n: 'G4', d: 1.8 }, { t: 12, n: 'A4', d: 1.8 }, { t: 14, n: 'G4', d: 1.8 }
-  ];
-  melody.forEach(m => {
-    events.push({ time: m.t, duration: m.d, note: m.n, instrument: 'piano', velocity: 0.38 });
-  });
-
-  // Shimmering acoustic bells
-  events.push({ time: 1, duration: 0.8, note: 'B5', instrument: 'bell', velocity: 0.2 });
-  events.push({ time: 5, duration: 0.8, note: 'G5', instrument: 'bell', velocity: 0.2 });
-  events.push({ time: 9, duration: 0.8, note: 'E5', instrument: 'bell', velocity: 0.2 });
-  events.push({ time: 13, duration: 0.8, note: 'D5', instrument: 'bell', velocity: 0.2 });
-
-  // Ambient chords & pad wash
-  events.push({ time: 0, duration: 7.8, note: 'G3', instrument: 'pad', velocity: 0.25 });
-  events.push({ time: 8, duration: 7.8, note: 'C3', instrument: 'pad', velocity: 0.25 });
-
-  // Sub-bass foundation
-  events.push({ time: 0, duration: 3.8, note: 'G2', instrument: 'subbass', velocity: 0.32 });
-  events.push({ time: 4, duration: 3.8, note: 'B1', instrument: 'subbass', velocity: 0.32 });
-  events.push({ time: 8, duration: 3.8, note: 'C2', instrument: 'subbass', velocity: 0.32 });
-  events.push({ time: 12, duration: 3.8, note: 'D2', instrument: 'subbass', velocity: 0.32 });
-
   return { totalBeats: 16, events };
 }
 
@@ -262,8 +197,6 @@ class BgmEngine {
   private loopTimer: number | null = null;
   private loopStartTime: number = 0;
   private listeners: Set<(track: BgmTrack, isPlaying: boolean) => void> = new Set();
-  private audioEl: HTMLAudioElement | null = null;
-  private audioSourceNode: MediaElementAudioSourceNode | null = null;
 
   constructor() {
     try {
@@ -390,13 +323,7 @@ class BgmEngine {
     } catch {}
 
     this.stopCurrentLoop();
-    this.stopAudioFile();
-
-    if (track.audioSrc) {
-      this.startAudioFile(track.audioSrc);
-    } else {
-      this.startLoop();
-    }
+    this.startLoop();
     this.isPlayingState = true;
     this.notify();
   }
@@ -411,24 +338,12 @@ class BgmEngine {
 
   public pause() {
     this.stopCurrentLoop();
-    if (this.audioEl) {
-      this.audioEl.pause();
-    }
     this.isPlayingState = false;
     this.notify();
   }
 
   public resume() {
-    const track = this.getCurrentTrack();
-    if (track.audioSrc) {
-      if (this.audioEl && this.audioEl.src.endsWith(track.audioSrc)) {
-        this.audioEl.play().catch(() => {});
-      } else {
-        this.startAudioFile(track.audioSrc);
-      }
-    } else {
-      this.startLoop();
-    }
+    this.startLoop();
     this.isPlayingState = true;
     this.notify();
   }
@@ -452,32 +367,6 @@ class BgmEngine {
     if (matched && matched.id !== this.currentTrackId) {
       this.playTrack(matched.id);
     }
-  }
-
-  private stopAudioFile() {
-    if (this.audioEl) {
-      this.audioEl.pause();
-      this.audioEl.currentTime = 0;
-    }
-  }
-
-  private startAudioFile(src: string) {
-    const ctx = this.getContext();
-    if (!ctx) return;
-    this.initAudioChain(ctx);
-
-    if (!this.audioEl || !this.audioEl.src.endsWith(src)) {
-      this.audioEl = new Audio(src);
-      this.audioEl.loop = true;
-      this.audioEl.crossOrigin = 'anonymous';
-      try {
-        this.audioSourceNode = ctx.createMediaElementSource(this.audioEl);
-        this.audioSourceNode.connect(this.filterNode!);
-      } catch {
-        // Fallback: if a MediaElementSource already exists for this element, ignore
-      }
-    }
-    this.audioEl.play().catch(() => {});
   }
 
   private stopCurrentLoop() {

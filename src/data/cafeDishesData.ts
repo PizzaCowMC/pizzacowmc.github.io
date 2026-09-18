@@ -1,59 +1,164 @@
 import { CafeDish, DishCategory, DishRarity } from '../types';
 
 // Base prefixes and descriptors for culinary naming
-const COFFEE_BASES = [
-  '義式濃縮', '深焙美式', '焦糖瑪奇朵', '絲絨拿鐵', '冷萃黑咖啡',
-  '卡布奇諾', '摩卡奇諾', '燕麥奶馥芮白', '生椰冰拿鐵', '炭焙維也納',
-  '冰滴特調', '手沖精選', '阿芙佳朵', '抹茶咖啡', '肉桂卡布',
-  '榛果拿鐵', '海鹽奶蓋美式', '香草雙倍濃縮', '斑蘭冷萃', '蜜香手沖'
+interface DishBaseName {
+  zh: string;
+  en: string;
+}
+
+const COFFEE_BASES: DishBaseName[] = [
+  { zh: '義式濃縮', en: 'Espresso' },
+  { zh: '深焙美式', en: 'Dark Americano' },
+  { zh: '焦糖瑪奇朵', en: 'Caramel Macchiato' },
+  { zh: '絲絨拿鐵', en: 'Velvet Latte' },
+  { zh: '冷萃黑咖啡', en: 'Cold Brew' },
+  { zh: '卡布奇諾', en: 'Cappuccino' },
+  { zh: '摩卡奇諾', en: 'Mochaccino' },
+  { zh: '燕麥奶馥芮白', en: 'Oat Flat White' },
+  { zh: '生椰冰拿鐵', en: 'Coconut Iced Latte' },
+  { zh: '炭焙維也納', en: 'Vienna Roast' },
+  { zh: '冰滴特調', en: 'Ice Drip Coffee' },
+  { zh: '手沖精選', en: 'Pour-Over Brew' },
+  { zh: '阿芙佳朵', en: 'Affogato' },
+  { zh: '抹茶咖啡', en: 'Matcha Espresso' },
+  { zh: '肉桂卡布', en: 'Cinnamon Cappuccino' },
+  { zh: '榛果拿鐵', en: 'Hazelnut Latte' },
+  { zh: '海鹽奶蓋美式', en: 'Sea Salt Foam Americano' },
+  { zh: '香草雙倍濃縮', en: 'Vanilla Doppio' },
+  { zh: '斑蘭冷萃', en: 'Pandan Cold Brew' },
+  { zh: '蜜香手沖', en: 'Honey Pour-Over' }
 ];
 
-const TEA_BASES = [
-  '高山烏龍', '皇家伯爵茶', '茉莉花草綠茶', '錫蘭紅茶拿鐵', '青提氣泡果茶',
-  '四季春青茶', '白桃烏龍冷泡', '大吉嶺晨光茶', '玫瑰洛神花茶', '冬瓜檸檬甘露',
-  '抹茶生乳酪', '香茅青檸冰飲', '桂花蜜釀烏龍', '薄荷清涼花果飲', '玄米玉露'
+const TEA_BASES: DishBaseName[] = [
+  { zh: '高山烏龍', en: 'Mountain Oolong' },
+  { zh: '皇家伯爵茶', en: 'Royal Earl Grey' },
+  { zh: '茉莉花草綠茶', en: 'Jasmine Green Tea' },
+  { zh: '錫蘭紅茶拿鐵', en: 'Ceylon Tea Latte' },
+  { zh: '青提氣泡果茶', en: 'Green Grape Sparkling Tea' },
+  { zh: '四季春青茶', en: 'Four Seasons Spring Tea' },
+  { zh: '白桃烏龍冷泡', en: 'White Peach Oolong' },
+  { zh: '大吉嶺晨光茶', en: 'Darjeeling Morning Tea' },
+  { zh: '玫瑰洛神花茶', en: 'Rose Roselle Tea' },
+  { zh: '冬瓜檸檬甘露', en: 'Melon Lemon Dew' },
+  { zh: '抹茶生乳酪', en: 'Matcha Cheese Tea' },
+  { zh: '香茅青檸冰飲', en: 'Lemongrass Lime Cooler' },
+  { zh: '桂花蜜釀烏龍', en: 'Osmanthus Honey Oolong' },
+  { zh: '薄荷清涼花果飲', en: 'Cooling Mint Fruit Tea' },
+  { zh: '玄米玉露', en: 'Genmaicha Gyokuro' }
 ];
 
-const PASTRY_BASES = [
-  '可頌麵包', '舒芙蕾鬆餅', '巴斯克乳酪蛋糕', '生巧克力布朗尼', '法式馬卡龍',
-  '草莓千層酥', '提拉米蘇', '焦糖烤布蕾', '藍莓丹麥酥', '熔岩巧克力塔',
-  '肉桂捲', '戚風蛋糕', '檸檬生乳塔', '焦糖布丁', '司康餅配果醬'
+const PASTRY_BASES: DishBaseName[] = [
+  { zh: '可頌麵包', en: 'Croissant' },
+  { zh: '舒芙蕾鬆餅', en: 'Souffle Pancake' },
+  { zh: '巴斯克乳酪蛋糕', en: 'Basque Cheesecake' },
+  { zh: '生巧克力布朗尼', en: 'Fudge Brownie' },
+  { zh: '法式馬卡龍', en: 'French Macaron' },
+  { zh: '草莓千層酥', en: 'Strawberry Mille-Feuille' },
+  { zh: '提拉米蘇', en: 'Tiramisu' },
+  { zh: '焦糖烤布蕾', en: 'Creme Brulee' },
+  { zh: '藍莓丹麥酥', en: 'Blueberry Danish' },
+  { zh: '熔岩巧克力塔', en: 'Lava Chocolate Tart' },
+  { zh: '肉桂捲', en: 'Cinnamon Roll' },
+  { zh: '戚風蛋糕', en: 'Chiffon Cake' },
+  { zh: '檸檬生乳塔', en: 'Lemon Cream Tart' },
+  { zh: '焦糖布丁', en: 'Caramel Pudding' },
+  { zh: '司康餅配果醬', en: 'Scone with Jam' }
 ];
 
-const HOT_MEAL_BASES = [
-  '石鍋拌飯', '濃醇豚骨拉麵', '黑椒鐵板牛排', '窯烤薄脆披薩', '奶油蘑菇燉飯',
-  '咖哩牛肉飯', '日式炙燒炸豬排', '香濃起司漢堡', '煙燻鮭魚三明治', '義式肉醬千層麵',
-  '海鮮焗烤飯', '法式洋蔥濃湯', '鮮蝦天婦羅烏龍', '韓式泡菜火鍋', '炙燒骰子牛'
+const HOT_MEAL_BASES: DishBaseName[] = [
+  { zh: '石鍋拌飯', en: 'Stone Bibimbap' },
+  { zh: '濃醇豚骨拉麵', en: 'Tonkotsu Ramen' },
+  { zh: '黑椒鐵板牛排', en: 'Sizzling Pepper Steak' },
+  { zh: '窯烤薄脆披薩', en: 'Crispy Hearth Pizza' },
+  { zh: '奶油蘑菇燉飯', en: 'Creamy Mushroom Risotto' },
+  { zh: '咖哩牛肉飯', en: 'Curry Beef Rice' },
+  { zh: '日式炙燒炸豬排', en: 'Crispy Tonkatsu Cutlet' },
+  { zh: '香濃起司漢堡', en: 'Cheesy Gourmet Burger' },
+  { zh: '煙燻鮭魚三明治', en: 'Smoked Salmon Sandwich' },
+  { zh: '義式肉醬千層麵', en: 'Bolognese Lasagna' },
+  { zh: '海鮮焗烤飯', en: 'Seafood Gratin' },
+  { zh: '法式洋蔥濃湯', en: 'French Onion Soup' },
+  { zh: '鮮蝦天婦羅烏龍', en: 'Tempura Shrimp Udon' },
+  { zh: '韓式泡菜火鍋', en: 'Kimchi Hotpot' },
+  { zh: '炙燒骰子牛', en: 'Seared Beef Cubes' }
 ];
 
-const VOID_BASES = [
-  '末影珍珠果凍飲', '紫珀水晶凍', '虛空懸浮舒芙蕾', '末地燭光慕斯', '龍息煙燻漢堡',
-  '零重力漂浮茶', '末影結晶糖', '虛空黑洞杯子蛋糕', '紫珀晶核拿鐵', '星環星屑奶昔'
+const VOID_BASES: DishBaseName[] = [
+  { zh: '末影珍珠果凍飲', en: 'Ender Pearl Jelly' },
+  { zh: '紫珀水晶凍', en: 'Purpur Crystal Gelee' },
+  { zh: '虛空懸浮舒芙蕾', en: 'Levitation Void Souffle' },
+  { zh: '末地燭光慕斯', en: 'End Rod Candle Mousse' },
+  { zh: '龍息煙燻漢堡', en: 'Dragon Breath Burger' },
+  { zh: '零重力漂浮茶', en: 'Zero-G Floating Tea' },
+  { zh: '末影結晶糖', en: 'Ender Crystal Candy' },
+  { zh: '虛空黑洞杯子蛋糕', en: 'Black Hole Cupcake' },
+  { zh: '紫珀晶核拿鐵', en: 'Purpur Core Latte' },
+  { zh: '星環星屑奶昔', en: 'Ring Stardust Shake' }
 ];
 
-const DEEP_DARK_BASES = [
-  '幽匿菌毯黑松露燉飯', '迴響音波舒芙蕾', '深邃暗夜特調', '無光深穴甘泉飲', '古城守望者濃湯',
-  '幽暗催化可可', '心跳共振布丁', '避光深層冷萃', '地底苔蘚沙拉', '幽暗迴音脆餅'
+const DEEP_DARK_BASES: DishBaseName[] = [
+  { zh: '幽匿菌毯黑松露燉飯', en: 'Sculk Truffle Risotto' },
+  { zh: '迴響音波舒芙蕾', en: 'Sonic Wave Souffle' },
+  { zh: '深邃暗夜特調', en: 'Deep Night Elixir' },
+  { zh: '無光深穴甘泉飲', en: 'Cavern Spring Nectar' },
+  { zh: '古城守望者濃湯', en: 'Ancient Warden Broth' },
+  { zh: '幽暗催化可可', en: 'Catalyst Dark Cocoa' },
+  { zh: '心跳共振布丁', en: 'Resonance Pudding' },
+  { zh: '避光深層冷萃', en: 'Dark Cold Brew' },
+  { zh: '地底苔蘚沙拉', en: 'Subterranean Moss Salad' },
+  { zh: '幽暗迴音脆餅', en: 'Echo Shard Wafers' }
 ];
 
-const CELESTIAL_BASES = [
-  '星光棉花糖拿鐵', '耀陽結晶水果派', '天界極光聖代', '以太雲朵舒芙蕾', '彗星香草泡芙',
-  '日光結晶氣泡水', '天使羽翼雪花冰', '星雲漸層特調', '天國甘露奶綠', '太陽風暴馬卡龍'
+const CELESTIAL_BASES: DishBaseName[] = [
+  { zh: '星光棉花糖拿鐵', en: 'Starlight Marshmallow Latte' },
+  { zh: '耀陽結晶水果派', en: 'Sunstone Fruit Pie' },
+  { zh: '天界極光聖代', en: 'Celestial Aurora Sundae' },
+  { zh: '以太雲朵舒芙蕾', en: 'Aether Cloud Souffle' },
+  { zh: '彗星香草泡芙', en: 'Comet Cream Puff' },
+  { zh: '日光結晶氣泡水', en: 'Solar Crystal Sparkling' },
+  { zh: '天使羽翼雪花冰', en: 'Angel Wing Shaved Snow' },
+  { zh: '星雲漸層特調', en: 'Nebula Gradient Cocktail' },
+  { zh: '天國甘露奶綠', en: 'Heavenly Nectar Latte' },
+  { zh: '太陽風暴馬卡龍', en: 'Solar Storm Macaron' }
 ];
 
-const SINGULARITY_BASES = [
-  '時空暗岩分子料理', '時間倒流草莓塔', '暗物質黑芝麻奶昔', '重力透鏡藍莓塔', '事件視界極黑拿鐵',
-  '相對論甜甜圈', '量子糾纏特調', '時鐘發條脆餅', '奇異引力可麗餅', '時間裂縫千層派'
+const SINGULARITY_BASES: DishBaseName[] = [
+  { zh: '時空暗岩分子料理', en: 'Chrono Molecular Plate' },
+  { zh: '時間倒流草莓塔', en: 'Time-Reversal Berry Tart' },
+  { zh: '暗物質黑芝麻奶昔', en: 'Dark Matter Sesame Shake' },
+  { zh: '重力透鏡藍莓塔', en: 'Gravity Lens Tart' },
+  { zh: '事件視界極黑拿鐵', en: 'Event Horizon Dark Latte' },
+  { zh: '相對論甜甜圈', en: 'Relativity Doughnut' },
+  { zh: '量子糾纏特調', en: 'Quantum Entanglement Drink' },
+  { zh: '時鐘發條脆餅', en: 'Clockwork Crisp' },
+  { zh: '奇異引力可麗餅', en: 'Singular Gravity Crepe' },
+  { zh: '時間裂縫千層派', en: 'Time Rift Mille-Feuille' }
 ];
 
-const GENESIS_BASES = [
-  '混沌原質幻彩馬卡龍', '寰宇神殿金箔壽司', '大霹靂餘燼炙烤和牛', '創世源生水果聖代', '太初原液氣泡特飲',
-  '宇宙母核巧克力球', '萬物初始濃湯', '創世星雲舒芙蕾', '神域七彩雪酪', '奇點大爆炸聖代'
+const GENESIS_BASES: DishBaseName[] = [
+  { zh: '混沌原質幻彩馬卡龍', en: 'Chaos Essence Macaron' },
+  { zh: '寰宇神殿金箔壽司', en: 'Omniverse Gilded Sushi' },
+  { zh: '大霹靂餘燼炙烤和牛', en: 'Big Bang Ember Wagyu' },
+  { zh: '創世源生水果聖代', en: 'Genesis Prime Sundae' },
+  { zh: '太初原液氣泡特飲', en: 'Primordial Fizz Elixir' },
+  { zh: '宇宙母核巧克力球', en: 'Cosmic Core Choco Sphere' },
+  { zh: '萬物初始濃湯', en: 'Origin of All Broth' },
+  { zh: '創世星雲舒芙蕾', en: 'Genesis Nebula Souffle' },
+  { zh: '神域七彩雪酪', en: 'Divine Prism Sorbet' },
+  { zh: '奇點大爆炸聖代', en: 'Singularity Big Bang Parfait' }
 ];
 
-const MYTHIC_BASES = [
-  '全知全能終極特調', '無限永恆維度神飲', '萬界創世原點御膳', '神聖造物主千層派', '超神性星海甘露',
-  '因果律法則盛宴', '原初真理龍涎聖代', '超越者彩虹甘露', '至尊王座香檳', '登峰造極滿漢全席'
+const MYTHIC_BASES: DishBaseName[] = [
+  { zh: '全知全能終極特調', en: 'Omnipotent Ultimate Elixir' },
+  { zh: '無限永恆維度神飲', en: 'Infinite Dimension Drink' },
+  { zh: '萬界創世原點御膳', en: 'Origin Point Feast' },
+  { zh: '神聖造物主千層派', en: 'Holy Creator Mille-Feuille' },
+  { zh: '超神性星海甘露', en: 'Astral Ambrosia Nectar' },
+  { zh: '因果律法則盛宴', en: 'Causality Law Grand Feast' },
+  { zh: '原初真理龍涎聖代', en: 'Primal Truth Dragon Sundae' },
+  { zh: '超越者彩虹甘露', en: 'The Ascended Nectar' },
+  { zh: '至尊王座香檳', en: 'Sovereign Throne Champagne' },
+  { zh: '登峰造極滿漢全席', en: 'Pinnacle Imperial Banquet' }
 ];
 
 const MINERAL_PREFIXES = [
@@ -91,8 +196,17 @@ const MINERAL_PREFIXES = [
   { nameZh: '無限永恆', nameEn: 'Infinity Shard', blockId: 'infinity_shard', tier: 8 }
 ];
 
-const FLAVOR_MODIFIERS = [
-  '特調', '典藏', '極品', '雪霜', '炙燒', '冰鎮', '醇香', '法式', '秘傳', '星級'
+const FLAVOR_MODIFIERS: { zh: string; en: string }[] = [
+  { zh: '特調', en: 'Special' },
+  { zh: '典藏', en: 'Reserve' },
+  { zh: '極品', en: 'Supreme' },
+  { zh: '雪霜', en: 'Frosted' },
+  { zh: '炙燒', en: 'Roasted' },
+  { zh: '冰鎮', en: 'Chilled' },
+  { zh: '醇香', en: 'Velvet' },
+  { zh: '法式', en: 'Artisan' },
+  { zh: '秘傳', en: 'Secret' },
+  { zh: '星級', en: 'Signature' }
 ];
 
 const ICONS_BY_CATEGORY: Record<DishCategory, string[]> = {
@@ -113,7 +227,7 @@ const ICONS_BY_CATEGORY: Record<DishCategory, string[]> = {
  */
 function build1000Dishes(): CafeDish[] {
   const dishes: CafeDish[] = [];
-  const categories: { cat: DishCategory; bases: string[]; nameZhPrefix: string; nameEnPrefix: string }[] = [
+  const categories: { cat: DishCategory; bases: DishBaseName[]; nameZhPrefix: string; nameEnPrefix: string }[] = [
     { cat: 'coffee', bases: COFFEE_BASES, nameZhPrefix: '咖啡工坊', nameEnPrefix: 'Roastery' },
     { cat: 'tea_beverage', bases: TEA_BASES, nameZhPrefix: '茶飲工坊', nameEnPrefix: 'Tea House' },
     { cat: 'pastry', bases: PASTRY_BASES, nameZhPrefix: '烘焙工坊', nameEnPrefix: 'Bakery' },
@@ -154,8 +268,8 @@ function build1000Dishes(): CafeDish[] {
       }
 
       // Dish names
-      const nameZh = `${mineral.nameZh}・${modifier}${base} (No.${currentId})`;
-      const nameEn = `${mineral.nameEn} ${base} #${currentId}`;
+      const nameZh = `${mineral.nameZh}・${modifier.zh}${base.zh} (No.${currentId})`;
+      const nameEn = `${mineral.nameEn} ${modifier.en} ${base.en} #${currentId}`;
 
       // Ingredients
       const requiredIngredients: { blockId: string; count: number }[] = [
@@ -181,8 +295,8 @@ function build1000Dishes(): CafeDish[] {
       const xpReward = Math.max(5, Math.round(sellPrice * 0.12));
       const icon = categoryIcons[i % categoryIcons.length];
 
-      const descZh = `【${mineral.nameZh}】與天然香料精心調製，融匯${base}的濃醇滋味，提供極致味蕾享受與回甘。`;
-      const descEn = `Exquisite gourmet delight marrying ${mineral.nameEn} with artisan ingredients into a rich ${base}.`;
+      const descZh = `【${mineral.nameZh}】與天然香料精心調製，融匯${base.zh}的濃醇滋味，提供極致味蕾享受與回甘。`;
+      const descEn = `Exquisite gourmet delight marrying ${mineral.nameEn} with artisan ingredients into a rich ${base.en}.`;
 
       dishes.push({
         id: `dish_${currentId}`,

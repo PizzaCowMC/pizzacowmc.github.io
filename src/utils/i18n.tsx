@@ -2,14 +2,14 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 
 export type Language = 'en' | 'zh';
 
-const STORAGE_KEY = 'minecraft_workshop_language_v252';
+const STORAGE_KEY = 'minecraft_workshop_language_v253';
 
 export interface I18nContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;
   t: (key: string, fallbackOrParams?: string | Record<string, string | number>) => string;
-  getName: (item?: { nameEn?: string; nameZh?: string; title?: string } | null) => string;
+  getName: (item?: { nameEn?: string; nameZh?: string; title?: string; titleEn?: string; titleZh?: string } | null) => string;
   getDesc: (item?: { descEn?: string; descZh?: string; description?: string; desc?: string } | null) => string;
 }
 
@@ -287,27 +287,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'shop.swordsTab': 'Swords',
     'shop.skinsTab': 'Skins',
     'shop.suppliesTab': 'Supplies',
-    'shop.themesTab': 'Themes',
-
-    // Wardrobe & Enhanced 3D Outfits
-    'wardrobe.title': 'Avatar & Wardrobe Studio',
-    'wardrobe.outfits': 'Wardrobe & Outfits',
-    'wardrobe.staffUniforms': 'Staff Uniforms',
-    'wardrobe.equipped': 'Equipped',
-    'wardrobe.equip': 'Equip Outfit',
-    'wardrobe.unlock': 'Unlock',
-    'wardrobe.liveStudio': 'Live 3D Model Studio',
-    'wardrobe.buff': 'Outfit Buff Effect:',
-
-    // Cooking Duration & Receipts
-    'cooking.title': 'Cooking & Preparation',
-    'cooking.duration': 'Cooking Time',
-    'cooking.stove': 'Stove Cooking Station',
-    'cooking.cooking': 'Cooking in progress...',
-    'cooking.ready': 'Ready to Serve!',
-    'receipts.title': 'Receipts & Sales Archive',
-    'receipts.copy': 'Copy Receipt',
-    'receipts.copied': 'Receipt Copied to Clipboard!'
+    'shop.themesTab': 'Themes'
   },
   zh: {
     // App Header & Branding
@@ -582,27 +562,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'shop.swordsTab': '神劍',
     'shop.skinsTab': '造型',
     'shop.suppliesTab': '補給品',
-    'shop.themesTab': '主題背景',
-
-    // Wardrobe & Enhanced 3D Outfits
-    'wardrobe.title': '角色造型與衣物時裝工坊',
-    'wardrobe.outfits': '衣物時裝工坊',
-    'wardrobe.staffUniforms': '員工制服指派',
-    'wardrobe.equipped': '已穿戴',
-    'wardrobe.equip': '穿戴時裝',
-    'wardrobe.unlock': '解鎖',
-    'wardrobe.liveStudio': '即時模型展示台',
-    'wardrobe.buff': '時裝屬性加成：',
-
-    // Cooking Duration & Receipts
-    'cooking.title': '烹飪料理與備餐',
-    'cooking.duration': '烹飪耗時',
-    'cooking.stove': '熱烹料理爐台',
-    'cooking.cooking': '烹調中...',
-    'cooking.ready': '料理完成可出餐！',
-    'receipts.title': '收據與訂單存根',
-    'receipts.copy': '複製收據',
-    'receipts.copied': '收據已成功複製至剪貼簿！'
+    'shop.themesTab': '主題背景'
   }
 };
 
@@ -650,12 +610,12 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return text;
   };
 
-  const getName = (item?: { nameEn?: string; nameZh?: string; title?: string } | null): string => {
+  const getName = (item?: { nameEn?: string; nameZh?: string; title?: string; titleEn?: string; titleZh?: string } | null): string => {
     if (!item) return '';
     if (language === 'en') {
-      return item.nameEn || item.nameZh || item.title || '';
+      return item.nameEn || item.titleEn || item.nameZh || item.title || item.titleZh || '';
     }
-    return item.nameZh || item.nameEn || item.title || '';
+    return item.nameZh || item.titleZh || item.nameEn || item.title || item.titleEn || '';
   };
 
   const getDesc = (item?: { descEn?: string; descZh?: string; description?: string; desc?: string } | null): string => {
@@ -688,3 +648,5 @@ export const useLanguage = (): I18nContextType => {
   }
   return context;
 };
+
+export const useI18n = useLanguage;
