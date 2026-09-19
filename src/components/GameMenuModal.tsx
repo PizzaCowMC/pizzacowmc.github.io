@@ -291,10 +291,10 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
             >
               <div className="flex items-center gap-2.5">
                 <Scroll className="w-4 h-4 text-amber-300" />
-                <span>{isEn ? '📜 Release Notes (Changelog v2.5.42)' : '📜 版本更新日誌 (Changelog v2.5.42)'}</span>
+                <span>{isEn ? '📜 Release Notes (Changelog v2.6.00)' : '📜 版本更新日誌 (Changelog v2.6.00)'}</span>
               </div>
               <span className="text-emerald-400 font-mono text-[10px] bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
-                v2.5.42
+                v2.6.00
               </span>
             </button>
           </div>

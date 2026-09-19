@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { sound } from '../utils/soundEffects';
 import { Pickaxe, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { OverworldZone } from '../types';
+import { SkyIslandTransition } from './SkyIslandTransition';
 
 interface OverworldMapProps {
   onEnterZone: (zone: OverworldZone) => void;
@@ -14,6 +15,10 @@ interface OverworldMapProps {
   initialPos?: { x: number; y: number };
   onOpenEncyclopedia?: () => void;
   onOpenMusicPlayer?: () => void;
+  playerLevel?: number;
+  branch2Unlocked?: boolean;
+  onArriveAtSkyIsland?: () => void;
+  onSetPlayerLevel?: (lvl: number) => void;
 }
 
 export const OverworldMap: React.FC<OverworldMapProps> = ({
@@ -26,7 +31,11 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
   avatarIcon = '⛏️',
   initialPos,
   onOpenEncyclopedia,
-  onOpenMusicPlayer
+  onOpenMusicPlayer,
+  playerLevel = 0,
+  branch2Unlocked = false,
+  onArriveAtSkyIsland,
+  onSetPlayerLevel
 }) => {
   // Player coordinate on map (in percentage: 0 to 100)
   // Default spawn at the central crossroads
@@ -49,6 +58,11 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
     return Math.sqrt(dx * dx + dy * dy);
   };
 
+  // Sky Island unlock requirement: Strictly Rank 15!
+  const isSkyIslandUnlocked = playerLevel >= 15;
+  const [isAscending, setIsAscending] = useState<boolean>(false);
+  const [showLockedModal, setShowLockedModal] = useState<boolean>(false);
+
   // Logical proximity zones:
   // 1. Cafe: Top-left area (x <= 42, y <= 38)
   const nearCafe = (pos.x <= 42 && pos.y <= 38) || getDistance(pos, { x: 28, y: 22 }) <= 16;
@@ -56,6 +70,27 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
   const nearQuarry = (pos.y >= 62 && pos.x <= 62) || getDistance(pos, { x: 36, y: 76 }) <= 20;
   // 3. Elevator: East elevator tower (x >= 64, y >= 20, y <= 78)
   const nearElevator = (pos.x >= 64 && pos.y >= 20 && pos.y <= 78) || getDistance(pos, { x: 80, y: 46 }) <= 18;
+  // 4. Mysterious Sky Island: Top-center floating zone (x: 34 to 70, y <= 34)
+  const nearSkyIsland = (pos.x >= 34 && pos.x <= 70 && pos.y <= 34) || getDistance(pos, { x: 52, y: 16 }) <= 18;
+
+  const handleTriggerSkyIsland = () => {
+    if (!isSkyIslandUnlocked) {
+      sound.playCrackSound ? sound.playCrackSound() : sound.playClickSound();
+      setShowLockedModal(true);
+    } else {
+      sound.playUpgradeSound();
+      setIsAscending(true);
+    }
+  };
+
+  const handleAscensionComplete = () => {
+    setIsAscending(false);
+    if (onArriveAtSkyIsland) {
+      onArriveAtSkyIsland();
+    } else {
+      onEnterZone('cafe');
+    }
+  };
 
   // Add subtle footstep particle
   const triggerFootstep = (x: number, y: number) => {
@@ -90,7 +125,9 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
         newFacing = 'right';
       } else if (e.key === 'e' || e.key === 'E' || e.key === 'Enter' || e.key === ' ') {
         // Interact / Enter trigger
-        if (nearCafe) {
+        if (nearSkyIsland) {
+          handleTriggerSkyIsland();
+        } else if (nearCafe) {
           sound.playClickSound();
           onEnterZone('cafe');
         } else if (nearQuarry) {
@@ -124,7 +161,7 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       if (stepTimer) clearTimeout(stepTimer);
     };
-  }, [facing, nearCafe, nearQuarry, nearElevator, onEnterZone]);
+  }, [facing, nearCafe, nearQuarry, nearElevator, nearSkyIsland, onEnterZone, isSkyIslandUnlocked]);
 
   // Click on map to move
   const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -283,9 +320,14 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
         </div>
 
         {/* Wooden Directional Signpost at Crossroads */}
-        <div className="absolute left-[54%] top-[26%] z-10 pointer-events-none">
+        <div className="absolute left-[54%] top-[36%] z-10 pointer-events-none">
           <div className="bg-amber-900/95 border-2 border-amber-600 px-2 py-1 rounded-md text-[9px] font-minecraft text-amber-200 shadow-xl flex flex-col gap-0.5">
             <div>{isEn ? '⬆ 2F Cafe' : '⬆ 2F 咖啡廳'}</div>
+            <div className={`font-bold ${isSkyIslandUnlocked ? 'text-emerald-300' : 'text-amber-300'}`}>
+              {isSkyIslandUnlocked
+                ? (isEn ? '☁ Sky Island (Rank 15 Unlocked)' : '☁ 神秘空島 (Rank 15 已解鎖)')
+                : (isEn ? `☁ Sky Island (Req Rank 15 • Lv.${playerLevel}/15)` : `☁ 神秘空島 (需 Rank 15 • Lv.${playerLevel}/15)`)}
+            </div>
             <div>{isEn ? '⬇ B1~B10 Mine' : '⬇ B1~B10 礦坑'}</div>
             <div>{isEn ? '➡ Elevator' : '➡ 直達電梯'}</div>
           </div>
@@ -299,7 +341,7 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
             sound.playClickSound();
             if (onOpenMusicPlayer) onOpenMusicPlayer();
           }}
-          className="absolute left-[52%] top-[40%] z-10 cursor-pointer group flex flex-col items-center hover:scale-110 transition-transform"
+          className="absolute left-[52%] top-[41%] z-10 cursor-pointer group flex flex-col items-center hover:scale-110 transition-transform"
           title={isEn ? 'Redstone Jukebox (Click to open BGM Player)' : '紅石唱片機 (點擊開啟音樂播放器)'}
         >
           <div className="w-8 h-8 rounded bg-[#452817] border-2 border-[#824d2c] shadow-lg flex items-center justify-center relative group-hover:border-amber-400">
@@ -310,6 +352,96 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
           <span className="text-[8px] bg-black/85 px-1 py-0.2 rounded font-minecraft text-amber-300 whitespace-nowrap mt-0.5 border border-amber-700/80 shadow">
             {isEn ? 'Jukebox' : '唱片機'}
           </span>
+        </div>
+
+        {/* ================= 4. MYSTERIOUS SKY ISLAND (Top-Center Floating Realm - Branch #2) ================= */}
+        <div className="absolute left-[34%] top-[2%] w-[36%] h-[32%] z-10">
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTriggerSkyIsland();
+            }}
+            className={`relative w-full h-full bg-[#18112e]/95 border-4 ${
+              isSkyIslandUnlocked ? 'border-purple-400 shadow-[0_0_25px_rgba(168,85,247,0.4)]' : 'border-amber-600/80 shadow-[0_0_15px_rgba(217,119,6,0.3)]'
+            } rounded-2xl flex flex-col p-2.5 overflow-hidden group hover:scale-[1.02] transition-transform text-white cursor-pointer ${
+              nearSkyIsland ? 'ring-4 ring-purple-300 animate-pulse bg-[#251747]' : ''
+            }`}
+          >
+            {/* Sky Island Floating Awning / Banner */}
+            <div className={`absolute -top-2 left-1/2 -translate-x-1/2 w-[94%] h-7 ${
+              isSkyIslandUnlocked
+                ? 'bg-gradient-to-r from-purple-800 via-indigo-700 to-purple-800 border-purple-400'
+                : 'bg-gradient-to-r from-amber-950 via-purple-950 to-amber-950 border-amber-500'
+            } border-b-2 rounded-t-xl flex items-center justify-center gap-1.5 shadow`}>
+              <span className="text-amber-300 text-xs animate-pulse">☁️</span>
+              <span className="text-white text-[10px] font-black tracking-wider uppercase font-minecraft">
+                {isEn ? '2ND BRANCH • SKY ISLAND (REQ RANK 15)' : '第二分店 • 神秘空島 (需 RANK 15)'}
+              </span>
+              <span className="text-amber-300 text-xs animate-pulse">✨</span>
+            </div>
+
+            <div className="mt-4 flex-1 flex flex-col justify-between items-center text-center">
+              {/* Island Title & Unlock Tag */}
+              <div className="flex items-center gap-1.5 bg-purple-950/80 px-2.5 py-0.5 rounded-full border border-purple-400/50">
+                <span className="text-base">🏝️</span>
+                <span className="text-xs sm:text-sm font-black text-purple-200 font-minecraft">
+                  {isEn ? 'Mysterious Sky Island' : '神秘空島'}
+                </span>
+                <span className={`text-[9px] px-1.5 py-0.2 rounded font-black font-minecraft ${
+                  isSkyIslandUnlocked
+                    ? 'bg-emerald-950 text-emerald-300 border border-emerald-500'
+                    : 'bg-amber-950 text-amber-300 border border-amber-500 animate-pulse'
+                }`}>
+                  {isSkyIslandUnlocked
+                    ? (isEn ? '✨ Rank 15 Unlocked' : '✨ Rank 15 已解鎖')
+                    : (isEn ? `🔒 Req Rank 15 (Lv.${playerLevel}/15)` : `🔒 需 Rank 15 解鎖 (Lv.${playerLevel}/15)`)}
+                </span>
+              </div>
+
+              {/* Sky Island Atmosphere Details */}
+              <div className="flex items-center gap-1 text-[10px] text-purple-200/90 font-bold">
+                <span>{isEn ? '🌌 Celestial Starlight' : '🌌 星空祕境露天'}</span>
+                <span>•</span>
+                <span>{isEn ? '12 Starlight Tables' : '12 張星空餐桌'}</span>
+              </div>
+
+              {/* Mini Level Progress Bar when locked */}
+              {!isSkyIslandUnlocked && (
+                <div className="w-full bg-black/60 px-2 py-1 rounded-lg border border-amber-600/50 space-y-0.5">
+                  <div className="flex items-center justify-between text-[9px] font-minecraft text-amber-300">
+                    <span>{isEn ? 'Rank 15 Req:' : '需達到 Rank 15：'}</span>
+                    <span className="font-mono font-bold text-amber-200">Lv.{playerLevel} / 15</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden border border-zinc-700">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-500 to-purple-500 rounded-full"
+                      style={{ width: `${Math.min(100, Math.max(5, (playerLevel / 15) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Action Button: Travel to Sky Island */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTriggerSkyIsland();
+                }}
+                className={`w-full py-1.5 font-black text-xs rounded-xl border-2 shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1.5 font-minecraft ${
+                  isSkyIslandUnlocked
+                    ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white border-amber-300 shadow-[0_0_12px_rgba(168,85,247,0.6)]'
+                    : 'bg-amber-950/90 hover:bg-amber-900 text-amber-200 border-amber-500 shadow'
+                }`}
+              >
+                <span>{isSkyIslandUnlocked ? '🚀' : '🔒'}</span>
+                <span>
+                  {isSkyIslandUnlocked
+                    ? (isEn ? 'TRAVEL TO SKY ISLAND' : '前往神秘空島')
+                    : (isEn ? `LOCKED • Requires Rank 15 (Lv.${playerLevel}/15)` : `尚未解鎖 • 需 Rank 15 (目前 Lv.${playerLevel}/15)`)}
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* ================= 1. CAFE BUILDING (Top-Left) ================= */}
@@ -528,21 +660,27 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
         </div>
 
         {/* 10. INTERACTION PROMPT POPUP (When near any zone) */}
-        {(nearCafe || nearQuarry || nearElevator) && (
+        {(nearCafe || nearQuarry || nearElevator || nearSkyIsland) && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 px-5 py-2.5 bg-black/95 border-3 border-amber-400 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce">
             <span className="text-xl">
-              {nearCafe ? '☕' : nearQuarry ? '⛏️' : '🛗'}
+              {nearSkyIsland ? '☁️' : nearCafe ? '☕' : nearQuarry ? '⛏️' : '🛗'}
             </span>
             <div className="text-left">
               <div className="text-xs sm:text-sm font-black text-amber-300 font-minecraft">
-                {nearCafe
+                {nearSkyIsland
+                  ? isSkyIslandUnlocked
+                    ? (isEn ? 'Press [E] or Click to Travel to Sky Island' : '按 [E] 或點擊「前往神秘空島」')
+                    : (isEn ? `🔒 Sky Island Locked (Requires Rank 15, current Lv.${playerLevel})` : `🔒 神秘空島未解鎖（需 Rank 15，目前 Lv.${playerLevel}）`)
+                  : nearCafe
                   ? (isEn ? 'Press [E] or Click to Enter Cafe' : '按 [E] 或點擊進入「超級咖啡廳」')
                   : nearQuarry
                   ? (isEn ? 'Press [E] or Click to Enter Quarry Mine' : '按 [E] 或點擊進入「地底採掘礦坑」')
                   : (isEn ? 'Press [E] or Click to Enter Elevator' : '按 [E] 或點擊搭乘「紅石電梯」')}
               </div>
               <div className="text-[10px] text-zinc-400">
-                {nearCafe
+                {nearSkyIsland
+                  ? (isEn ? 'Ascend into the clouds to visit Branch #2 (Celestial Starlight Realm)' : '乘著浮空風壓升空，抵達第二分店・星空祕境露天分店')
+                  : nearCafe
                   ? (isEn ? 'Manage 1,000 gourmet dishes & serve guests' : '製作千道料理、招呼入座顧客')
                   : nearQuarry
                   ? (isEn ? 'Descend into deep underground strata for mineral ores' : '沿著礦軌直達萬丈地底，採掘各層礦石食材')
@@ -552,14 +690,22 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                sound.playClickSound();
-                if (nearCafe) onEnterZone('cafe');
-                else if (nearQuarry) onEnterZone('quarry');
-                else onEnterZone('elevator');
+                if (nearSkyIsland) {
+                  handleTriggerSkyIsland();
+                } else if (nearCafe) {
+                  sound.playClickSound();
+                  onEnterZone('cafe');
+                } else if (nearQuarry) {
+                  sound.playClickSound();
+                  onEnterZone('quarry');
+                } else {
+                  sound.playClickSound();
+                  onEnterZone('elevator');
+                }
               }}
               className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-black font-black text-xs rounded-lg border border-black shadow active:scale-95 cursor-pointer font-minecraft"
             >
-              {isEn ? 'ENTER' : '立即進入'}
+              {nearSkyIsland ? (isSkyIslandUnlocked ? (isEn ? 'TRAVEL' : '前往空島') : (isEn ? 'LOCKED' : '查看解鎖')) : (isEn ? 'ENTER' : '立即進入')}
             </button>
           </div>
         )}
@@ -591,13 +737,14 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
           </button>
           <button
             onClick={() => {
-              if (nearCafe) onEnterZone('cafe');
+              if (nearSkyIsland) handleTriggerSkyIsland();
+              else if (nearCafe) onEnterZone('cafe');
               else if (nearQuarry) onEnterZone('quarry');
               else if (nearElevator) onEnterZone('elevator');
             }}
             className="w-11 h-11 bg-emerald-600 active:bg-emerald-500 rounded-xl flex items-center justify-center text-white font-black text-xs border border-emerald-400 shadow active:scale-95"
           >
-            {isEn ? 'ENTER' : '進入'}
+            {nearSkyIsland ? (isSkyIslandUnlocked ? (isEn ? 'FLY' : '前往') : (isEn ? 'LOCK' : '上鎖')) : (isEn ? 'ENTER' : '進入')}
           </button>
           <button
             onClick={() => {
@@ -622,6 +769,103 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
           <div />
         </div>
       </div>
+
+      {/* FULLSCREEN SKY ISLAND ASCENSION TRANSITION */}
+      {isAscending && (
+        <SkyIslandTransition
+          isEn={isEn}
+          playerLevel={playerLevel}
+          avatarIcon={avatarIcon}
+          onComplete={handleAscensionComplete}
+          onCancel={() => setIsAscending(false)}
+        />
+      )}
+
+      {/* LOCKED SKY ISLAND MODAL */}
+      {showLockedModal && (
+        <div
+          onClick={() => setShowLockedModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-[#18112e] border-4 border-purple-500 rounded-2xl shadow-2xl p-6 text-white font-minecraft relative space-y-4 text-center"
+          >
+            {/* Top Close Button */}
+            <button
+              onClick={() => setShowLockedModal(false)}
+              className="absolute top-3 right-3 text-zinc-400 hover:text-white text-lg cursor-pointer bg-zinc-800/80 px-2 py-0.5 rounded-lg border border-zinc-700"
+            >
+              ✕
+            </button>
+
+            {/* Glowing Icon & Locked Badge */}
+            <div className="relative inline-flex items-center justify-center">
+              <div className="w-20 h-20 rounded-2xl bg-purple-950/80 border-2 border-purple-400 flex items-center justify-center text-4xl shadow-[0_0_25px_rgba(168,85,247,0.5)]">
+                🏝️
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-rose-600 border-2 border-white flex items-center justify-center text-sm shadow animate-pulse">
+                🔒
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs uppercase tracking-wider text-purple-300 font-bold">
+                {isEn ? 'Branch #2 Celestial Starlight' : '第二分店・星空祕境露天分店'}
+              </div>
+              <h3 className="text-xl font-black text-amber-300 mt-1">
+                {isEn ? 'Mysterious Sky Island Locked (Requires Rank 15)' : '神秘空島尚未解鎖（需 Rank 15）'}
+              </h3>
+            </div>
+
+            <p className="text-xs text-zinc-300 leading-relaxed">
+              {isEn
+                ? 'Traveling to the Mysterious Sky Island (Branch #2) requires Adventurer Rank 15 to activate the aether flight and open the starlight terrace.'
+                : '前往神秘空島（第二分店・星空祕境）需要冒險家等級達到 Rank 15，方能承受浮空風壓並開啟星空露天露台！'}
+            </p>
+
+            {/* Rank Progress Bar */}
+            <div className="p-3 bg-black/60 rounded-xl border border-purple-900/80 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-zinc-400">{isEn ? 'Adventurer Rank Progress:' : '冒險家等級進度：'}</span>
+                <span className="text-amber-400 font-mono font-bold">
+                  Lv.{playerLevel} / 15
+                </span>
+              </div>
+              <div className="w-full h-3 bg-zinc-900 rounded-full overflow-hidden border border-zinc-700 p-0.5">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-500 to-purple-500 rounded-full transition-all duration-300 shadow-sm"
+                  style={{ width: `${Math.min(100, Math.max(5, (playerLevel / 15) * 100))}%` }}
+                />
+              </div>
+              <div className="text-[11px] text-amber-300 font-bold">
+                {isEn
+                  ? `${Math.max(0, 15 - playerLevel)} more level(s) needed to unlock Sky Island!`
+                  : `還需提升 ${Math.max(0, 15 - playerLevel)} 個等級即可解鎖神秘空島！`}
+              </div>
+            </div>
+
+            {/* How to level up tips */}
+            <div className="text-left text-[11px] bg-purple-950/40 p-3 rounded-xl border border-purple-800/40 space-y-1 text-zinc-300">
+              <div className="font-bold text-amber-300 mb-1 flex items-center gap-1">
+                <span>💡</span>
+                <span>{isEn ? 'How to Reach Rank 15 Faster:' : '如何快速升至 Rank 15：'}</span>
+              </div>
+              <div>⛏️ {isEn ? 'Mine underground blocks to gain Adventure XP' : '深入地底礦坑開採稀有礦石方塊累積大量冒險經驗'}</div>
+              <div>☕ {isEn ? 'Serve cafe guests to earn coins and cafe reputation' : '在咖啡廳料理送餐累積金幣與店鋪知名度'}</div>
+              <div>📜 {isEn ? 'Complete Level Promotion Quests in the top bar' : '點擊頂部等級勳章查看並突破晉升特殊任務'}</div>
+            </div>
+
+            {/* Got it button */}
+            <button
+              onClick={() => setShowLockedModal(false)}
+              className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs rounded-xl border-2 border-purple-300 shadow active:scale-95 cursor-pointer transition-all font-minecraft"
+            >
+              {isEn ? 'Understood! I will keep leveling up' : '知道了！我會繼續努力升級'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

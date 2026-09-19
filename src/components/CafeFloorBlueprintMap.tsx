@@ -11,9 +11,7 @@ import { getDishById } from '../data/cafeDishesData';
 import { CAFE_ROLES } from '../data/cafeStaffAndPromotionData';
 import { sound } from '../utils/soundEffects';
 import {
-  Users,
   Sparkles,
-  Trophy,
   Coffee,
   Coins,
   Clock,
@@ -73,18 +71,9 @@ export const CafeFloorBlueprintMap: React.FC<CafeFloorBlueprintMapProps> = ({
   // Active orders mapped to 12 blueprint tables (0 to 11 for Main, 4 to 15 for Branch 2)
   const tableIndices = isMain ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] : [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
-  const handleSwitchVenue = (venue: CafeVenueId) => {
-    sound.playClickSound();
-    onUpdateCafeState(prev => ({
-      ...prev,
-      currentVenue: venue,
-      branch2Unlocked: true
-    }));
-  };
-
   return (
     <div className="space-y-4 font-sans text-white">
-      {/* 1. TOP VENUE SWITCHER (加入另一個: 本館旗艦大廳 ⇄ 二號分館・星空祕境) */}
+      {/* 1. TOP VENUE BANNER */}
       <div className="bg-[#181614] p-3 rounded-2xl border-3 border-[#4d3a2a] flex flex-wrap items-center justify-between gap-3 shadow-xl">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-950 border-2 border-amber-600 flex items-center justify-center text-xl shadow-inner">
@@ -105,57 +94,6 @@ export const CafeFloorBlueprintMap: React.FC<CafeFloorBlueprintMapProps> = ({
               </span>
             </div>
           </div>
-        </div>
-
-        {/* Venue Switch Buttons (加入另一個) */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => handleSwitchVenue('main')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-minecraft font-black flex items-center gap-1.5 transition-all cursor-pointer border-2 ${
-              isMain
-                ? 'bg-amber-500 text-black border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.4)] scale-105'
-                : 'bg-zinc-900 text-zinc-400 hover:text-white border-zinc-800'
-            }`}
-          >
-            <span>🏛️</span>
-            <span>{isEn ? 'Main Flagship Hall' : '🏛️ 本館旗艦大廳'}</span>
-          </button>
-
-          <button
-            onClick={() => handleSwitchVenue('branch_2')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-minecraft font-black flex items-center gap-1.5 transition-all cursor-pointer border-2 ${
-              !isMain
-                ? 'bg-purple-600 text-white border-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.5)] scale-105'
-                : 'bg-zinc-900 text-purple-300 hover:text-white border-purple-900/60'
-            }`}
-          >
-            <span>🌌</span>
-            <span>{isEn ? 'Branch #2 Celestial' : '🌌 二號分館・星空祕境 (另一個)'}</span>
-          </button>
-
-          {/* Quick Action: Staff Roles & Cross-Hire */}
-          <button
-            onClick={() => {
-              sound.playClickSound();
-              onOpenStaffModal();
-            }}
-            className="px-3.5 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:brightness-110 text-white text-xs font-minecraft font-black rounded-xl border-2 border-amber-400/80 shadow flex items-center gap-1.5 cursor-pointer"
-          >
-            <Users className="w-4 h-4 text-amber-200" />
-            <span>{isEn ? 'Staff Roles & Cross-Hire' : '👥 職位與跨請管理'}</span>
-          </button>
-
-          {/* Quick Action: Hardcore Promotion */}
-          <button
-            onClick={() => {
-              sound.playClickSound();
-              onOpenPromotionModal();
-            }}
-            className="px-3.5 py-2 bg-gradient-to-r from-yellow-600 to-amber-500 hover:brightness-110 text-black text-xs font-minecraft font-black rounded-xl border-2 border-yellow-300 shadow flex items-center gap-1.5 cursor-pointer animate-pulse"
-          >
-            <Trophy className="w-4 h-4 text-black" />
-            <span>{isEn ? 'Hardcore Promotion Trials' : '🏆 超級晉級考驗'}</span>
-          </button>
         </div>
       </div>
 

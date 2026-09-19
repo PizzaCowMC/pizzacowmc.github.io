@@ -659,6 +659,17 @@ export default function App() {
   const [isLevelModalOpen, setIsLevelModalOpen] = useState(false);
   const [levelUpToast, setLevelUpToast] = useState<string | null>(null);
 
+  // Strict Enforcement: Sky Island (Branch #2) strictly requires Rank 15 (playerLevel >= 15)
+  useEffect(() => {
+    if (playerLevel < 15 && (cafeState.currentVenue === 'branch_2' || cafeState.branch2Unlocked)) {
+      setCafeState(prev => ({
+        ...prev,
+        currentVenue: 'main',
+        branch2Unlocked: false
+      }));
+    }
+  }, [playerLevel, cafeState.currentVenue, cafeState.branch2Unlocked]);
+
   // Firebase Auth & Cloud Sync state
   const [currentUser, setCurrentUser] = useState<{ email: string | null; displayName: string | null; uid: string | null } | null>(null);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(() => {
@@ -2049,90 +2060,50 @@ export default function App() {
             </a>
           </div>
 
-          {/* Center: View Switcher */}
-          <div className="hidden md:flex items-center bg-black/60 p-1 border-2 border-black rounded-lg text-xs font-bold">
-            <button
-              onClick={() => {
-                sound.playClickSound();
-                setActiveView('all');
-              }}
-              className={`px-3 py-1 rounded transition-all cursor-pointer ${
-                activeView === 'all'
-                  ? 'bg-zinc-800 text-amber-300 shadow'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              {t('nav.all')}
-            </button>
-            <button
-              onClick={() => {
-                sound.playClickSound();
-                setActiveView('quarry');
-              }}
-              className={`px-3 py-1 rounded flex items-center gap-1 transition-all cursor-pointer ${
-                activeView === 'quarry'
-                  ? 'bg-amber-900/60 text-amber-300 border border-amber-600/50 shadow'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Pickaxe className="w-3.5 h-3.5 text-amber-400" />
-              <span>{t('nav.quarry')}</span>
-            </button>
-            <button
-              onClick={() => {
-                sound.playClickSound();
-                setActiveView('building');
-              }}
-              className={`px-3 py-1 rounded flex items-center gap-1 transition-all cursor-pointer ${
-                activeView === 'building'
-                  ? 'bg-blue-900/60 text-blue-300 border border-blue-600/50 shadow'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Box className="w-3.5 h-3.5 text-blue-400" />
-              <span>{t('nav.building')}</span>
-            </button>
-          </div>
-
           {/* Right: Actions, Modals & Cloud State */}
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-            {/* Coin Balance Pill */}
-            <button
-              onClick={() => {
-                sound.playClickSound();
-                setIsMarketOpen(true);
-              }}
-              title={isEn ? 'Click to visit Market and sell blocks' : '點擊前往方塊交易所出售庫存'}
-              className="px-2.5 sm:px-3 py-1.5 bg-black/80 hover:bg-black text-amber-300 border-2 border-amber-400 rounded-lg font-mono font-black text-xs sm:text-sm flex items-center gap-1.5 transition-transform active:scale-95 shadow-[inset_1px_1px_0_#fde047] cursor-pointer"
-            >
-              <Coins className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
-              <span>{coins.toLocaleString()} {t('common.coins')}</span>
-            </button>
+            {/* Hide Coin balance pill, Market & Shop on Sky Island (Branch #2) */}
+            {!(currentZone === 'cafe' && cafeState.currentVenue === 'branch_2') && (
+              <>
+                {/* Coin Balance Pill */}
+                <button
+                  onClick={() => {
+                    sound.playClickSound();
+                    setIsMarketOpen(true);
+                  }}
+                  title={isEn ? 'Click to visit Market and sell blocks' : '點擊前往方塊交易所出售庫存'}
+                  className="px-2.5 sm:px-3 py-1.5 bg-black/80 hover:bg-black text-amber-300 border-2 border-amber-400 rounded-lg font-mono font-black text-xs sm:text-sm flex items-center gap-1.5 transition-transform active:scale-95 shadow-[inset_1px_1px_0_#fde047] cursor-pointer"
+                >
+                  <Coins className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+                  <span>{coins.toLocaleString()} {t('common.coins')}</span>
+                </button>
 
-            {/* Market Button */}
-            <button
-              onClick={() => {
-                sound.playClickSound();
-                setIsMarketOpen(true);
-              }}
-              className="px-2.5 sm:px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-emerald-100 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#34d399] active:scale-95 flex items-center gap-1 cursor-pointer"
-            >
-              <Coins className="w-3.5 h-3.5" />
-              <span>{t('nav.market')}</span>
-            </button>
+                {/* Market Button */}
+                <button
+                  onClick={() => {
+                    sound.playClickSound();
+                    setIsMarketOpen(true);
+                  }}
+                  className="px-2.5 sm:px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-emerald-100 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#34d399] active:scale-95 flex items-center gap-1 cursor-pointer"
+                >
+                  <Coins className="w-3.5 h-3.5" />
+                  <span>{t('nav.market')}</span>
+                </button>
 
-            {/* Shop Button */}
-            <button
-              onClick={() => {
-                sound.playClickSound();
-                setShopInitialTab('pickaxes');
-                setIsShopOpen(true);
-              }}
-              className="px-2.5 sm:px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-amber-100 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#78350f,inset_2px_2px_0_#fde047] active:scale-95 flex items-center gap-1 cursor-pointer"
-            >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              <span>{t('nav.shop')}</span>
-            </button>
+                {/* Shop Button */}
+                <button
+                  onClick={() => {
+                    sound.playClickSound();
+                    setShopInitialTab('pickaxes');
+                    setIsShopOpen(true);
+                  }}
+                  className="px-2.5 sm:px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-amber-100 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#78350f,inset_2px_2px_0_#fde047] active:scale-95 flex items-center gap-1 cursor-pointer"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>{t('nav.shop')}</span>
+                </button>
+              </>
+            )}
 
             {/* Festival Celebration Button */}
             <button
@@ -2543,6 +2514,17 @@ export default function App() {
                 setIsEncyclopediaOpen(true);
               }}
               onOpenMusicPlayer={() => setIsMusicPlayerOpen(true)}
+              playerLevel={playerLevel}
+              branch2Unlocked={cafeState.branch2Unlocked}
+              onSetPlayerLevel={setPlayerLevel}
+              onArriveAtSkyIsland={() => {
+                setCafeState(prev => ({
+                  ...prev,
+                  currentVenue: 'branch_2',
+                  branch2Unlocked: true
+                }));
+                setCurrentZone('cafe');
+              }}
             />
           </div>
         )}
@@ -2764,10 +2746,10 @@ export default function App() {
               setIsChangelogOpen(true);
             }}
             className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/50 hover:border-amber-400 rounded-lg text-amber-300 font-mono text-xs font-bold transition-all shadow-sm cursor-pointer group"
-            title={isEn ? 'View v2.5.42 Changelog' : '查看 v2.5.42 更新日誌'}
+            title={isEn ? 'View v2.6.00 Changelog' : '查看 v2.6.00 更新日誌'}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="group-hover:underline">v2.5.42</span>
+            <span className="group-hover:underline">v2.6.00</span>
             <span className="text-zinc-400 font-sans font-normal text-[11px]">{isEn ? 'Changelog' : '更新日誌'}</span>
           </button>
         </div>

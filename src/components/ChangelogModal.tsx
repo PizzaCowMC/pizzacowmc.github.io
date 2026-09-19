@@ -32,8 +32,57 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
   const logs = [
     {
-      version: '2.5.42',
+      version: '2.6.00',
       isLatest: true,
+      date: isEn
+        ? '2.6.00 UI Streamlining & Overworld Sky Island Immersion'
+        : '2.6.00 介面純淨輕量化・神秘空島大圖探索・版本重磅升級',
+      badge: isEn
+        ? '2.6.00 Sky Island Overworld • Streamlined UI • v2.6.00 Milestone'
+        : '2.6.00 神秘空島大地圖傳送 • 介面輕量純淨化 • 2.6.00 重磅里程碑',
+      badgeColor: 'bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 text-white shadow-lg animate-pulse',
+      summary: isEn
+        ? 'Major milestone v2.6.00: Streamlined UI by removing redundant blueprint venue buttons & top view switchers, deeply integrated the Mysterious Sky Island (Branch #2) directly into the Overworld Map with Rank 15 unlock progression, and enhanced overall gameplay immersion.'
+        : '重磅里程碑 v2.6.00：移除藍圖地圖冗餘場館按鈕與頂部視圖切換列，將神秘空島（第二分店・星空祕境）深度融入大地圖沉浸式探索與 Rank 15 晉升機制，全面提升遊戲流暢度與純淨視覺體驗！',
+      highlights: [
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '☁️ Sky Island Immersion' : '☁️ 空島沉浸探索',
+          tagColor: 'bg-purple-900/60 text-purple-300 border-purple-500/40',
+          title: isEn
+            ? 'Mysterious Sky Island (Branch #2) Direct Overworld Navigation'
+            : '神秘空島（第二分店・星空祕境）大地圖沉浸式探索與飛升轉場',
+          desc: isEn
+            ? 'Players can now walk directly to the Sky Island landmark in the Overworld Crossroads to ascend into the clouds upon reaching Rank 15.'
+            : '玩家可於十字路口正上方直接走向神秘空島浮空地標，達成 Rank 15 即可觸發專屬升空動畫，直達 12 桌露天星光分館。'
+        },
+        {
+          category: 'sync',
+          categoryLabel: isEn ? '✨ UI Clean-up' : '✨ 介面純淨化',
+          tagColor: 'bg-amber-900/60 text-amber-300 border-amber-500/40',
+          title: isEn
+            ? 'Streamlined Blueprint & Top Bar Layout'
+            : '精簡藍圖頂部場館列與全域視圖切換按鈕',
+          desc: isEn
+            ? 'Cleaned up redundant buttons to give full focus to game graphics, immersion, and clean responsive layout.'
+            : '移除藍圖重複分館按鈕與頂部多餘視圖列，回歸純淨自然的大地圖穿梭體驗與沉浸式遊玩畫面。'
+        },
+        {
+          category: 'update',
+          categoryLabel: isEn ? '🏷️ Version v2.6.00' : '🏷️ 版本升級',
+          tagColor: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/40',
+          title: isEn
+            ? 'Version Number & Changelog System Synchronized to v2.6.00'
+            : '全域版本標籤、日誌資料庫與選單同步更新至 v2.6.00',
+          desc: isEn
+            ? 'Synchronized all footer version tags, game menu labels, and changelog records to milestone v2.6.00.'
+            : '全面同步頁尾版本標籤、遊戲主選單與更新日誌，正式邁入 v2.6.00 重大版本！'
+        }
+      ]
+    },
+    {
+      version: '2.5.42',
+      isLatest: false,
       date: isEn
         ? '2.5.42 Super Promotion Quests & Cozy Jazz BGM & Cross-Platform Stability'
         : '2.5.42 咖啡廳超級晉級任務地圖・暖心爵士BGM・跨平台相容性升級',

@@ -525,12 +525,12 @@ export const CAFE_PROMOTION_TIERS: CafePromotionTier[] = [
       {
         id: 'q4_3',
         rankLevel: 4,
-        titleZh: '加入另一個！二號分館・星空祕境',
-        titleEn: 'Branch #2 Celestial Starlight Annex',
-        descZh: '在二號分館成功接待並送出 50 次顧客點餐',
-        descEn: 'Serve 50 customer orders in Celestial Branch #2',
-        targetType: 'branch2_served',
-        targetValue: 50,
+        titleZh: '幽匿深研！深淵星級評定',
+        titleEn: 'Abyssal Star Evaluations',
+        descZh: '全設施星級累計達到 35 顆星以上',
+        descEn: 'Accumulate 35 or more total facility stars',
+        targetType: 'facility_stars',
+        targetValue: 35,
         rewardCoins: 120000,
         rewardReputation: 35
       },

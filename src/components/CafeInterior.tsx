@@ -89,6 +89,14 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
   totalBlocksMined = 0
 }) => {
   const [activeTab, setActiveTab] = useState<"map" | "dining" | "kitchen" | "facilities_stars" | "upgrades">("map");
+  const isBranch2 = cafeState.currentVenue === 'branch_2';
+
+  // Fallback: If on Sky Island (Branch 2), ensure main-only tabs fall back to map
+  useEffect(() => {
+    if (isBranch2 && (activeTab === "dining" || activeTab === "facilities_stars" || activeTab === "upgrades")) {
+      setActiveTab("map");
+    }
+  }, [isBranch2, activeTab]);
   const [currentFloor, setCurrentFloor] = useState<CafeFloorId>(cafeState.currentFloorView || "1F");
   const [selectedFacility, setSelectedFacility] = useState<CafeFacility | null>(null);
   const [showStarOverviewModal, setShowStarOverviewModal] = useState<boolean>(false);
@@ -498,15 +506,17 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
       <div className="p-4 sm:p-5 bg-gradient-to-r from-amber-950/80 via-zinc-900 to-amber-950/80 border-3 border-amber-600/70 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-3xl shadow-inner">
-            ☕
+            {isBranch2 ? "🌌" : "☕"}
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-black text-amber-200 font-minecraft">
-                {isEn ? "Minecraft Mining Cafe & 4-Floor Roastery" : "Minecraft 礦業四層景觀咖啡廳・露天酒吧"}
+                {isBranch2
+                  ? (isEn ? "Branch #2 Celestial Starlight Sky Island" : "二號分館・星空祕境浮空咖啡廳")
+                  : (isEn ? "Minecraft Mining Cafe & 4-Floor Roastery" : "Minecraft 礦業四層景觀咖啡廳・露天酒吧")}
               </h1>
               <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-black font-black text-xs font-mono">
-                Lv.{cafeState.cafeLevel}
+                {isBranch2 ? (isEn ? "Sky Island" : "星空空島") : `Lv.${cafeState.cafeLevel}`}
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-3 text-xs text-amber-300/90 font-bold mt-0.5">
@@ -532,7 +542,7 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
         </div>
 
         {/* Navigation & Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {onOpenEncyclopedia && (
             <button
               onClick={() => {
@@ -569,16 +579,33 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
             <span className="text-base">🚪</span>
             <span>{isEn ? "Exit to Map" : "離開咖啡廳 (返回大地圖)"}</span>
           </button>
-          <button
-            onClick={() => {
-              sound.playUpgradeSound();
-              onGoToQuarry();
-            }}
-            className="px-3.5 py-2 bg-cyan-900/80 hover:bg-cyan-800 text-cyan-200 font-bold text-xs sm:text-sm rounded-xl border-2 border-black shadow active:scale-95 flex items-center gap-1.5 cursor-pointer transition-all hover:brightness-110"
-          >
-            <span className="text-base">🛗</span>
-            <span>{isEn ? "Elevator to Mine" : "搭電梯前往礦坑"}</span>
-          </button>
+          {isBranch2 ? (
+            <button
+              onClick={() => {
+                sound.playDoorSound ? sound.playDoorSound() : sound.playClickSound();
+                onUpdateCafeState(prev => ({
+                  ...prev,
+                  currentVenue: 'main'
+                }));
+              }}
+              className="px-3.5 py-2 bg-gradient-to-r from-purple-900 to-indigo-900 hover:from-purple-800 hover:to-indigo-800 text-purple-200 font-bold text-xs sm:text-sm rounded-xl border-2 border-black shadow active:scale-95 flex items-center gap-1.5 cursor-pointer transition-all hover:brightness-110"
+              title={isEn ? "Return to Main Cafe Flagship Hall" : "返回本館旗艦大廳"}
+            >
+              <span className="text-base">🏛️</span>
+              <span>{isEn ? "Return to Main Cafe" : "返回本館大廳"}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                sound.playUpgradeSound();
+                onGoToQuarry();
+              }}
+              className="px-3.5 py-2 bg-cyan-900/80 hover:bg-cyan-800 text-cyan-200 font-bold text-xs sm:text-sm rounded-xl border-2 border-black shadow active:scale-95 flex items-center gap-1.5 cursor-pointer transition-all hover:brightness-110"
+            >
+              <span className="text-base">🛗</span>
+              <span>{isEn ? "Elevator to Mine" : "搭電梯前往礦坑"}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -603,24 +630,26 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
           }`}
         >
           <span className="text-base">🗺️</span>
-          <span>{isEn ? "Cafe Blueprint Map" : "實景平面地圖 (原圖格局)"}</span>
+          <span>{isBranch2 ? (isEn ? "Sky Island Blueprint Map" : "空島實景地圖 (12席露天座)") : (isEn ? "Cafe Blueprint Map" : "實景平面地圖 (原圖格局)")}</span>
           <span className="px-1.5 py-0.2 rounded bg-black/40 text-[10px] text-amber-300 font-mono">NEW</span>
         </button>
 
-        <button
-          onClick={() => {
-            sound.playClickSound();
-            setActiveTab("dining");
-          }}
-          className={`px-4 py-2 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer ${
-            activeTab === "dining"
-              ? "bg-amber-500 text-black shadow-md"
-              : "bg-zinc-900 text-zinc-400 hover:text-white"
-          }`}
-        >
-          <span>🏢</span>
-          <span>{isEn ? `Floors & Dining (${orders.length} Guests)` : `4樓層導航・客席點餐 (${orders.length} 位客人)`}</span>
-        </button>
+        {!isBranch2 && (
+          <button
+            onClick={() => {
+              sound.playClickSound();
+              setActiveTab("dining");
+            }}
+            className={`px-4 py-2 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === "dining"
+                ? "bg-amber-500 text-black shadow-md"
+                : "bg-zinc-900 text-zinc-400 hover:text-white"
+            }`}
+          >
+            <span>🏢</span>
+            <span>{isEn ? `Floors & Dining (${orders.length} Guests)` : `4樓層導航・客席點餐 (${orders.length} 位客人)`}</span>
+          </button>
+        )}
 
         <button
           onClick={() => {
@@ -637,35 +666,39 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
           <span>{isEn ? "Kitchen & 1,000 Recipes" : "料理工坊與 1,000 道菜單"}</span>
         </button>
 
-        <button
-          onClick={() => {
-            sound.playClickSound();
-            setActiveTab("facilities_stars");
-          }}
-          className={`px-4 py-2 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer ${
-            activeTab === "facilities_stars"
-              ? "bg-amber-500 text-black shadow-md"
-              : "bg-zinc-900 text-zinc-400 hover:text-white"
-          }`}
-        >
-          <span>🌟</span>
-          <span>{isEn ? "Facility Stars (F1~S3)" : "全設施星級 (F1~S3) 升級矩陣"}</span>
-        </button>
+        {!isBranch2 && (
+          <button
+            onClick={() => {
+              sound.playClickSound();
+              setActiveTab("facilities_stars");
+            }}
+            className={`px-4 py-2 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === "facilities_stars"
+                ? "bg-amber-500 text-black shadow-md"
+                : "bg-zinc-900 text-zinc-400 hover:text-white"
+            }`}
+          >
+            <span>🌟</span>
+            <span>{isEn ? "Facility Stars (F1~S3)" : "全設施星級 (F1~S3) 升級矩陣"}</span>
+          </button>
+        )}
 
-        <button
-          onClick={() => {
-            sound.playClickSound();
-            setActiveTab("upgrades");
-          }}
-          className={`px-4 py-2 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer ${
-            activeTab === "upgrades"
-              ? "bg-amber-500 text-black shadow-md"
-              : "bg-zinc-900 text-zinc-400 hover:text-white"
-          }`}
-        >
-          <span>✨</span>
-          <span>{isEn ? "Cafe Staff & Gadgets" : "傳統擴建"}</span>
-        </button>
+        {!isBranch2 && (
+          <button
+            onClick={() => {
+              sound.playClickSound();
+              setActiveTab("upgrades");
+            }}
+            className={`px-4 py-2 rounded-xl font-black text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === "upgrades"
+                ? "bg-amber-500 text-black shadow-md"
+                : "bg-zinc-900 text-zinc-400 hover:text-white"
+            }`}
+          >
+            <span>✨</span>
+            <span>{isEn ? "Cafe Staff & Gadgets" : "傳統擴建"}</span>
+          </button>
+        )}
 
         {/* Quick Launch: Staff Roles & Cross-Hire */}
         <button
