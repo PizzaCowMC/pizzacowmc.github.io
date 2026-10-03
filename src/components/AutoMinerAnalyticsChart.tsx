@@ -277,7 +277,7 @@ export const AutoMinerAnalyticsChart: React.FC<AutoMinerAnalyticsChartProps> = (
                       <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-zinc-950 border border-amber-500 px-3 py-1.5 rounded-lg shadow-2xl z-30 pointer-events-none text-xs text-center animate-in fade-in">
                         <div className="font-minecraft text-amber-300 font-bold">{d.date} ({d.label})</div>
                         <div className="font-mono text-white mt-0.5 flex items-center justify-center gap-2">
-                          <span className="text-cyan-300">📦 {d.blocks.toLocaleString()} 塊</span>
+                          <span className="text-cyan-300">⛏️ {d.blocks.toLocaleString()} 塊</span>
                           <span className="text-zinc-600">|</span>
                           <span className="text-amber-400">🪙 +{d.coins.toLocaleString()} 幣</span>
                         </div>
@@ -315,7 +315,7 @@ export const AutoMinerAnalyticsChart: React.FC<AutoMinerAnalyticsChartProps> = (
             {/* Yield Multiplier */}
             <div className="bg-black/50 p-2.5 rounded-xl border border-zinc-800">
               <div className="flex items-center justify-between text-zinc-400 mb-1">
-                <span className="flex items-center gap-1 font-minecraft">📦 {isEn ? 'Yield per Tick' : '單次採掘增幅'}</span>
+                <span className="flex items-center gap-1 font-minecraft">⛏️ {isEn ? 'Yield per Tick' : '單次採掘增幅'}</span>
                 <span className="text-amber-400 font-bold font-mono">
                   +{bonusBlocksPerGather} 塊
                 </span>

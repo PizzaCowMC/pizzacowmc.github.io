@@ -2,7 +2,9 @@ import React, { useState, useMemo } from 'react';
 import {
   BLACKSMITH_MODULES,
   BlacksmithModule,
-  calculateBlacksmithBonuses
+  calculateBlacksmithBonuses,
+  getModuleRedstoneCost,
+  getOreDisplayInfo
 } from '../data/blacksmithData';
 import { AutoMinerAnalyticsChart } from './AutoMinerAnalyticsChart';
 import { sound } from '../utils/soundEffects';
@@ -77,11 +79,17 @@ export const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
   const unlockedCount = unlockedModuleIds.length;
   const progressPct = Math.round((unlockedCount / totalCount) * 100);
 
-  // Check if player can afford a module
+  // Check if player can afford a module (加入紅石，需要一定量才能升級)
   const canAfford = (mod: BlacksmithModule) => {
     if (coins < mod.costCoins) return false;
-    const currentOre = inventory[mod.costOre.oreId] || 0;
-    if (currentOre < mod.costOre.amount) return false;
+    const requiredRedstone = getModuleRedstoneCost(mod);
+    const userRedstone = inventory['redstone_ore'] || 0;
+    if (userRedstone < requiredRedstone) return false;
+
+    if (mod.costOre && mod.costOre.oreId !== 'redstone_ore') {
+      const currentOre = inventory[mod.costOre.oreId] || 0;
+      if (currentOre < mod.costOre.amount) return false;
+    }
     return true;
   };
 
@@ -149,11 +157,18 @@ export const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Quick Coin & Ore preview */}
-            <div className="flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-xl border border-zinc-800 text-xs font-mono font-bold text-amber-300">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Quick Coin preview */}
+            <div className="flex items-center gap-1.5 bg-black/60 px-3 py-1.5 rounded-xl border border-zinc-800 text-xs font-mono font-bold text-amber-300 shadow">
               <Coins className="w-4 h-4 text-amber-400" />
               <span>{coins.toLocaleString()}</span>
+            </div>
+
+            {/* Quick Redstone preview (加入紅石持有量顯示) */}
+            <div className="flex items-center gap-1.5 bg-red-950/70 px-3 py-1.5 rounded-xl border border-red-700/80 text-xs font-mono font-bold text-red-300 shadow">
+              <span className="text-sm">🔴</span>
+              <span>{isEn ? 'Redstone:' : '紅石:'}</span>
+              <span className="text-white font-black">{(inventory['redstone_ore'] || 0).toLocaleString()}</span>
             </div>
 
             <button
@@ -236,7 +251,7 @@ export const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
             </div>
 
             <div className="bg-black/60 px-3 py-1.5 rounded-xl border border-amber-800/60 flex items-center gap-2">
-              <span className="text-lg">📦</span>
+              <span className="text-lg">⛏️</span>
               <div>
                 <div className="text-[10px] text-zinc-400 font-minecraft">{isEn ? 'Yield per Tick' : '單次採掘量'}</div>
                 <div className="font-mono font-bold text-amber-300">+{currentBlocksPerCycle} 塊</div>
@@ -508,7 +523,11 @@ export const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
             {filteredModules.map(mod => {
               const isUnlocked = unlockedModuleIds.includes(mod.id);
               const affordable = canAfford(mod);
-              const userOreCount = inventory[mod.costOre.oreId] || 0;
+              const requiredRedstone = getModuleRedstoneCost(mod);
+              const userRedstone = inventory['redstone_ore'] || 0;
+              const hasSecondaryOre = !!(mod.costOre && mod.costOre.oreId !== 'redstone_ore');
+              const userSecondaryOre = hasSecondaryOre ? (inventory[mod.costOre!.oreId] || 0) : 0;
+              const secondaryInfo = hasSecondaryOre ? getOreDisplayInfo(mod.costOre!.oreId) : null;
 
               return (
                 <div
@@ -582,22 +601,49 @@ export const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
 
                   {/* Bottom: Forge Requirement & Action Button */}
                   <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between gap-2">
-                    {/* Costs */}
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className={`font-mono font-bold flex items-center gap-1 ${
-                        coins >= mod.costCoins ? 'text-amber-300' : 'text-rose-400'
-                      }`}>
-                        <Coins className="w-3 h-3 text-amber-400" />
+                    {/* Costs - Completely removed cardboard box emoji 📦! */}
+                    <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                      {/* Coins */}
+                      <span
+                        className={`font-mono font-bold flex items-center gap-1 ${
+                          coins >= mod.costCoins ? 'text-amber-300' : 'text-rose-400'
+                        }`}
+                        title={isEn ? `Coins: ${mod.costCoins}` : `金幣: ${mod.costCoins}`}
+                      >
+                        <Coins className="w-3.5 h-3.5 text-amber-400" />
                         <span>{mod.costCoins}</span>
                       </span>
 
                       <span className="text-zinc-600">•</span>
 
-                      <span className={`text-[11px] font-mono flex items-center gap-1 ${
-                        userOreCount >= mod.costOre.amount ? 'text-emerald-300' : 'text-rose-400'
-                      }`}>
-                        <span>📦 {userOreCount}/{mod.costOre.amount}</span>
+                      {/* Redstone: 加入紅石，需要一定量才能升級 */}
+                      <span
+                        className={`text-[11px] font-mono font-bold flex items-center gap-1 px-1.5 py-0.5 rounded border ${
+                          userRedstone >= requiredRedstone
+                            ? 'bg-red-950/60 border-red-600/80 text-red-200'
+                            : 'bg-zinc-900 border-zinc-700 text-rose-400'
+                        }`}
+                        title={isEn ? `Requires ${requiredRedstone} Redstone` : `需要 ${requiredRedstone} 顆紅石`}
+                      >
+                        <span>🔴</span>
+                        <span>{isEn ? 'Redstone' : '紅石'} {userRedstone}/{requiredRedstone}</span>
                       </span>
+
+                      {/* Secondary Mineral (NO BOX EMOJI!) */}
+                      {hasSecondaryOre && secondaryInfo && (
+                        <>
+                          <span className="text-zinc-600">•</span>
+                          <span
+                            className={`text-[11px] font-mono flex items-center gap-1 ${
+                              userSecondaryOre >= mod.costOre!.amount ? 'text-cyan-300' : 'text-rose-400'
+                            }`}
+                            title={isEn ? `${secondaryInfo.nameEn}: ${mod.costOre!.amount}` : `${secondaryInfo.nameZh}: ${mod.costOre!.amount}`}
+                          >
+                            <span>{secondaryInfo.icon}</span>
+                            <span>{isEn ? secondaryInfo.nameEn : secondaryInfo.nameZh} {userSecondaryOre}/{mod.costOre!.amount}</span>
+                          </span>
+                        </>
+                      )}
                     </div>
 
                     {/* Forge Button */}

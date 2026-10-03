@@ -24,7 +24,7 @@ import { CafeInterior } from './components/CafeInterior';
 import { ElevatorView } from './components/ElevatorView';
 import { MusicPlayerModal } from './components/MusicPlayerModal';
 import { BlacksmithModal } from './components/BlacksmithModal';
-import { BLACKSMITH_MODULES, calculateBlacksmithBonuses } from './data/blacksmithData';
+import { BLACKSMITH_MODULES, calculateBlacksmithBonuses, getModuleRedstoneCost } from './data/blacksmithData';
 import { PlayerSprite } from './components/PlayerSprite';
 import { CafeState, OverworldZone } from './types';
 import { INITIAL_STAFF_MEMBERS } from './data/cafeStaffAndPromotionData';
@@ -116,7 +116,7 @@ export default function App() {
       copper_ore: 0,
       iron_ore: 0,
       gold_ore: 0,
-      redstone_ore: 0,
+      redstone_ore: 8,
       lapis_ore: 0,
       diamond_ore: 0,
       emerald_ore: 0,
@@ -1906,8 +1906,21 @@ export default function App() {
       sound.playCoinSound();
       setSupplyToastMsg('🍉 夏至冰鎮西瓜切片生效！45 秒內同時享受極速採礦與雙倍金幣加成！');
       setTimeout(() => setSupplyToastMsg(null), 4500);
+    } else if (supply.type === 'redstone_pack') {
+      setCoins(prev => prev - supply.cost);
+      setInventory(prev => ({
+        ...prev,
+        redstone_ore: (prev.redstone_ore || 0) + 20
+      }));
+      sound.playUpgradeSound();
+      setSupplyToastMsg(
+        isEn
+          ? '🔴 Acquired +20 Redstone Ores! Ready for Blacksmith upgrades!'
+          : '🔴 成功獲得 +20 顆紅石！已可投入鐵匠鋪升級鍛造！'
+      );
+      setTimeout(() => setSupplyToastMsg(null), 4500);
     }
-  }, [coins, pickaxeState.currentTierId, selectedLayerId, hasAutoMiner]);
+  }, [coins, pickaxeState.currentTierId, selectedLayerId, hasAutoMiner, isEn]);
 
   // --- Handlers: Festival Daily Gift Claim ---
   const handleClaimDailyFestivalGift = useCallback((coinsAmount: number) => {
@@ -1929,20 +1942,34 @@ export default function App() {
     if (!mod) return;
     if (unlockedModuleIds.includes(moduleId)) return;
     if (coins < mod.costCoins) return;
-    const userOre = inventory[mod.costOre.oreId] || 0;
-    if (userOre < mod.costOre.amount) return;
+
+    const requiredRedstone = getModuleRedstoneCost(mod);
+    const userRedstone = inventory['redstone_ore'] || 0;
+    if (userRedstone < requiredRedstone) return;
+
+    const hasSecondaryOre = mod.costOre && mod.costOre.oreId !== 'redstone_ore';
+    if (hasSecondaryOre) {
+      const userOre = inventory[mod.costOre.oreId] || 0;
+      if (userOre < mod.costOre.amount) return;
+    }
 
     setCoins(prev => prev - mod.costCoins);
-    setInventory(prev => ({
-      ...prev,
-      [mod.costOre.oreId]: Math.max(0, (prev[mod.costOre.oreId] || 0) - mod.costOre.amount)
-    }));
+    setInventory(prev => {
+      const updated = {
+        ...prev,
+        redstone_ore: Math.max(0, (prev['redstone_ore'] || 0) - requiredRedstone)
+      };
+      if (hasSecondaryOre) {
+        updated[mod.costOre.oreId] = Math.max(0, (updated[mod.costOre.oreId] || 0) - mod.costOre.amount);
+      }
+      return updated;
+    });
     setUnlockedModuleIds(prev => [...prev, moduleId]);
     sound.playUpgradeSound();
     setSupplyToastMsg(
       isEn
-        ? `🔨 Forged #${mod.number} ${mod.nameEn}! (${mod.bonusDescEn})`
-        : `🔨 成功鍛造 #${mod.number} ${mod.nameZh}！(${mod.bonusDescZh})`
+        ? `🔨 Forged #${mod.number} ${mod.nameEn}! (-${requiredRedstone} Redstone)`
+        : `🔨 成功鍛造 #${mod.number} ${mod.nameZh}！(消耗 ${requiredRedstone} 顆紅石)`
     );
     setTimeout(() => setSupplyToastMsg(null), 4000);
   }, [unlockedModuleIds, coins, inventory, isEn]);
@@ -1951,12 +1978,23 @@ export default function App() {
     let curCoins = coins;
     const curInv = { ...inventory };
     const newUnlocked: string[] = [];
+    let totalRedstoneSpent = 0;
 
     for (const mod of BLACKSMITH_MODULES) {
       if (unlockedModuleIds.includes(mod.id) || newUnlocked.includes(mod.id)) continue;
-      if (curCoins >= mod.costCoins && (curInv[mod.costOre.oreId] || 0) >= mod.costOre.amount) {
+      const requiredRedstone = getModuleRedstoneCost(mod);
+      const userRedstone = curInv['redstone_ore'] || 0;
+      const hasSecondaryOre = mod.costOre && mod.costOre.oreId !== 'redstone_ore';
+      const userSecondaryOre = hasSecondaryOre ? (curInv[mod.costOre.oreId] || 0) : 999999;
+      const secondaryAmount = hasSecondaryOre ? mod.costOre.amount : 0;
+
+      if (curCoins >= mod.costCoins && userRedstone >= requiredRedstone && userSecondaryOre >= secondaryAmount) {
         curCoins -= mod.costCoins;
-        curInv[mod.costOre.oreId] -= mod.costOre.amount;
+        curInv['redstone_ore'] = (curInv['redstone_ore'] || 0) - requiredRedstone;
+        totalRedstoneSpent += requiredRedstone;
+        if (hasSecondaryOre) {
+          curInv[mod.costOre.oreId] = (curInv[mod.costOre.oreId] || 0) - secondaryAmount;
+        }
         newUnlocked.push(mod.id);
       }
     }
@@ -1968,8 +2006,8 @@ export default function App() {
       sound.playUpgradeSound();
       setSupplyToastMsg(
         isEn
-          ? `🔨 Batch forged ${newUnlocked.length} Blacksmith modules!`
-          : `🔨 一鍵成功鍛造 ${newUnlocked.length} 種紅石採集模項！`
+          ? `🔨 Batch forged ${newUnlocked.length} modules! (-${totalRedstoneSpent} Redstone)`
+          : `🔨 一鍵成功鍛造 ${newUnlocked.length} 種紅石採集模項！(共消耗 ${totalRedstoneSpent} 顆紅石)`
       );
       setTimeout(() => setSupplyToastMsg(null), 4500);
     }

@@ -17,9 +17,52 @@ export interface BlacksmithModule {
   statType: 'speed' | 'fortune' | 'coins' | 'amount' | 'crit';
   statValue: number; // e.g., 0.1 for 10%, 1 for +1 block
   costCoins: number;
-  costOre: { oreId: string; amount: number };
+  costRedstone?: number; // 紅石需求數量 (需要一定量才能升級)
+  costOre?: { oreId: string; amount: number };
   flavorZh: string;
   flavorEn: string;
+}
+
+// Calculate the exact amount of Redstone needed to forge/upgrade this module
+export function getModuleRedstoneCost(mod: BlacksmithModule): number {
+  if (typeof mod.costRedstone === 'number') {
+    return mod.costRedstone;
+  }
+  if (mod.costOre?.oreId === 'redstone_ore') {
+    return mod.costOre.amount;
+  }
+  // Formula based on module progression:
+  if (mod.number <= 15) return Math.max(2, Math.round(mod.number * 0.4));
+  if (mod.number <= 35) return Math.round(5 + (mod.number - 15) * 0.4);
+  if (mod.number <= 55) return Math.round(12 + (mod.number - 35) * 0.5);
+  if (mod.number <= 75) return Math.round(22 + (mod.number - 55) * 0.8);
+  if (mod.number <= 90) return Math.round(38 + (mod.number - 75) * 1.2);
+  return Math.round(55 + (mod.number - 90) * 3.0);
+}
+
+// Display info for ores without using cardboard boxes
+export function getOreDisplayInfo(oreId: string): { nameZh: string; nameEn: string; icon: string } {
+  switch (oreId) {
+    case 'dirt': return { nameZh: '泥土', nameEn: 'Dirt', icon: '🟫' };
+    case 'wood': return { nameZh: '原木', nameEn: 'Wood', icon: '🪵' };
+    case 'cobblestone': return { nameZh: '原石', nameEn: 'Cobblestone', icon: '🪨' };
+    case 'coal_ore': return { nameZh: '煤炭', nameEn: 'Coal', icon: '⬛' };
+    case 'iron_ore': return { nameZh: '鐵礦石', nameEn: 'Iron Ore', icon: '⛏️' };
+    case 'copper_ore': return { nameZh: '銅礦石', nameEn: 'Copper Ore', icon: '🟧' };
+    case 'gold_ore': return { nameZh: '金礦石', nameEn: 'Gold Ore', icon: '👑' };
+    case 'redstone_ore': return { nameZh: '紅石', nameEn: 'Redstone', icon: '🔴' };
+    case 'lapis_ore': return { nameZh: '青金石', nameEn: 'Lapis', icon: '🔷' };
+    case 'diamond_ore': return { nameZh: '鑽石', nameEn: 'Diamond', icon: '💎' };
+    case 'emerald_ore': return { nameZh: '綠寶石', nameEn: 'Emerald', icon: '❇️' };
+    case 'amethyst': return { nameZh: '紫水晶', nameEn: 'Amethyst', icon: '🔮' };
+    case 'obsidian': return { nameZh: '黑曜石', nameEn: 'Obsidian', icon: '🌌' };
+    case 'netherrack': return { nameZh: '地獄石', nameEn: 'Netherrack', icon: '🔥' };
+    case 'quartz_ore': return { nameZh: '地獄石英', nameEn: 'Nether Quartz', icon: '⚪' };
+    case 'glowstone': return { nameZh: '螢光石', nameEn: 'Glowstone', icon: '🌟' };
+    case 'ancient_debris': return { nameZh: '遠古遺骸', nameEn: 'Ancient Debris', icon: '🏺' };
+    case 'end_stone': return { nameZh: '終界石', nameEn: 'End Stone', icon: '🪐' };
+    default: return { nameZh: oreId, nameEn: oreId, icon: '⛏️' };
+  }
 }
 
 export interface BlacksmithState {

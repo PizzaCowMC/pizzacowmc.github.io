@@ -1278,6 +1278,16 @@ export const SHOP_SUPPLIES: ShopSupplyItem[] = [
     descZh: '永久解鎖自動採礦魔像！每 3 秒自動為您在當前層級開採 1 個方塊！',
     type: 'auto_miner'
   },
+  {
+    id: 'redstone_pack',
+    nameZh: '🔴 結晶紅石原礦補給包',
+    nameEn: 'Crystalline Redstone Pack',
+    cost: 350,
+    iconEmoji: '🔴',
+    badge: '+20 顆紅石',
+    descZh: '深層高純度紅石結晶！打開立即獲得 20 顆紅石礦石，加速鐵匠鋪模項升級！',
+    type: 'redstone_pack'
+  },
   // --- 節日限定特殊道具 (Festival Limited Supplies) ---
   {
     id: 'halloween_ghost_candy',
