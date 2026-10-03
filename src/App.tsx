@@ -550,6 +550,15 @@ export default function App() {
     }
   });
 
+  const [autoMinerDailyHistory, setAutoMinerDailyHistory] = useState<Record<string, { blocks: number; coins: number }>>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_auto_miner_daily`);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
   const blacksmithBonuses = useMemo(() => {
     return calculateBlacksmithBonuses(unlockedModuleIds);
   }, [unlockedModuleIds]);
@@ -982,6 +991,12 @@ export default function App() {
 
   useEffect(() => {
     try {
+      localStorage.setItem(`${STORAGE_KEY}_auto_miner_daily`, JSON.stringify(autoMinerDailyHistory));
+    } catch {}
+  }, [autoMinerDailyHistory]);
+
+  useEffect(() => {
+    try {
       localStorage.setItem(`${STORAGE_KEY}_active_festival`, JSON.stringify(activeFestivalId));
     } catch {}
   }, [activeFestivalId]);
@@ -1134,6 +1149,18 @@ export default function App() {
         }
       }));
       setTotalAutoMinedBlocks(prev => prev + yieldAmount);
+
+      const todayKey = new Date().toISOString().slice(0, 10);
+      setAutoMinerDailyHistory(prev => {
+        const cur = prev[todayKey] || { blocks: 0, coins: 0 };
+        return {
+          ...prev,
+          [todayKey]: {
+            blocks: cur.blocks + yieldAmount,
+            coins: cur.coins + earnedCoins
+          }
+        };
+      });
     }, intervalMs);
     return () => clearInterval(interval);
   }, [hasAutoMiner, selectedLayerId, blacksmithBonuses]);
@@ -2036,6 +2063,7 @@ export default function App() {
     setUnlockedModuleIds([]);
     setTotalAutoMinedBlocks(0);
     setTotalAutoCoinsHarvested(0);
+    setAutoMinerDailyHistory({});
     setHasteRemainingSeconds(0);
     setFriends([]);
     setFriendRewardClaimed(false);
@@ -2061,6 +2089,7 @@ export default function App() {
       `${STORAGE_KEY}_blacksmith_modules`,
       `${STORAGE_KEY}_auto_mined_blocks`,
       `${STORAGE_KEY}_auto_coins_harvested`,
+      `${STORAGE_KEY}_auto_miner_daily`,
       `${STORAGE_KEY}_friend_reward_claimed`,
       `${STORAGE_KEY}_friends`,
       `${STORAGE_KEY}_player_level`,
@@ -3059,6 +3088,7 @@ export default function App() {
         onActivateAutoMiner={handleActivateAutoMiner}
         totalAutoMinedBlocks={totalAutoMinedBlocks}
         totalCoinsHarvested={totalAutoCoinsHarvested}
+        dailyHistory={autoMinerDailyHistory}
       />
 
       {/* CHANGELOG MODAL */}

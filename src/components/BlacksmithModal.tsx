@@ -4,6 +4,7 @@ import {
   BlacksmithModule,
   calculateBlacksmithBonuses
 } from '../data/blacksmithData';
+import { AutoMinerAnalyticsChart } from './AutoMinerAnalyticsChart';
 import { sound } from '../utils/soundEffects';
 import {
   Hammer,
@@ -14,11 +15,17 @@ import {
   Coins,
   Zap,
   TrendingUp,
+  BarChart3,
   Search,
   Filter,
   Flame,
   Shield,
-  Award
+  Award,
+  BookOpen,
+  HelpCircle,
+  Compass,
+  Layers,
+  ChevronRight
 } from 'lucide-react';
 
 interface BlacksmithModalProps {
@@ -34,6 +41,7 @@ interface BlacksmithModalProps {
   onActivateAutoMiner: () => void;
   totalAutoMinedBlocks?: number;
   totalCoinsHarvested?: number;
+  dailyHistory?: Record<string, { blocks: number; coins: number }>;
 }
 
 type FilterCategory = 'all' | 'core' | 'drill' | 'filter' | 'rune' | 'overclock' | 'radar' | 'legendary';
@@ -51,11 +59,14 @@ export const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
   hasAutoMiner,
   onActivateAutoMiner,
   totalAutoMinedBlocks = 0,
-  totalCoinsHarvested = 0
+  totalCoinsHarvested = 0,
+  dailyHistory = {}
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showAnalytics, setShowAnalytics] = useState<boolean>(true);
+  const [showGuide, setShowGuide] = useState<boolean>(false);
 
   const bonuses = useMemo(() => {
     return calculateBlacksmithBonuses(unlockedModuleIds);
@@ -260,6 +271,46 @@ export const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
               </div>
             )}
 
+            {/* Guide Button: 如何蒐集 */}
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                setShowGuide(prev => !prev);
+              }}
+              className={`px-3 py-1.5 rounded-xl border-2 font-minecraft font-black text-xs cursor-pointer flex items-center gap-1.5 transition-all shadow active:scale-95 ${
+                showGuide
+                  ? 'bg-gradient-to-r from-sky-600 to-blue-600 text-white border-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.5)]'
+                  : 'bg-zinc-900 hover:bg-zinc-800 text-sky-300 border-sky-800'
+              }`}
+              title={isEn ? 'How to Collect Modules & Materials Guide' : '如何蒐集模項與礦石攻略指南'}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>{isEn ? 'Collection Guide' : '如何蒐集'}</span>
+              <span className="text-[10px] bg-black/60 px-1.5 py-0.2 rounded font-mono text-white">
+                {showGuide ? (isEn ? 'Hide' : '收合') : (isEn ? 'Guide' : '攻略')}
+              </span>
+            </button>
+
+            {/* Toggle Analytics Chart Button */}
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                setShowAnalytics(prev => !prev);
+              }}
+              className={`px-3 py-1.5 rounded-xl border-2 font-minecraft font-black text-xs cursor-pointer flex items-center gap-1.5 transition-all shadow active:scale-95 ${
+                showAnalytics
+                  ? 'bg-gradient-to-r from-amber-600 to-yellow-600 text-black border-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
+                  : 'bg-zinc-900 hover:bg-zinc-800 text-amber-300 border-amber-800'
+              }`}
+              title={isEn ? 'Toggle Auto-Miner Production Trend Chart' : '展開 / 收合自動採礦魔像每日產量趨勢圖表'}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>{isEn ? 'Analytics' : '產量趨勢圖表'}</span>
+              <span className="text-[10px] bg-black/60 px-1.5 py-0.2 rounded font-mono text-white">
+                {showAnalytics ? (isEn ? 'Hide' : '收合') : (isEn ? 'Show' : '展開')}
+              </span>
+            </button>
+
             {/* Quick Bulk Forge Button */}
             {affordableCount > 0 && (
               <button
@@ -274,6 +325,125 @@ export const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
             )}
           </div>
         </div>
+
+        {/* ================= 2.4 HOW TO COLLECT GUIDE (如何蒐集模項攻略) ================= */}
+        {showGuide && (
+          <div className="px-4 py-3 bg-[#11161f] border-b-2 border-sky-900/80 animate-in fade-in duration-200">
+            <div className="bg-[#0b1017] border-2 border-sky-600/70 rounded-xl p-3 sm:p-4 text-white shadow-xl space-y-3 font-sans">
+              <div className="flex items-center justify-between pb-2 border-b border-sky-900/60">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-600 to-blue-800 flex items-center justify-center text-lg border border-sky-400 shadow">
+                    📖
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-black text-sky-300 font-minecraft">
+                      {isEn ? 'Guide: How to Collect 100 Blacksmith Modules' : '📖 鐵匠鋪 100 種模項與材料蒐集全攻略指南'}
+                    </h3>
+                    <p className="text-[11px] text-zinc-400">
+                      {isEn
+                        ? 'Master ore distribution across strata, rapid gold gathering, and auto-miner snowballing'
+                        : '掌握採礦地層礦石分佈、金幣速刷途徑、自動採集魔像滾雪球與一鍵鍛造技巧'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowGuide(false)}
+                  className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* 4 Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+                {/* 1. 地層礦石對照 */}
+                <div className="bg-black/50 p-2.5 rounded-lg border border-sky-900/60 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-amber-300 font-minecraft font-bold">
+                    <Layers className="w-4 h-4 text-amber-400" />
+                    <span>{isEn ? '1. Quarry Ore Locations' : '1. 採礦場地層礦石分佈'}</span>
+                  </div>
+                  <ul className="text-[11px] text-zinc-300 space-y-1 list-disc list-inside">
+                    <li><strong className="text-amber-200">泥土/沙石層:</strong> 煤炭、泥土、黏土</li>
+                    <li><strong className="text-cyan-200">淺層岩:</strong> 原石、鐵礦石、銅礦</li>
+                    <li><strong className="text-emerald-200">深板岩:</strong> 金礦、紅石礦、青金石</li>
+                    <li><strong className="text-purple-200">熔岩/黑曜石:</strong> 鑽石、綠寶石、黑曜石</li>
+                    <li><strong className="text-rose-300">地獄/末地:</strong> 遠古遺骸、獄髓合金</li>
+                  </ul>
+                  <p className="text-[10px] text-zinc-400 mt-1">
+                    {isEn ? 'Switch stratum on map to mine deeper ores!' : '💡 點擊採礦場上方地層按鈕即可切換開採深層礦物！'}
+                  </p>
+                </div>
+
+                {/* 2. 金幣速刷管道 */}
+                <div className="bg-black/50 p-2.5 rounded-lg border border-sky-900/60 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-yellow-300 font-minecraft font-bold">
+                    <Coins className="w-4 h-4 text-yellow-400" />
+                    <span>{isEn ? '2. Rapid Coin Income' : '2. 金幣快速獲取 4 途徑'}</span>
+                  </div>
+                  <ul className="text-[11px] text-zinc-300 space-y-1 list-disc list-inside">
+                    <li><strong className="text-yellow-200">鏟子挖沙土:</strong> 25% 額外掉落金幣</li>
+                    <li><strong className="text-rose-300">討伐怪獸:</strong> 隨機遭遇怪獸，持劍討伐賺 40~300+ 幣</li>
+                    <li><strong className="text-sky-200">交易所變現:</strong> 背包多餘原石直接賣出</li>
+                    <li><strong className="text-amber-300">咖啡廳營運:</strong> 持續產生離線被動營業金幣</li>
+                  </ul>
+                </div>
+
+                {/* 3. 魔像滾雪球 */}
+                <div className="bg-black/50 p-2.5 rounded-lg border border-sky-900/60 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-emerald-300 font-minecraft font-bold">
+                    <Zap className="w-4 h-4 text-emerald-400" />
+                    <span>{isEn ? '3. Auto-Miner Snowball' : '3. 魔像自動採掘滾雪球'}</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300">
+                    {isEn
+                      ? 'Deploy the Auto-Miner Golem! It continuously extracts blocks from your selected stratum while you play.'
+                      : '點擊「啟動魔像」後，魔像會在背景依照你選定的地層持續開採。'}
+                  </p>
+                  <p className="text-[11px] text-emerald-200 font-mono">
+                    {isEn
+                      ? 'Every forged module stacks: faster speed (down to 1.0s), higher yield, & coin dividends!'
+                      : '⚡ 收集越多模項，冷卻極速降至 1.0 秒、產量暴增、分紅金幣倍增！'}
+                  </p>
+                </div>
+
+                {/* 4. 一鍵鍛造與成就 */}
+                <div className="bg-black/50 p-2.5 rounded-lg border border-sky-900/60 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-purple-300 font-minecraft font-bold">
+                    <Sparkles className="w-4 h-4 text-purple-400" />
+                    <span>{isEn ? '4. One-Click Bulk Forge' : '4. 一鍵鍛造與 100 達成'}</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300">
+                    {isEn
+                      ? 'When materials and coins are met, the "Forge All" button lights up for instant bulk crafting.'
+                      : '滿足任一模項的材料時，右上角的【一鍵鍛造】會發光並顯示數量，點擊即可批量完成升級！'}
+                  </p>
+                  <div className="bg-purple-950/60 p-1.5 rounded border border-purple-500/50 text-[10px] text-amber-200">
+                    👑 {isEn ? 'Collect all 100 to forge the ultimate Crown of Godsmiths!' : '集齊 100 種即可解鎖終極【匠神百鍊天成之冠】！'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= 2.5 AUTO-MINER YIELD TRENDS & ROI CHART ================= */}
+        {showAnalytics && (
+          <div className="px-4 py-2 bg-[#120e0c] border-b-2 border-amber-950/80 animate-in fade-in duration-200">
+            <AutoMinerAnalyticsChart
+              isEn={isEn}
+              unlockedCount={unlockedCount}
+              totalModules={totalCount}
+              speedReductionSec={bonuses.speedReductionSec}
+              bonusBlocksPerGather={bonuses.bonusBlocksPerGather}
+              fortuneBonusPct={bonuses.fortuneBonusPct}
+              bonusCoinsPerGather={bonuses.bonusCoinsPerGather}
+              critChancePct={bonuses.critChancePct}
+              totalAutoMinedBlocks={totalAutoMinedBlocks}
+              totalCoinsHarvested={totalCoinsHarvested}
+              dailyHistory={dailyHistory}
+            />
+          </div>
+        )}
 
         {/* ================= 3. FILTER TABS & SEARCH ================= */}
         <div className="p-3 bg-[#171310] border-b-2 border-amber-950 flex flex-wrap items-center justify-between gap-3 text-xs">

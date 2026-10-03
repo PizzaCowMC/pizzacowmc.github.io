@@ -117,13 +117,17 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   // Monster combat state
   const [activeMonster, setActiveMonster] = useState<MonsterData | null>(null);
   const [monsterCurrentHp, setMonsterCurrentHp] = useState<number>(100);
+  const monsterHpRef = useRef<number>(100);
   const [isMonsterHit, setIsMonsterHit] = useState<boolean>(false);
 
   // Safety lock to prevent double execution (fixes "我每挖一個就變成兩個???!!!")
   const isCompletingRef = useRef<boolean>(false);
+  const completingStartTimeRef = useRef<number>(0);
   const holdIntervalRef = useRef<number | null>(null);
   const isMouseDownRef = useRef<boolean>(false);
   const lastBlockMinedTimeRef = useRef<number>(0);
+  const isDefeatingMonsterRef = useRef<boolean>(false);
+  const defeatTimeoutRef = useRef<number | null>(null);
 
   const activeBlock = fallbackBlocks[currentBlockIndex % fallbackBlocks.length] || BLOCK_TYPES[0];
 
@@ -185,6 +189,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     const handleGlobalRelease = () => {
       isMouseDownRef.current = false;
       setIsMiningActive(false);
+      isCompletingRef.current = false;
       if (holdIntervalRef.current) {
         clearInterval(holdIntervalRef.current);
         holdIntervalRef.current = null;
@@ -201,6 +206,26 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
       window.removeEventListener('touchend', handleGlobalRelease);
       window.removeEventListener('blur', handleGlobalRelease);
       document.removeEventListener('visibilitychange', handleGlobalRelease);
+    };
+  }, []);
+
+  // Cleanup defeat timeout and state on monster unmount
+  useEffect(() => {
+    if (!activeMonster) {
+      isDefeatingMonsterRef.current = false;
+      isCompletingRef.current = false;
+      isMouseDownRef.current = false;
+      setIsMiningActive(false);
+      setMiningProgress(0);
+    }
+  }, [activeMonster]);
+
+  useEffect(() => {
+    return () => {
+      if (defeatTimeoutRef.current) {
+        clearTimeout(defeatTimeoutRef.current);
+        defeatTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -248,6 +273,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   const completeMine = useCallback(() => {
     if (isCompletingRef.current) return;
     isCompletingRef.current = true;
+    completingStartTimeRef.current = Date.now();
     lastBlockMinedTimeRef.current = Date.now();
 
     sound.playBlockBreakSound();
@@ -318,6 +344,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
         clearInterval(holdIntervalRef.current);
         holdIntervalRef.current = null;
       }
+      monsterHpRef.current = monster.maxHp;
       setActiveMonster(monster);
       setMonsterCurrentHp(monster.maxHp);
       sound.playMonsterSpawnSound();
@@ -338,7 +365,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     // Release completion lock after safety buffer
     setTimeout(() => {
       isCompletingRef.current = false;
-    }, 100);
+    }, 60);
   }, [
     activeBlock,
     activeLayer.id,
@@ -359,7 +386,22 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
 
   // Strike mining action (click) - with "就挖到下一個方塊" auto-stop protection
   const strikeMining = useCallback(() => {
-    if (isCompletingRef.current || activeMonster) return;
+    // Watchdog: If completing lock got stuck for more than 150ms, auto-recover!
+    if (isCompletingRef.current) {
+      if (Date.now() - completingStartTimeRef.current > 150) {
+        isCompletingRef.current = false;
+      } else {
+        return;
+      }
+    }
+    // Block mining only while active monster is present
+    if (activeMonster) return;
+
+    // Safety fallback: if no monster exists, ensure monster defeat lock is false
+    if (isDefeatingMonsterRef.current) {
+      isDefeatingMonsterRef.current = false;
+    }
+
     sound.playHitSound(activeBlock.hardness);
 
     const strikeFraction = (120 / requiredMiningTimeMs) * 100;
@@ -424,10 +466,10 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
 
   // Monster Combat: Strike monster
   const strikeMonster = useCallback(() => {
-    if (!activeMonster) return;
+    if (!activeMonster || isDefeatingMonsterRef.current || monsterHpRef.current <= 0) return;
 
     setIsMonsterHit(true);
-    setTimeout(() => setIsMonsterHit(false), 200);
+    setTimeout(() => setIsMonsterHit(false), 150);
 
     let damage = 1;
     let isCrit = false;
@@ -457,7 +499,8 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
       handleConsumeDurability(activeTool);
     }
 
-    const nextHp = Math.max(0, monsterCurrentHp - damage);
+    const nextHp = Math.max(0, monsterHpRef.current - damage);
+    monsterHpRef.current = nextHp;
     setMonsterCurrentHp(nextHp);
 
     // Floating combat text
@@ -486,14 +529,25 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
 
     // Check if monster defeated
     if (nextHp <= 0) {
+      if (isDefeatingMonsterRef.current) return;
+      isDefeatingMonsterRef.current = true;
+      monsterHpRef.current = 0;
+      setMonsterCurrentHp(0);
       sound.playMonsterDefeatSound();
 
       // Ensure mining is completely reset and stopped
       isMouseDownRef.current = false;
       setIsMiningActive(false);
+      isCompletingRef.current = false;
+      setMiningProgress(0);
       if (holdIntervalRef.current) {
         clearInterval(holdIntervalRef.current);
         holdIntervalRef.current = null;
+      }
+
+      if (defeatTimeoutRef.current) {
+        clearTimeout(defeatTimeoutRef.current);
+        defeatTimeoutRef.current = null;
       }
 
       const coinReward = activeMonster.coinReward * (doubleCoinsSeconds > 0 ? 2 : 1);
@@ -520,14 +574,19 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
       }, 1500);
 
       // Return to quarry blocks - ensure mining active is false so no runaway bug occurs
-      setTimeout(() => {
+      defeatTimeoutRef.current = window.setTimeout(() => {
         isMouseDownRef.current = false;
         setIsMiningActive(false);
+        isCompletingRef.current = false;
+        setMiningProgress(0);
+        isDefeatingMonsterRef.current = false;
+        monsterHpRef.current = 0;
         setActiveMonster(null);
         if (autoSwitchTool) {
           setActiveTool(bestTool);
         }
-      }, 350);
+        defeatTimeoutRef.current = null;
+      }, 250);
     }
   }, [
     activeMonster,
@@ -540,7 +599,6 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     handleConsumeDurability,
     isEn,
     isSwordBroken,
-    monsterCurrentHp,
     onDefeatMonster,
     onEarnExtraCoins,
     setActiveTool
@@ -556,6 +614,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
       holdIntervalRef.current = null;
     }
     const monster = spawnRandomMonster(currentLayerIndex);
+    monsterHpRef.current = monster.maxHp;
     setActiveMonster(monster);
     setMonsterCurrentHp(monster.maxHp);
     sound.playMonsterSpawnSound();
@@ -930,11 +989,14 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
               <div className="relative my-2">
                 <button
                   id="monster-combat-target"
+                  disabled={isDefeatingMonsterRef.current || monsterCurrentHp <= 0}
                   onClick={strikeMonster}
-                  className={`p-4 rounded-2xl border-4 transition-all cursor-pointer relative group ${
-                    isMonsterHit
-                      ? 'scale-90 bg-red-900/60 border-red-400 drop-shadow-[0_0_25px_rgba(239,68,68,0.8)]'
-                      : 'hover:scale-105 bg-black/60 border-red-600/80 shadow-2xl'
+                  className={`p-4 rounded-2xl border-4 transition-all relative group ${
+                    isDefeatingMonsterRef.current || monsterCurrentHp <= 0
+                      ? 'opacity-80 pointer-events-none scale-95 border-emerald-500 bg-emerald-950/40'
+                      : isMonsterHit
+                      ? 'scale-90 bg-red-900/60 border-red-400 drop-shadow-[0_0_25px_rgba(239,68,68,0.8)] cursor-pointer'
+                      : 'hover:scale-105 bg-black/60 border-red-600/80 shadow-2xl cursor-pointer'
                   }`}
                   title={isEn ? 'Click to attack monster!' : '點擊攻擊怪獸！'}
                 >
@@ -995,8 +1057,9 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
                 ) : (
                   <>
                     <button
+                      disabled={isDefeatingMonsterRef.current || monsterCurrentHp <= 0}
                       onClick={strikeMonster}
-                      className={`px-4 py-1.5 font-black text-xs rounded border-2 border-black active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                      className={`px-4 py-1.5 font-black text-xs rounded border-2 border-black active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:pointer-events-none ${
                         isSwordBroken
                           ? 'bg-red-800 hover:bg-red-700 text-white shadow-[inset_1px_1px_0_#f87171]'
                           : 'bg-amber-500 hover:bg-amber-400 text-black shadow-[inset_1px_1px_0_#fef08a]'
@@ -1082,12 +1145,13 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
               <div className="relative my-2">
                 <button
                   id="quarry-block-target"
+                  onClick={() => {
+                    strikeMining();
+                  }}
                   onMouseDown={() => {
                     isMouseDownRef.current = true;
                     strikeMining();
-                    if (!isCompletingRef.current) {
-                      setIsMiningActive(true);
-                    }
+                    setIsMiningActive(true);
                   }}
                   onMouseUp={() => {
                     isMouseDownRef.current = false;
@@ -1100,9 +1164,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
                   onTouchStart={() => {
                     isMouseDownRef.current = true;
                     strikeMining();
-                    if (!isCompletingRef.current) {
-                      setIsMiningActive(true);
-                    }
+                    setIsMiningActive(true);
                   }}
                   onTouchEnd={() => {
                     isMouseDownRef.current = false;

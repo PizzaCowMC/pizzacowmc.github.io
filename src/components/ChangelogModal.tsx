@@ -47,6 +47,28 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
       highlights: [
         {
           category: 'fix',
+          categoryLabel: isEn ? '⚔️ Combat Fix' : '⚔️ 戰鬥連點卡死修復',
+          tagColor: 'bg-red-900/60 text-red-300 border-red-500/40',
+          title: isEn
+            ? 'Resolved Monster Defeat Rapid-Clicking Freeze Bug'
+            : '徹底修復打完怪連續點擊導致挖掘卡死的問題',
+          desc: isEn
+            ? 'Engineered re-entrant click locking (isDefeatingMonsterRef) and an automated completion watchdog timer. Even when spamming attack clicks as the subterranean monster falls, state transitions smoothly back to quarry block mining without any input lockups.'
+            : '加入防重入鎖（isDefeatingMonsterRef）、單一計時器與完成看門狗機制（Watchdog Timer）。玩家在怪獸倒下一瞬間即使瘋狂連點，也不會發生邏輯死鎖或開採卡住，無縫回歸採礦！'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '📊 Yield Chart' : '📊 魔像產量趨勢圖',
+          tagColor: 'bg-cyan-900/60 text-cyan-300 border-cyan-500/40',
+          title: isEn
+            ? 'Interactive Auto-Miner Daily Production & ROI Trend Chart'
+            : '鐵匠鋪新增「自動採礦魔像每日產量趨勢圖表」',
+          desc: isEn
+            ? 'Embedded dynamic analytics into the Blacksmith Forge modal! Visualizes daily resource yield curves, coin dividends, overclock speeds, and provides custom investment efficiency ratings (B to EX) to help players optimize module forging.'
+            : '在紅石鐵匠鋪工坊中植入視覺化數據儀表板！支援 7 日開採方塊趨勢圖、分紅金幣趨勢柱狀圖、浮動數據提示，以及模組投資回報率（ROI）診斷與等級評級（B 級至 EX 終極匠神）！'
+        },
+        {
+          category: 'fix',
           categoryLabel: isEn ? '🛠️ Layout Bugfix' : '🛠️ 模項重疊修復',
           tagColor: 'bg-amber-900/60 text-amber-300 border-amber-500/40',
           title: isEn
