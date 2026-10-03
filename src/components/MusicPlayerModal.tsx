@@ -77,13 +77,13 @@ export const MusicPlayerModal: React.FC<MusicPlayerModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-amber-300 font-minecraft tracking-wider flex items-center gap-2">
-                <span>{isEn ? 'Redstone Jukebox • Official Theme Song' : '紅石唱片機 • 官方遊戲主題曲'}</span>
+                <span>{isEn ? 'Redstone Jukebox • BGM Player' : '紅石唱片機 • 背景音樂播放器'}</span>
                 <span className="text-[10px] bg-amber-500 text-black font-bold px-2 py-0.5 rounded border border-amber-300">
-                  {isEn ? 'MAIN THEME' : '遊戲主題曲'}
+                  {isEn ? 'AUTO-PLAY' : '遊玩自動播放'}
                 </span>
               </h2>
               <p className="text-xs text-zinc-400">
-                {isEn ? 'Official Soundtrack: Redstone Steam Workshop (Clockwork Machinery)' : '遊戲指定主題曲：紅石蒸氣工坊（齒輪機械節奏）'}
+                {isEn ? 'Official Soundtrack: Redstone Steam Workshop (Auto-plays during gameplay)' : '官方指定主題曲：紅石蒸氣工坊（玩家遊玩時自動播放）'}
               </p>
             </div>
           </div>
@@ -257,10 +257,25 @@ export const MusicPlayerModal: React.FC<MusicPlayerModalProps> = ({
 
         {/* Track Selection List */}
         <div className="p-4 space-y-2 max-h-[45vh] overflow-y-auto custom-scrollbar">
-          <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider px-1 mb-1 flex items-center justify-between">
-            <span>{isEn ? 'Game Official Theme Song Record' : '遊戲唯一指定主題曲唱片'}</span>
+          {/* Autoplay info banner */}
+          <div className="bg-amber-950/40 border border-amber-800/60 rounded-xl p-2.5 flex items-center justify-between text-xs text-amber-200/90 font-minecraft">
+            <span className="flex items-center gap-1.5">
+              <span>🎵</span>
+              <span>
+                {isEn
+                  ? 'Official Theme automatically begins playing as you explore and mine!'
+                  : '遊玩冒險或挖掘方塊時，遊戲將自動為您播放官方主題曲！'}
+              </span>
+            </span>
+            <span className="text-[10px] text-amber-400 font-bold hidden sm:inline">
+              {isEn ? `${BGM_TRACKS.length} Soundtracks` : `已收錄 ${BGM_TRACKS.length} 首原聲`}
+            </span>
+          </div>
+
+          <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider px-1 pt-1 mb-1 flex items-center justify-between">
+            <span>{isEn ? 'Soundtrack & Jukebox Discs' : '點播唱片集'}</span>
             <span className="text-[10px] text-amber-400 font-bold">
-              {isEn ? '★ Official Game Theme' : '★ 遊戲主題曲'}
+              {isEn ? `Total ${BGM_TRACKS.length} Tracks` : `共 ${BGM_TRACKS.length} 首曲目`}
             </span>
           </div>
 
@@ -289,10 +304,15 @@ export const MusicPlayerModal: React.FC<MusicPlayerModalProps> = ({
                     </div>
 
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-black text-white truncate font-minecraft">
                           {isEn ? track.nameEn : track.nameZh}
                         </span>
+                        {track.isTheme && (
+                          <span className="text-[9px] bg-amber-500 text-black font-bold px-1.5 py-0.5 rounded font-minecraft shadow-sm">
+                            {isEn ? '★ THEME' : '★ 主題曲'}
+                          </span>
+                        )}
                         {track.suitableArea && (
                           <span className="text-[9px] bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded font-mono border border-zinc-700">
                             {track.suitableArea}

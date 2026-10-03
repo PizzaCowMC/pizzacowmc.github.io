@@ -15,6 +15,9 @@ interface HotbarProps {
   onOpenMarket: () => void;
   onOpenShop: () => void;
   onOpenMusicPlayer?: () => void;
+  isBgmPlaying?: boolean;
+  onOpenBlacksmith?: () => void;
+  unlockedBlacksmithCount?: number;
 }
 
 export const Hotbar: React.FC<HotbarProps> = ({
@@ -25,7 +28,10 @@ export const Hotbar: React.FC<HotbarProps> = ({
   coins,
   onOpenMarket,
   onOpenShop,
-  onOpenMusicPlayer
+  onOpenMusicPlayer,
+  isBgmPlaying,
+  onOpenBlacksmith,
+  unlockedBlacksmithCount = 0
 }) => {
   const { language, getName, t } = useLanguage();
   const currentPick = PICKAXE_TIERS.find(p => p.id === pickaxeState.currentTierId) || PICKAXE_TIERS[0];
@@ -71,10 +77,35 @@ export const Hotbar: React.FC<HotbarProps> = ({
                 onOpenMusicPlayer();
               }}
               title={isEn ? 'Open Jukebox' : '開啟唱片機'}
-              className="flex items-center gap-1 text-amber-300 hover:text-amber-200 font-bold transition-colors cursor-pointer text-xs"
+              className={`flex items-center gap-1 font-bold transition-colors cursor-pointer text-xs ${
+                isBgmPlaying ? 'text-amber-300 hover:text-amber-200' : 'text-zinc-400 hover:text-zinc-200'
+              }`}
             >
-              <span>💽</span>
+              <span className={isBgmPlaying ? 'animate-[spin_4s_linear_infinite] inline-block' : ''}>💽</span>
               <span className="hidden sm:inline">{isEn ? 'BGM' : '音樂'}</span>
+              {isBgmPlaying && (
+                <span className="text-[10px] text-amber-400 animate-pulse">♪</span>
+              )}
+            </button>
+          </>
+        )}
+
+        {onOpenBlacksmith && (
+          <>
+            <span className="text-zinc-600">|</span>
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenBlacksmith();
+              }}
+              title={isEn ? 'Blacksmith Forge (100 Auto-Mining Modules)' : '紅石鐵匠鋪 (100種自動採集模項)'}
+              className="flex items-center gap-1 font-bold transition-colors cursor-pointer text-xs text-amber-400 hover:text-amber-300"
+            >
+              <span>🔨</span>
+              <span className="hidden sm:inline">{isEn ? 'Forge' : '鐵匠鋪'}</span>
+              <span className="text-[10px] font-mono bg-amber-950/80 px-1 rounded border border-amber-700/60 text-amber-200">
+                {unlockedBlacksmithCount}/100
+              </span>
             </button>
           </>
         )}

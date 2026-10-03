@@ -23,6 +23,9 @@ import { OverworldMap } from './components/OverworldMap';
 import { CafeInterior } from './components/CafeInterior';
 import { ElevatorView } from './components/ElevatorView';
 import { MusicPlayerModal } from './components/MusicPlayerModal';
+import { BlacksmithModal } from './components/BlacksmithModal';
+import { BLACKSMITH_MODULES, calculateBlacksmithBonuses } from './data/blacksmithData';
+import { PlayerSprite } from './components/PlayerSprite';
 import { CafeState, OverworldZone } from './types';
 import { INITIAL_STAFF_MEMBERS } from './data/cafeStaffAndPromotionData';
 import { getLevelQuest, getLevelTitle, checkQuestProgress, calculateBlockXp, PlayerStatsForQuest, MAX_PLAYER_LEVEL } from './utils/levelSystem';
@@ -520,6 +523,37 @@ export default function App() {
   const [hasteRemainingSeconds, setHasteRemainingSeconds] = useState<number>(0);
   const [supplyToastMsg, setSupplyToastMsg] = useState<string | null>(null);
 
+  // Redstone Blacksmith & Automation Modules (100 Collectibles)
+  const [isBlacksmithOpen, setIsBlacksmithOpen] = useState<boolean>(false);
+  const [unlockedModuleIds, setUnlockedModuleIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_blacksmith_modules`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [totalAutoMinedBlocks, setTotalAutoMinedBlocks] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_auto_mined_blocks`);
+      return saved ? JSON.parse(saved) : 0;
+    } catch {
+      return 0;
+    }
+  });
+  const [totalAutoCoinsHarvested, setTotalAutoCoinsHarvested] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}_auto_coins_harvested`);
+      return saved ? JSON.parse(saved) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  const blacksmithBonuses = useMemo(() => {
+    return calculateBlacksmithBonuses(unlockedModuleIds);
+  }, [unlockedModuleIds]);
+
   // Active zone filter in layout
   const [activeView, setActiveView] = useState<'all' | 'quarry' | 'building'>('all');
   
@@ -557,6 +591,9 @@ export default function App() {
   const bgmToastTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // Ensure automatic theme song playback upon player interaction
+    bgmSystem.setupAutoPlayOnFirstAction();
+
     const unsub = bgmSystem.subscribe((track, playing) => {
       setActiveBgmTrack(track);
       setIsBgmPlaying(playing);
@@ -924,6 +961,25 @@ export default function App() {
     localStorage.setItem(`${STORAGE_KEY}_auto_miner`, JSON.stringify(hasAutoMiner));
   }, [hasAutoMiner]);
 
+  // Blacksmith Modules & Auto-Gather LocalStorage Sync
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_blacksmith_modules`, JSON.stringify(unlockedModuleIds));
+    } catch {}
+  }, [unlockedModuleIds]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_auto_mined_blocks`, JSON.stringify(totalAutoMinedBlocks));
+    } catch {}
+  }, [totalAutoMinedBlocks]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_auto_coins_harvested`, JSON.stringify(totalAutoCoinsHarvested));
+    } catch {}
+  }, [totalAutoCoinsHarvested]);
+
   useEffect(() => {
     try {
       localStorage.setItem(`${STORAGE_KEY}_active_festival`, JSON.stringify(activeFestivalId));
@@ -1028,34 +1084,59 @@ export default function App() {
     return () => clearInterval(timer);
   }, [doubleCoinsSeconds]);
 
-  // Steam Auto-Miner Robot loop: mines 1 block every 3 seconds
+  // Steam & Redstone Auto-Miner Robot loop: powered and overclocked by Blacksmith Forge modules
   useEffect(() => {
     if (!hasAutoMiner) return;
+    // Base cycle interval is 4.5s; speedReductionSec reduces it (min 1.0s interval)
+    const intervalMs = Math.max(1000, Math.round((4500 - blacksmithBonuses.speedReductionSec * 1000)));
+
     const interval = setInterval(() => {
       const targetLayer = STRATA_LAYERS.find(l => l.id === selectedLayerId) || STRATA_LAYERS[0];
       const layerBlocks = BLOCK_TYPES.filter(b => targetLayer.blockIds.includes(b.id));
       const fallback = layerBlocks.length > 0 ? layerBlocks : BLOCK_TYPES.slice(0, 3);
       const randomBlock = fallback[Math.floor(Math.random() * fallback.length)];
 
+      // Base yield + bonus blocks per gather from drill & core modules
+      let yieldAmount = 1 + blacksmithBonuses.bonusBlocksPerGather;
+
+      // Fortune bonus: chance to double yield
+      if (blacksmithBonuses.fortuneBonusPct > 0 && Math.random() * 100 < blacksmithBonuses.fortuneBonusPct) {
+        yieldAmount *= 2;
+      }
+
+      // Crit chance: extra bonus block
+      if (blacksmithBonuses.critChancePct > 0 && Math.random() * 100 < blacksmithBonuses.critChancePct) {
+        yieldAmount += 1;
+      }
+
+      // Dividend coins from gathering
+      const earnedCoins = blacksmithBonuses.bonusCoinsPerGather;
+      if (earnedCoins > 0) {
+        setCoins(prev => prev + earnedCoins);
+        setTotalAutoCoinsHarvested(prev => prev + earnedCoins);
+      }
+
       setInventory(prev => ({
         ...prev,
-        [randomBlock.id]: (prev[randomBlock.id] || 0) + 1
+        [randomBlock.id]: (prev[randomBlock.id] || 0) + yieldAmount
       }));
       setLayerMinedCounts(prev => ({
         ...prev,
-        [selectedLayerId]: (prev[selectedLayerId] || 0) + 1
+        [selectedLayerId]: (prev[selectedLayerId] || 0) + yieldAmount
       }));
       setStats(prev => ({
         ...prev,
-        totalBlocksMined: prev.totalBlocksMined + 1,
+        totalBlocksMined: prev.totalBlocksMined + yieldAmount,
+        totalCoinsEarned: prev.totalCoinsEarned + earnedCoins,
         blockTypeMinedCounts: {
           ...prev.blockTypeMinedCounts,
-          [randomBlock.id]: (prev.blockTypeMinedCounts[randomBlock.id] || 0) + 1
+          [randomBlock.id]: (prev.blockTypeMinedCounts[randomBlock.id] || 0) + yieldAmount
         }
       }));
-    }, 3000);
+      setTotalAutoMinedBlocks(prev => prev + yieldAmount);
+    }, intervalMs);
     return () => clearInterval(interval);
-  }, [hasAutoMiner, selectedLayerId]);
+  }, [hasAutoMiner, selectedLayerId, blacksmithBonuses]);
 
   // Periodic timer for random market inflation
   useEffect(() => {
@@ -1219,6 +1300,9 @@ export default function App() {
 
   // --- Handlers: Mining ---
   const handleMineSuccess = useCallback((minedBlock: BlockType, amount: number, layerId?: string) => {
+    // If BGM is idle, automatically start theme song
+    bgmSystem.triggerPlayIfIdle();
+
     setInventory(prev => ({
       ...prev,
       [minedBlock.id]: (prev[minedBlock.id] || 0) + amount
@@ -1812,6 +1896,69 @@ export default function App() {
     setTimeout(() => setSupplyToastMsg(null), 4500);
   }, [dailyGiftClaimedToday]);
 
+  // --- Handlers: Redstone Blacksmith & Automation Modules (100 Unique Collectibles) ---
+  const handleForgeModule = useCallback((moduleId: string) => {
+    const mod = BLACKSMITH_MODULES.find(m => m.id === moduleId);
+    if (!mod) return;
+    if (unlockedModuleIds.includes(moduleId)) return;
+    if (coins < mod.costCoins) return;
+    const userOre = inventory[mod.costOre.oreId] || 0;
+    if (userOre < mod.costOre.amount) return;
+
+    setCoins(prev => prev - mod.costCoins);
+    setInventory(prev => ({
+      ...prev,
+      [mod.costOre.oreId]: Math.max(0, (prev[mod.costOre.oreId] || 0) - mod.costOre.amount)
+    }));
+    setUnlockedModuleIds(prev => [...prev, moduleId]);
+    sound.playUpgradeSound();
+    setSupplyToastMsg(
+      isEn
+        ? `🔨 Forged #${mod.number} ${mod.nameEn}! (${mod.bonusDescEn})`
+        : `🔨 成功鍛造 #${mod.number} ${mod.nameZh}！(${mod.bonusDescZh})`
+    );
+    setTimeout(() => setSupplyToastMsg(null), 4000);
+  }, [unlockedModuleIds, coins, inventory, isEn]);
+
+  const handleForgeAllAffordable = useCallback(() => {
+    let curCoins = coins;
+    const curInv = { ...inventory };
+    const newUnlocked: string[] = [];
+
+    for (const mod of BLACKSMITH_MODULES) {
+      if (unlockedModuleIds.includes(mod.id) || newUnlocked.includes(mod.id)) continue;
+      if (curCoins >= mod.costCoins && (curInv[mod.costOre.oreId] || 0) >= mod.costOre.amount) {
+        curCoins -= mod.costCoins;
+        curInv[mod.costOre.oreId] -= mod.costOre.amount;
+        newUnlocked.push(mod.id);
+      }
+    }
+
+    if (newUnlocked.length > 0) {
+      setCoins(curCoins);
+      setInventory(curInv);
+      setUnlockedModuleIds(prev => [...prev, ...newUnlocked]);
+      sound.playUpgradeSound();
+      setSupplyToastMsg(
+        isEn
+          ? `🔨 Batch forged ${newUnlocked.length} Blacksmith modules!`
+          : `🔨 一鍵成功鍛造 ${newUnlocked.length} 種紅石採集模項！`
+      );
+      setTimeout(() => setSupplyToastMsg(null), 4500);
+    }
+  }, [coins, inventory, unlockedModuleIds, isEn]);
+
+  const handleActivateAutoMiner = useCallback(() => {
+    setHasAutoMiner(true);
+    sound.playUpgradeSound();
+    setSupplyToastMsg(
+      isEn
+        ? '🤖 Redstone Auto-Miner Golem operational!'
+        : '🤖 紅石自動採集魔像啟動運轉中！'
+    );
+    setTimeout(() => setSupplyToastMsg(null), 4000);
+  }, [isEn]);
+
   // --- Handlers: Red Reset Progress (選單紅色重製進度) ---
   const handleResetProgress = useCallback(() => {
     // 1. Reset coins & starter inventory
@@ -1886,6 +2033,9 @@ export default function App() {
 
     // 8. Reset supplies and buffs
     setHasAutoMiner(false);
+    setUnlockedModuleIds([]);
+    setTotalAutoMinedBlocks(0);
+    setTotalAutoCoinsHarvested(0);
     setHasteRemainingSeconds(0);
     setFriends([]);
     setFriendRewardClaimed(false);
@@ -1908,6 +2058,9 @@ export default function App() {
       `${STORAGE_KEY}_selected_layer`,
       `${STORAGE_KEY}_stats`,
       `${STORAGE_KEY}_auto_miner`,
+      `${STORAGE_KEY}_blacksmith_modules`,
+      `${STORAGE_KEY}_auto_mined_blocks`,
+      `${STORAGE_KEY}_auto_coins_harvested`,
       `${STORAGE_KEY}_friend_reward_claimed`,
       `${STORAGE_KEY}_friends`,
       `${STORAGE_KEY}_player_level`,
@@ -2028,7 +2181,16 @@ export default function App() {
             </button>
 
             <div className="flex items-center gap-2">
-              <span className="text-2xl sm:text-3xl">{activeSkin.avatarEmoji}</span>
+              <div
+                onClick={() => {
+                  sound.playClickSound();
+                  setIsAvatarSelectOpen(true);
+                }}
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-zinc-900 border-2 border-amber-400 flex items-center justify-center p-0.5 cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-[inset_1px_1px_0_#fde047]"
+                title={isEn ? 'Change Player Skin & Avatar' : '點擊變更玩家像素貼圖與造型'}
+              >
+                <PlayerSprite skinId={activeSkin.id} size="sm" headOnly glow />
+              </div>
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-sm sm:text-base font-black text-amber-300 drop-shadow-[2px_2px_0_#000] tracking-wide font-minecraft">
@@ -2508,12 +2670,15 @@ export default function App() {
               readyDishesCount={Object.values(cafeState.dishInventory).reduce((a: number, b: number) => a + b, 0)}
               playerName={isEn ? currentSkin.nameEn : currentSkin.nameZh}
               avatarIcon={currentSkin.avatarEmoji || '⛏️'}
+              skinId={currentSkin.id}
               initialPos={overworldSpawnPos}
               onOpenEncyclopedia={() => {
                 sound.playClickSound();
                 setIsEncyclopediaOpen(true);
               }}
               onOpenMusicPlayer={() => setIsMusicPlayerOpen(true)}
+              onOpenBlacksmith={() => setIsBlacksmithOpen(true)}
+              unlockedBlacksmithCount={unlockedModuleIds.length}
               playerLevel={playerLevel}
               branch2Unlocked={cafeState.branch2Unlocked}
               onSetPlayerLevel={setPlayerLevel}
@@ -2696,6 +2861,8 @@ export default function App() {
                 sound.playClickSound();
                 setIsEncyclopediaOpen(true);
               }}
+              onOpenBlacksmith={() => setIsBlacksmithOpen(true)}
+              unlockedBlacksmithCount={unlockedModuleIds.length}
             />
           </div>
         )}
@@ -2745,11 +2912,11 @@ export default function App() {
               sound.playClickSound();
               setIsChangelogOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/50 hover:border-amber-400 rounded-lg text-amber-300 font-mono text-xs font-bold transition-all shadow-sm cursor-pointer group"
-            title={isEn ? 'View v2.6.00 Changelog' : '查看 v2.6.00 更新日誌'}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-amber-950/60 to-purple-950/60 hover:from-amber-900/80 hover:to-purple-900/80 border border-amber-400/70 hover:border-amber-300 rounded-lg text-amber-300 font-mono text-xs font-bold transition-all shadow-md cursor-pointer group"
+            title={isEn ? 'View v26.2.70 Changelog' : '查看 v26.2.70 更新日誌'}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="group-hover:underline">v2.6.00</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
+            <span className="group-hover:underline font-black text-amber-300">v26.2.70</span>
             <span className="text-zinc-400 font-sans font-normal text-[11px]">{isEn ? 'Changelog' : '更新日誌'}</span>
           </button>
         </div>
@@ -2789,6 +2956,9 @@ export default function App() {
           setIsShopOpen(true);
         }}
         onOpenMusicPlayer={() => setIsMusicPlayerOpen(true)}
+        isBgmPlaying={isBgmPlaying}
+        onOpenBlacksmith={() => setIsBlacksmithOpen(true)}
+        unlockedBlacksmithCount={unlockedModuleIds.length}
       />
 
       {/* POPUP: Achievement Unlocked Toast Notification */}
@@ -2863,6 +3033,8 @@ export default function App() {
         volume={volume}
         onChangeVolume={handleSetVolume}
         onOpenMusicPlayer={() => setIsMusicPlayerOpen(true)}
+        onOpenBlacksmith={() => setIsBlacksmithOpen(true)}
+        unlockedBlacksmithCount={unlockedModuleIds.length}
         onResetProgress={handleResetProgress}
       />
 
@@ -2871,6 +3043,22 @@ export default function App() {
         isOpen={isMusicPlayerOpen}
         onClose={() => setIsMusicPlayerOpen(false)}
         isEn={isEn}
+      />
+
+      {/* REDSTONE BLACKSMITH & AUTOMATION FORGE (100 COLLECTIBLE MODULES) */}
+      <BlacksmithModal
+        isOpen={isBlacksmithOpen}
+        onClose={() => setIsBlacksmithOpen(false)}
+        isEn={isEn}
+        coins={coins}
+        inventory={inventory}
+        unlockedModuleIds={unlockedModuleIds}
+        onForgeModule={handleForgeModule}
+        onForgeAllAffordable={handleForgeAllAffordable}
+        hasAutoMiner={hasAutoMiner}
+        onActivateAutoMiner={handleActivateAutoMiner}
+        totalAutoMinedBlocks={totalAutoMinedBlocks}
+        totalCoinsHarvested={totalAutoCoinsHarvested}
       />
 
       {/* CHANGELOG MODAL */}

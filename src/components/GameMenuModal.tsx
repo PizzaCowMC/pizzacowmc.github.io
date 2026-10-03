@@ -40,6 +40,8 @@ interface GameMenuModalProps {
   onOpenLevel?: () => void;
   onOpenEncyclopedia?: () => void;
   onOpenMusicPlayer?: () => void;
+  onOpenBlacksmith?: () => void;
+  unlockedBlacksmithCount?: number;
   playerLevel?: number;
   onResetProgress?: () => void;
   currentUser: { email: string | null; displayName: string | null } | null;
@@ -63,14 +65,16 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
   onOpenFestivals,
   onOpenLevel,
   onOpenEncyclopedia,
+  onOpenMusicPlayer,
+  onOpenBlacksmith,
+  unlockedBlacksmithCount = 0,
   playerLevel = 0,
   onResetProgress,
   currentUser,
   soundEnabled,
   onToggleSound,
   volume,
-  onChangeVolume,
-  onOpenMusicPlayer
+  onChangeVolume
 }) => {
   const { language, toggleLanguage, t } = useLanguage();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -207,6 +211,21 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
               <span className="text-zinc-500 text-[10px]">Shop →</span>
             </button>
 
+            {onOpenBlacksmith && (
+              <button
+                onClick={() => handleAction(onOpenBlacksmith)}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-amber-950/80 via-yellow-950/60 to-[#282828] hover:from-amber-900 hover:to-[#323232] border border-amber-500/60 rounded-xl flex items-center justify-between text-xs font-bold text-amber-200 hover:text-white transition-all active:scale-98"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base animate-bounce">🔨</span>
+                  <span>{isEn ? 'Redstone Blacksmith (100 Auto-Mining Modules)' : '紅石自動採集模項升級：鐵匠鋪 (100種等你收集)'}</span>
+                </div>
+                <span className="text-amber-400 text-[10px] font-mono font-bold bg-black/60 px-2 py-0.5 rounded border border-amber-600/40">
+                  {unlockedBlacksmithCount}/100 →
+                </span>
+              </button>
+            )}
+
             {onOpenFestivals && (
               <button
                 onClick={() => handleAction(onOpenFestivals)}
@@ -291,10 +310,10 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
             >
               <div className="flex items-center gap-2.5">
                 <Scroll className="w-4 h-4 text-amber-300" />
-                <span>{isEn ? '📜 Release Notes (Changelog v2.6.00)' : '📜 版本更新日誌 (Changelog v2.6.00)'}</span>
+                <span>{isEn ? '📜 Release Notes (Changelog v26.2.70)' : '📜 版本更新日誌 (Changelog v26.2.70)'}</span>
               </div>
               <span className="text-emerald-400 font-mono text-[10px] bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
-                v2.6.00
+                v26.2.70
               </span>
             </button>
           </div>

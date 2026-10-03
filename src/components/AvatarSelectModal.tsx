@@ -4,6 +4,7 @@ import { PlayerSkin } from '../types';
 import { sound } from '../utils/soundEffects';
 import { useLanguage } from '../utils/i18n';
 import { X, Check, Lock, Sparkles, Coins } from 'lucide-react';
+import { PlayerSprite } from './PlayerSprite';
 
 interface AvatarSelectModalProps {
   isOpen: boolean;
@@ -64,12 +65,15 @@ export const AvatarSelectModal: React.FC<AvatarSelectModalProps> = ({
         {/* Current Equipped Banner */}
         <div className="bg-zinc-950 px-5 py-3 border-b-2 border-black flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg bg-zinc-900 border-2 border-amber-400 flex items-center justify-center text-3xl shadow-[inset_1px_1px_0_#fde047]">
-              {currentSkin.avatarEmoji}
+            <div className="w-14 h-14 rounded-xl bg-zinc-900 border-2 border-amber-400 flex items-center justify-center shadow-[inset_1px_1px_0_#fde047] relative p-1 overflow-hidden">
+              <PlayerSprite skinId={currentSkin.id} size="md" headOnly glow />
             </div>
             <div>
-              <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
-                {isEn ? 'Currently Equipped Avatar' : '目前使用頭像'}
+              <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <span>{isEn ? 'Currently Equipped Skin' : '目前穿戴像素貼圖'}</span>
+                <span className="text-amber-400 font-mono text-[9px] bg-amber-950/80 px-1 py-0.2 rounded border border-amber-600/60">
+                  {currentSkin.avatarEmoji}
+                </span>
               </div>
               <div className="text-base font-black text-white font-minecraft">
                 {isEn ? currentSkin.nameEn : currentSkin.nameZh}
@@ -102,14 +106,17 @@ export const AvatarSelectModal: React.FC<AvatarSelectModalProps> = ({
                 }`}
               >
                 <div className="flex items-start gap-3 mb-3">
-                  <div className={`w-12 h-12 rounded-lg border-2 flex items-center justify-center text-3xl shrink-0 ${
+                  <div className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center shrink-0 relative overflow-hidden p-1 ${
                     isEquipped
                       ? 'bg-emerald-900/60 border-emerald-400 shadow-md'
                       : isOwned
                       ? 'bg-zinc-800 border-zinc-600'
                       : 'bg-zinc-900 border-zinc-800'
                   }`}>
-                    {skin.avatarEmoji}
+                    <PlayerSprite skinId={skin.id} size="md" headOnly glow={isEquipped} />
+                    <span className="absolute bottom-0 right-0 text-[10px] bg-black/70 px-1 rounded-tl">
+                      {skin.avatarEmoji}
+                    </span>
                   </div>
 
                   <div className="flex-1 min-w-0">

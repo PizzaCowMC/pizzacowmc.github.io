@@ -32,8 +32,155 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
   const logs = [
     {
-      version: '2.6.00',
+      version: '26.2.70',
       isLatest: true,
+      date: isEn
+        ? '26.2.70 Blacksmith Forge Cards Layout Fix & Version 26.2.70 Upgrade'
+        : '26.2.70 鐵匠鋪 100 種模項卡片重疊排版修復・版本號全面升級 26.2.70',
+      badge: isEn
+        ? '26.2.70 Blacksmith Cards Layout Fix • Version 26.2.70'
+        : '26.2.70 鐵匠鋪重疊修復 • 全域版本升級 26.2.70',
+      badgeColor: 'bg-gradient-to-r from-amber-600 via-yellow-500 to-emerald-500 text-black shadow-xl animate-pulse font-black',
+      summary: isEn
+        ? 'Version 26.2.70 Hotfix: Fixed the critical card overlapping layout bug in the Blacksmith Forge modal where module cards collapsed on top of each other. Restructured the scroll container with min-h-0 and responsive grid layout so all 100 collectible modules display cleanly with smooth scrolling. Synchronized version tags across the application to 26.2.70.'
+        : '重磅修復版本 26.2.70：徹底修復鐵匠鋪模態窗中 100 種模項卡片互相重疊遮擋的排版問題，將滾動容器與多欄網格容器分離並配置 min-h-0，使 100 款動力核心、合金鑽頭、分選漏斗與匠神裝備井然有序、流暢滾動開採！全域標籤同步升級至 26.2.70！',
+      highlights: [
+        {
+          category: 'fix',
+          categoryLabel: isEn ? '🛠️ Layout Bugfix' : '🛠️ 模項重疊修復',
+          tagColor: 'bg-amber-900/60 text-amber-300 border-amber-500/40',
+          title: isEn
+            ? 'Resolved Card Overlap in Redstone Blacksmith Modal'
+            : '徹底修復鐵匠鋪 100 種模項卡片擠壓重疊問題',
+          desc: isEn
+            ? 'Restructured the internal modal DOM hierarchy to isolate the min-h-0 overflow-y-auto scroll container from the CSS Grid layout, ensuring each card maintains its natural height and spacing without collision.'
+            : '重構模態框內部 DOM 容器層級，獨立外層滾動容器並啟用 min-h-0 自適應高度，確保每一張模項卡片擁有獨立高寬與平滑滾動，徹底告別卡片重疊困擾。'
+        },
+        {
+          category: 'sync',
+          categoryLabel: isEn ? '🏷️ Version 26.2.70' : '🏷️ 版本號大升級',
+          tagColor: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/40',
+          title: isEn
+            ? 'All Footer & Menu Version Numbers Synchronized to 26.2.70'
+            : '底端標籤、更新日誌與專案配置同步躍升至 26.2.70',
+          desc: isEn
+            ? 'Fully updated footer release tag, Game Menu modal changelog badge, and package.json to official version 26.2.70.'
+            : '底部快捷列版本號、主選單更新日誌按鈕及 package.json 均已全面同步更新至 26.2.70。'
+        }
+      ]
+    },
+    {
+      version: '26.2.62',
+      isLatest: false,
+      date: isEn
+        ? '26.2.62 Minecraft Player Pixel Skin Remaster & Version Tag Upgrade'
+        : '26.2.62 玩家像素造型貼圖全面大升級・版本號同步躍升 26.2.62',
+      badge: isEn
+        ? '26.2.62 Player Pixel Sprite • Version Display Upgrade 26.2.62'
+        : '26.2.62 玩家貼圖大升級 • 版本號顯示大升級 26.2.62',
+      badgeColor: 'bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 text-white shadow-xl animate-pulse',
+      summary: isEn
+        ? 'Grand Milestone Release 26.2.62: Comprehensive remaster of player character graphics into authentic Minecraft pixel art models (Steve, Alex, Nether Knight, Ender Mage, Diamond Tycoon, God of Blocks, Warden, Celestial Sovereign, Creeper Suit, and Redstone Engineer) with directional facing, walking bobbing, hand-held tools, and aura effects. Fully synchronized version tags across the application to 26.2.62.'
+        : '重磅里程碑版本 26.2.62：告別單調方形符號，全面換裝正統 Minecraft 像素貼圖（史蒂夫、艾莉絲、地獄騎士、終界法師、鑽石大亨、創世神、幽匿巨神、天界星輝、苦力怕、紅石工程師），支援行走擺腿、朝向翻轉、手持工具與神話光環！全域版本號同步大躍升至 26.2.62！',
+      highlights: [
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '🎨 Pixel Player Skin' : '🎨 玩家貼圖大升級',
+          tagColor: 'bg-purple-900/60 text-purple-300 border-purple-500/40',
+          title: isEn
+            ? 'Complete Remaster of Player Character Models & Textures'
+            : '正統 Minecraft 像素角色貼圖全面實裝',
+          desc: isEn
+            ? 'Introduced dedicated crisp-edge pixel sprites for all 10 character skins with distinct hair, armor, capes, glowing visors, and walking swing animations on the Overworld map.'
+            : '為所有 10 款造型打造專屬高精細像素貼圖，包含經典史蒂夫青藍襯衫、地獄騎士熔岩面罩、鑽石大亨全套鑽甲、創世神光環等，並在大地圖呈現生動行走動畫。'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '🔨 Redstone Blacksmith' : '🔨 紅石鐵匠鋪 100 種模項',
+          tagColor: 'bg-red-950/80 text-amber-300 border-amber-500/60',
+          title: isEn
+            ? 'Redstone Auto-Harvest Upgrade Area: Blacksmith Forge (100 Collectibles)'
+            : '紅石自動採集模項升級區域：鐵匠鋪（100 種等你收集）',
+          desc: isEn
+            ? 'Unlock and forge 100 specialized automation modules across 7 categories (Power Cores, Drill Bits, Sorting Hoppers, Ancient Runes, Mechanical Gears, Radar Detectors, and Godsmith Regalia). Exponentially boosts auto-miner cycle speed, drop yield, fortune bonuses, and dividend payouts!'
+            : '全方位開放紅石自動採集升級工坊！涵蓋 7 大分類共 100 種專屬模項（動力核心、合金鑽頭、分選漏斗、遠古符文、機械齒輪、探測雷達與匠神神兵），極限超頻自動採礦魔像頻率、單次產量、幸運雙倍與分紅收益！'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '👕 Wardrobe Upgrade' : '👕 造型試衣間',
+          tagColor: 'bg-amber-900/60 text-amber-300 border-amber-500/40',
+          title: isEn
+            ? 'Dynamic Pixel Avatar Select & Header Badge Integration'
+            : '造型選單與頂部個人資訊即時像素頭像連動',
+          desc: isEn
+            ? 'The Avatar Selection modal and top header bar now render high-resolution pixel art previews of your equipped skin.'
+            : '頭像更換選單及頂部導航列均已升級為細膩的像素頭像預覽，點擊即可一鍵換裝並同步顯示於全遊戲。'
+        },
+        {
+          category: 'sync',
+          categoryLabel: isEn ? '🏷️ Version 26.2.62' : '🏷️ 版本號大升級',
+          tagColor: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/40',
+          title: isEn
+            ? 'All Footer & Menu Version Numbers Upgraded to 26.2.62'
+            : '下方標籤、主選單與專案配置同步大升級至 26.2.62',
+          desc: isEn
+            ? 'Fully synchronized bottom footer tag, Game Menu changelog button, and package.json to milestone 26.2.62.'
+            : '底端標籤標示、更新日誌、選單按鈕及 package.json 均已全面同步更新至 26.2.62。'
+        }
+      ]
+    },
+    {
+      version: '2.6.10',
+      isLatest: false,
+      date: isEn
+        ? '2.6.10 7 BGM Tracks Expansion & Auto-Play Theme Song'
+        : '2.6.10 擴充 7 首程序化音樂・遊玩時自動播放主題曲・版本同步',
+      badge: isEn
+        ? '2.6.10 7 BGM Tracks • Auto-Play Theme • Bottom Tag Sync'
+        : '2.6.10 7 首原聲唱片 • 遊玩自動播放主題曲 • 下方標籤同步',
+      badgeColor: 'bg-gradient-to-r from-amber-500 via-emerald-600 to-indigo-600 text-white shadow-lg animate-pulse',
+      summary: isEn
+        ? 'Version 2.6.10: Expanded the Jukebox to 7 procedural Web Audio chiptune/ambient soundtracks, enabled automatic playback of the official theme song upon gameplay interactions, enhanced Hotbar spinning disc indicator, and fully synchronized bottom footer version tags.'
+        : '版本 2.6.10：紅石唱片機擴充至 7 首高音質程序化合成音樂、玩家開始遊玩（點擊/移動/挖礦）時自動播放官方主題曲《紅石蒸氣工坊》、新增快捷欄旋轉唱片動效，並全面同步下方版本標籤！',
+      highlights: [
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '🎵 7 BGM Tracks' : '🎵 7首原聲音樂',
+          tagColor: 'bg-amber-900/60 text-amber-300 border-amber-500/40',
+          title: isEn
+            ? 'Expanded Procedural Synthesis to 7 Distinct Tracks'
+            : '擴充至 7 首純程序化合成懷舊風格原聲唱片',
+          desc: isEn
+            ? 'Added Deepslate Echoes, Minecraft Dawn, Celestial Heights, Village Jubilee, and Industrial Forge alongside the Redstone Clockwork theme and Starlight Cafe lounge.'
+            : '除官方主題曲《紅石蒸氣工坊》與星空咖啡館外，新增水晶礦坑、黎明方塊、天界漫步、村莊慶典與蒸氣巨構共 7 首精美曲目。'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '▶️ Auto-Play' : '▶️ 自動播放',
+          tagColor: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/40',
+          title: isEn
+            ? 'Theme Song Auto-Plays on Player Interaction'
+            : '玩家遊玩遊戲時自動播放官方主題曲',
+          desc: isEn
+            ? 'Automatically unlocks Web Audio and begins playing the official theme upon the first exploration, movement, or mining action.'
+            : '完全相容現代瀏覽器政策，玩家進行任何點擊、探索或挖掘時自動喚醒並流暢播放主題曲，底部提供原版唱片提示條。'
+        },
+        {
+          category: 'sync',
+          categoryLabel: isEn ? '🏷️ Version Tag' : '🏷️ 標籤同步',
+          tagColor: 'bg-purple-900/60 text-purple-300 border-purple-500/40',
+          title: isEn
+            ? 'Bottom Tag & System Synchronized to v2.6.10'
+            : '下方版本標籤與系統全域同步至 v2.6.10',
+          desc: isEn
+            ? 'Synchronized footer version tag, Game Menu changelog button, and package.json to v2.6.10.'
+            : '下方標籤、遊戲選單按鈕與 package.json 均已精確同步至 2.6.10。'
+        }
+      ]
+    },
+    {
+      version: '2.6.00',
+      isLatest: false,
       date: isEn
         ? '2.6.00 UI Streamlining & Overworld Sky Island Immersion'
         : '2.6.00 介面純淨輕量化・神秘空島大圖探索・版本重磅升級',

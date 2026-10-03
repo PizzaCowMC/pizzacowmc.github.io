@@ -1,7 +1,7 @@
 {
   "name": "react-example",
   "private": true,
-  "version": "2.6.00",
+  "version": "26.2.70",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",

@@ -3,6 +3,7 @@ import { sound } from '../utils/soundEffects';
 import { Pickaxe, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { OverworldZone } from '../types';
 import { SkyIslandTransition } from './SkyIslandTransition';
+import { PlayerSprite } from './PlayerSprite';
 
 interface OverworldMapProps {
   onEnterZone: (zone: OverworldZone) => void;
@@ -12,9 +13,12 @@ interface OverworldMapProps {
   readyDishesCount: number;
   playerName?: string;
   avatarIcon?: string;
+  skinId?: string;
   initialPos?: { x: number; y: number };
   onOpenEncyclopedia?: () => void;
   onOpenMusicPlayer?: () => void;
+  onOpenBlacksmith?: () => void;
+  unlockedBlacksmithCount?: number;
   playerLevel?: number;
   branch2Unlocked?: boolean;
   onArriveAtSkyIsland?: () => void;
@@ -29,9 +33,12 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
   readyDishesCount,
   playerName = 'Miner Barista',
   avatarIcon = '⛏️',
+  skinId = 'steve',
   initialPos,
   onOpenEncyclopedia,
   onOpenMusicPlayer,
+  onOpenBlacksmith,
+  unlockedBlacksmithCount = 0,
   playerLevel = 0,
   branch2Unlocked = false,
   onArriveAtSkyIsland,
@@ -72,6 +79,8 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
   const nearElevator = (pos.x >= 64 && pos.y >= 20 && pos.y <= 78) || getDistance(pos, { x: 80, y: 46 }) <= 18;
   // 4. Mysterious Sky Island: Top-center floating zone (x: 34 to 70, y <= 34)
   const nearSkyIsland = (pos.x >= 34 && pos.x <= 70 && pos.y <= 34) || getDistance(pos, { x: 52, y: 16 }) <= 18;
+  // 5. Redstone Blacksmith: South-center forge (x: 40 to 74, y >= 58)
+  const nearBlacksmith = (pos.x >= 40 && pos.x <= 74 && pos.y >= 58) || getDistance(pos, { x: 58, y: 76 }) <= 18;
 
   const handleTriggerSkyIsland = () => {
     if (!isSkyIslandUnlocked) {
@@ -136,6 +145,9 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
         } else if (nearElevator) {
           sound.playClickSound();
           onEnterZone('elevator');
+        } else if (nearBlacksmith && onOpenBlacksmith) {
+          sound.playClickSound();
+          onOpenBlacksmith();
         }
         return;
       } else {
@@ -161,7 +173,7 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       if (stepTimer) clearTimeout(stepTimer);
     };
-  }, [facing, nearCafe, nearQuarry, nearElevator, nearSkyIsland, onEnterZone, isSkyIslandUnlocked]);
+  }, [facing, nearCafe, nearQuarry, nearElevator, nearSkyIsland, nearBlacksmith, onEnterZone, onOpenBlacksmith, isSkyIslandUnlocked]);
 
   // Click on map to move
   const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -484,46 +496,45 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
           </div>
         </div>
 
-        {/* ================= 2. QUARRY MINE SHAFT (Bottom & South Path) ================= */}
-        {/* Directly at the end of the South Road! */}
-        <div className="absolute left-[8%] bottom-[4%] w-[44%] h-[38%] z-10">
+        {/* ================= 2. QUARRY MINE SHAFT (Bottom-Left) ================= */}
+        <div className="absolute left-[4%] bottom-[4%] w-[36%] h-[38%] z-10">
           <div
             onClick={(e) => {
               e.stopPropagation();
               sound.playClickSound();
               onEnterZone('quarry');
             }}
-            className={`relative w-full h-full bg-[#1c1917] border-4 border-black rounded-2xl shadow-2xl flex flex-col p-3 overflow-hidden cursor-pointer group hover:scale-[1.02] transition-transform text-white ${
+            className={`relative w-full h-full bg-[#1c1917] border-4 border-black rounded-2xl shadow-2xl flex flex-col p-2.5 overflow-hidden cursor-pointer group hover:scale-[1.02] transition-transform text-white ${
               nearQuarry ? 'ring-4 ring-amber-400 bg-zinc-900' : ''
             }`}
           >
             {/* Rocky Cavern Title */}
             <div className="flex items-center justify-between border-b-2 border-zinc-700 pb-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <Pickaxe className="w-4 h-4 text-amber-400" />
                 <span className="text-xs sm:text-sm font-black text-amber-300 font-minecraft">
-                  {isEn ? 'Quarry Mine Pit' : '地底採掘礦坑 (豎井入口)'}
+                  {isEn ? 'Quarry Mine Pit' : '地底採掘礦坑'}
                 </span>
               </div>
-              <span className="text-[10px] bg-red-950 px-2 py-0.5 rounded text-red-300 border border-red-700 font-mono font-bold">
-                {isEn ? '10 Strata B1~B10' : '10 大地層 B1~B10'}
+              <span className="text-[10px] bg-red-950 px-1.5 py-0.2 rounded text-red-300 border border-red-700 font-mono font-bold">
+                {isEn ? 'B1~B10' : '10層'}
               </span>
             </div>
 
             {/* Cavern Scenery & Rails */}
-            <div className="flex-1 flex items-center justify-between px-2">
+            <div className="flex-1 flex items-center justify-between px-1">
               <div className="flex flex-col text-left text-[10px] text-zinc-300">
                 <div className="flex items-center gap-1 text-amber-300 font-bold">
                   <span>⛏️</span>
-                  <span>{isEn ? 'Dig deep for rare ores!' : '深入地層開採各色方塊！'}</span>
+                  <span>{isEn ? 'Dig deep for rare ores!' : '深入地層開採方塊！'}</span>
                 </div>
-                <div className="text-zinc-400">
-                  {isEn ? 'Ingredients fuel 1,000 gourmet cafe recipes' : '供應咖啡廳 1,000 道傳奇料理專屬食材'}
+                <div className="text-zinc-400 text-[9px] line-clamp-1">
+                  {isEn ? 'Supplies 1,000 cafe recipes' : '供應咖啡廳千道料理食材'}
                 </div>
               </div>
 
               {/* Ore Chunks visual */}
-              <div className="flex gap-1 text-lg bg-black/50 p-1.5 rounded-lg border border-zinc-700">
+              <div className="flex gap-1 text-base bg-black/50 p-1 rounded-lg border border-zinc-700">
                 <span>💎</span>
                 <span>🌋</span>
                 <span>🪙</span>
@@ -531,18 +542,14 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
             </div>
 
             {/* Enter Quarry Button Pad */}
-            <div className="w-full pt-1 flex items-center justify-between gap-2 border-t border-zinc-700">
-              <div className="flex items-center gap-1 text-[10px] text-amber-400 font-minecraft">
-                <span>🚃</span>
-                <span>{isEn ? 'Minecart Track' : '直通地下礦坑軌道'}</span>
-              </div>
+            <div className="w-full pt-1 flex items-center justify-between gap-1 border-t border-zinc-700">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   sound.playClickSound();
                   onEnterZone('quarry');
                 }}
-                className={`px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl border-2 border-black shadow active:scale-95 cursor-pointer transition-all flex items-center gap-1.5 ${
+                className={`w-full py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl border-2 border-black shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
                   nearQuarry ? 'ring-2 ring-amber-200 animate-bounce' : ''
                 }`}
               >
@@ -553,8 +560,81 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
           </div>
         </div>
 
-        {/* ================= 3. REDSTONE STEAM ELEVATOR TOWER (Right) ================= */}
-        <div className="absolute right-[2%] top-[10%] w-[25%] h-[82%] z-10">
+        {/* ================= 3. REDSTONE BLACKSMITH & AUTOMATION FORGE (Bottom-Center) ================= */}
+        <div className="absolute left-[42%] bottom-[4%] w-[33%] h-[38%] z-10">
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              sound.playClickSound();
+              if (onOpenBlacksmith) onOpenBlacksmith();
+            }}
+            className={`relative w-full h-full bg-[#1c1410] border-4 border-amber-600 rounded-2xl shadow-2xl flex flex-col p-2.5 overflow-hidden cursor-pointer group hover:scale-[1.02] transition-transform text-white ${
+              nearBlacksmith ? 'ring-4 ring-amber-400 bg-[#291b15]' : ''
+            }`}
+          >
+            {/* Forge Header */}
+            <div className="flex items-center justify-between border-b-2 border-amber-950 pb-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-base animate-pulse">🔨</span>
+                <span className="text-xs sm:text-sm font-black text-amber-300 font-minecraft">
+                  {isEn ? 'Redstone Forge' : '紅石鐵匠鋪'}
+                </span>
+              </div>
+              <span className="text-[10px] bg-amber-950 px-1.5 py-0.2 rounded text-amber-300 border border-amber-700 font-minecraft font-bold">
+                {unlockedBlacksmithCount}/100 種
+              </span>
+            </div>
+
+            {/* Forge Visual & Progress */}
+            <div className="flex-1 flex flex-col justify-between my-1 py-0.5">
+              <div className="flex items-center justify-between text-[10px] text-zinc-300">
+                <div className="flex items-center gap-1 text-amber-300 font-bold">
+                  <span>⚙️</span>
+                  <span>{isEn ? 'Auto-Gather Modules' : '自動採集升級模項'}</span>
+                </div>
+                <span className="text-emerald-400 font-mono font-bold">
+                  {Math.round((unlockedBlacksmithCount / 100) * 100)}%
+                </span>
+              </div>
+
+              {/* Mini Forge Anvil Scene */}
+              <div className="bg-black/60 p-1.5 rounded-lg border border-amber-900/60 flex items-center justify-around text-base">
+                <span>🔥</span>
+                <span>🛠️</span>
+                <span className="animate-pulse">🤖</span>
+                <span>💎</span>
+              </div>
+
+              {/* Progress mini bar */}
+              <div className="w-full h-1.5 bg-zinc-950 rounded-full overflow-hidden border border-zinc-700">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-emerald-400 rounded-full"
+                  style={{ width: `${Math.max(3, (unlockedBlacksmithCount / 100) * 100)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Enter Blacksmith Button */}
+            <div className="w-full pt-1 border-t border-amber-950 flex justify-center">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  sound.playClickSound();
+                  if (onOpenBlacksmith) onOpenBlacksmith();
+                }}
+                className={`w-full py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-black text-xs rounded-xl border-2 border-black shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1.5 font-minecraft ${
+                  nearBlacksmith ? 'ring-2 ring-amber-300 animate-pulse' : ''
+                }`}
+              >
+                <span>🔨</span>
+                <span>{isEn ? 'ENTER FORGE (100)' : '進入 鐵匠鋪 (100種)'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ================= 4. REDSTONE STEAM ELEVATOR TOWER (Right) ================= */}
+        <div className="absolute right-[2%] top-[10%] w-[21%] h-[82%] z-10">
           <div
             onClick={(e) => {
               e.stopPropagation();
@@ -640,22 +720,29 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
         >
           <div className="flex flex-col items-center">
             {/* Player Name Tag */}
-            <div className="px-2 py-0.5 bg-black/85 border border-amber-400/80 rounded-md text-[10px] font-bold text-amber-200 whitespace-nowrap mb-1 shadow-md flex items-center gap-1 font-minecraft">
-              <span>{avatarIcon}</span>
+            <div className="px-2.5 py-0.5 bg-black/90 border border-amber-400/90 rounded-md text-[10px] font-bold text-amber-200 whitespace-nowrap mb-1 shadow-lg flex items-center gap-1.5 font-minecraft">
+              <PlayerSprite skinId={skinId} size="xs" headOnly />
               <span>{playerName}</span>
             </div>
 
-            {/* Walking Character Sprite */}
+            {/* Walking Character Sprite (Authentic Minecraft Pixel Art) */}
             <div
-              className={`w-10 h-10 bg-amber-900 border-2 border-black rounded-xl flex items-center justify-center text-xl shadow-2xl transition-transform ${
-                isWalking ? 'scale-110 -rotate-6' : ''
+              className={`transition-transform duration-100 ${
+                isWalking ? 'scale-110' : 'hover:scale-105'
               }`}
             >
-              {avatarIcon}
+              <PlayerSprite
+                skinId={skinId}
+                size="lg"
+                isWalking={isWalking}
+                facing={facing}
+                showTool={true}
+                glow={true}
+              />
             </div>
 
             {/* Character Shadow */}
-            <div className="w-8 h-2 bg-black/50 rounded-full blur-[1px] mt-0.5" />
+            <div className="w-10 h-2 bg-black/60 rounded-full blur-[1px] mt-1" />
           </div>
         </div>
 

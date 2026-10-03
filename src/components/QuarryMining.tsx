@@ -39,6 +39,8 @@ interface QuarryMiningProps {
   coins?: number;
   onRepairSword?: (cost: number) => void;
   onOpenEncyclopedia?: () => void;
+  onOpenBlacksmith?: () => void;
+  unlockedBlacksmithCount?: number;
 }
 
 export const QuarryMining: React.FC<QuarryMiningProps> = ({
@@ -68,7 +70,9 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   onEarnExtraCoins,
   coins = 0,
   onRepairSword,
-  onOpenEncyclopedia
+  onOpenEncyclopedia,
+  onOpenBlacksmith,
+  unlockedBlacksmithCount = 0
 }) => {
   const { language, getName, t } = useLanguage();
   const isEn = language === 'en';
@@ -707,6 +711,23 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
               <span>{isEn ? 'Wiki' : '百科全書'}</span>
             </button>
           )}
+
+          {onOpenBlacksmith && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenBlacksmith();
+              }}
+              className="px-2.5 py-1 bg-gradient-to-r from-amber-700 via-amber-800 to-amber-950 hover:from-amber-600 hover:to-amber-900 text-amber-200 text-xs font-black rounded border-2 border-amber-500 active:scale-95 flex items-center gap-1.5 cursor-pointer font-minecraft shadow-md transition-all hover:brightness-110"
+              title={isEn ? 'Redstone Auto-Mining Upgrade Area: Blacksmith Forge (100 modules to collect!)' : '紅石自動採集模項升級區域：鐵匠鋪 (有100種等你收集)'}
+            >
+              <span className="text-sm">🔨</span>
+              <span>{isEn ? 'Forge' : '鐵匠鋪'}</span>
+              <span className="text-[10px] bg-black/70 px-1.5 py-0.2 rounded-full text-amber-300 font-mono font-bold border border-amber-600/40">
+                {unlockedBlacksmithCount}/100
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -770,6 +791,57 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* 2.5 REDSTONE AUTO-GATHERING UPGRADE AREA: BLACKSMITH FORGE (100 COLLECTIBLES) */}
+      <div className="bg-gradient-to-r from-[#221611] via-[#2c1d15] to-[#1c120c] border-3 border-amber-800/80 rounded-xl p-3 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-3 text-white">
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="relative shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600 via-amber-900 to-black border-2 border-amber-400 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(245,158,11,0.5)]">
+              🤖
+            </div>
+            <span className="absolute -bottom-1 -right-1 text-xs">🔨</span>
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-xs sm:text-sm font-black text-amber-300 font-minecraft tracking-wide flex items-center gap-1.5">
+                <span>{isEn ? 'Redstone Auto-Mining Upgrade Area: Blacksmith' : '紅石自動採集模項升級區域：鐵匠鋪'}</span>
+              </h4>
+              <span className="text-[10px] bg-red-950 text-red-200 border border-red-600 px-1.5 py-0.2 rounded font-minecraft font-bold animate-pulse">
+                {isEn ? '100 Types To Collect' : '100 種等你收集'}
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-300 line-clamp-1 mt-0.5">
+              {isEn
+                ? 'Upgrade power cores, drills, hoppers & godsmith gear to supercharge auto-miner speed, yield & fortune!'
+                : '升級動力核心、合金鑽頭、分選漏斗與神兵，極限超頻自動採集魔像開採頻率與產量！'}
+            </p>
+          </div>
+        </div>
+
+        {/* Live Auto-Mining Mini Stats & Direct Enter Button */}
+        <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end shrink-0">
+          <div className="flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-lg border border-amber-700/60 text-xs font-mono">
+            <span className="text-zinc-400 font-minecraft">{isEn ? 'Collected:' : '已收集:'}</span>
+            <span className="text-emerald-400 font-bold">
+              {unlockedBlacksmithCount} / 100 ({Math.round((unlockedBlacksmithCount / 100) * 100)}%)
+            </span>
+          </div>
+
+          {onOpenBlacksmith && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenBlacksmith();
+              }}
+              className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs rounded-xl border-2 border-black shadow-[inset_1px_1px_0_#fef08a] active:scale-95 cursor-pointer font-minecraft flex items-center gap-1.5 tracking-wider transition-all whitespace-nowrap"
+            >
+              <span>🔨</span>
+              <span>{isEn ? 'OPEN FORGE (100)' : '進入鐵匠鋪 (100種)'}</span>
+            </button>
+          )}
         </div>
       </div>
 
