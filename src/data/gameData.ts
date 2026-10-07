@@ -1217,12 +1217,12 @@ export const PLAYER_SKINS: PlayerSkin[] = [
   },
   {
     id: 'pizza_cow_hero',
-    nameZh: '披薩乳牛特製版',
-    nameEn: 'PizzaCow Legend',
+    nameZh: '牛排恐龍特製版',
+    nameEn: 'SteakDinosour Legend',
     cost: 7777,
-    avatarEmoji: '🍕',
+    avatarEmoji: '🥩',
     badge: '官方特製',
-    desc: '手捧熱騰騰香濃披薩的傳奇特約乳牛礦神！'
+    desc: '喜愛鮮美牛排的傳奇恐龍創作者限定造型！'
   }
 ];
 

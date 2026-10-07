@@ -18,7 +18,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // App Header & Branding
     'app.title': 'Minecraft Quarry & Workshop',
     'app.subtitle': 'Stratum Mining • 100-Block Creative Grid • Market Economy',
-    'app.tagline': 'By PizzaCowMC',
+    'app.tagline': 'By SteakDinosour',
 
     // Nav & Views
     'nav.all': 'All Views',
@@ -293,7 +293,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     // App Header & Branding
     'app.title': 'Minecraft 挖掘場與建築工坊',
     'app.subtitle': '深層地脈採礦 • 100格建築創作 • 市場動態經濟',
-    'app.tagline': 'By PizzaCowMC',
+    'app.tagline': 'By SteakDinosour',
 
     // Nav & Views
     'nav.all': '全部視圖',

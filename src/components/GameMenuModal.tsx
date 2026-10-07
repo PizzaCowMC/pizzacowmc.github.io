@@ -128,9 +128,9 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
 
         {/* Content Navigation */}
         <div className="p-5 space-y-3 max-h-[75vh] overflow-y-auto">
-          {/* PizzaCowMC Developer Banner Card */}
+          {/* SteakDinosour Developer Banner Card */}
           <a
-            href="https://github.com/PizzaCowMC"
+            href="https://github.com/SteakDinosour"
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => sound.playClickSound()}
@@ -147,7 +147,7 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
                       {isEn ? 'Developer' : '開發作者'}
                     </span>
                     <span className="text-xs bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono font-bold">
-                      PizzaCowMC
+                      SteakDinosour
                     </span>
                   </div>
                   <div className="text-xs text-zinc-300 font-medium group-hover:text-emerald-200 transition-colors flex items-center gap-1 mt-0.5">
@@ -156,7 +156,7 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
                   </div>
                 </div>
               </div>
-              <span className="text-xl">🐮</span>
+              <span className="text-xl">🥩🦕</span>
             </div>
           </a>
 

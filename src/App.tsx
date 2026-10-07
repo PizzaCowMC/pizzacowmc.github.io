@@ -2263,6 +2263,17 @@ export default function App() {
                   <h1 className="text-sm sm:text-base font-black text-amber-300 drop-shadow-[2px_2px_0_#000] tracking-wide font-minecraft">
                     {t('app.title')}
                   </h1>
+                  <button
+                    onClick={() => {
+                      sound.playClickSound();
+                      setIsChangelogOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-500/20 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 border border-amber-400/50 hover:border-amber-300 rounded-md text-amber-300 font-mono text-[10px] font-bold cursor-pointer transition-all shadow-xs"
+                    title={isEn ? 'View v26.2.70 Changelog' : '查看 v26.2.70 更新日誌'}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>v26.2.70</span>
+                  </button>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-zinc-400">
                   <span className="text-emerald-400 font-bold">{myUsername}</span>
@@ -2276,15 +2287,15 @@ export default function App() {
 
             {/* Author Clickable Link */}
             <a
-              href="https://github.com/PizzaCowMC"
+              href="https://github.com/SteakDinosour"
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => sound.playClickSound()}
               className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-[#1a2e22] hover:bg-[#223d2d] border-2 border-emerald-500/60 rounded-lg text-emerald-300 text-xs font-bold transition-all shadow active:scale-95 group ml-1"
-              title="Visit PizzaCowMC GitHub"
+              title="Visit SteakDinosour GitHub"
             >
               <Github className="w-3.5 h-3.5 text-emerald-400" />
-              <span>By PizzaCowMC</span>
+              <span>By SteakDinosour</span>
               <ExternalLink className="w-3 h-3 text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
             </a>
           </div>
@@ -2968,7 +2979,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Footer with PizzaCowMC link and status */}
+      {/* Footer with SteakDinosour link and status */}
       <footer className="max-w-6xl mx-auto px-4 mt-12 mb-16 pt-6 border-t-2 border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-400">
         <div className="flex items-center gap-2">
           <span className="text-base">🎮</span>
@@ -2988,18 +2999,18 @@ export default function App() {
           </button>
         </div>
 
-        {/* Prominent PizzaCowMC GitHub Credit */}
+        {/* Prominent SteakDinosour GitHub Credit */}
         <div className="flex items-center gap-2">
           <span>{isEn ? 'Open-source project' : '專案由'}</span>
           <a
-            href="https://github.com/PizzaCowMC"
+            href="https://github.com/SteakDinosour"
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => sound.playClickSound()}
             className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/50 rounded text-emerald-300 font-bold hover:text-emerald-200 transition-all"
           >
             <Github className="w-3.5 h-3.5 text-emerald-400" />
-            <span>By PizzaCowMC</span>
+            <span>By SteakDinosour</span>
             <ExternalLink className="w-3 h-3 text-emerald-400" />
           </a>
           {!isEn && <span>開源打造</span>}

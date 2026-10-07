@@ -967,6 +967,8 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
     return true;
   };
 
+  const currentAppVersion = logs[0]?.version || '26.2.70';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-[#242424] border-4 border-[#3c3c3c] rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-white font-sans">
@@ -982,7 +984,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
                   📜 {t('changelog.title')}
                 </h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded font-bold">
-                  v2.5.30
+                  v{currentAppVersion}
                 </span>
               </div>
               <p className="text-xs text-zinc-400 mt-0.5">{t('changelog.subtitle')}</p>
@@ -1079,15 +1081,15 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
         {/* Content list */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* PizzaCowMC Developer Banner */}
+          {/* SteakDinosour Developer Banner */}
           <div className="bg-gradient-to-r from-emerald-950/40 via-zinc-900 to-amber-950/40 border-2 border-emerald-500/30 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">🐮</span>
+              <span className="text-2xl">🥩🦕</span>
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-emerald-400 text-sm">{t('changelog.author')}</span>
                   <span className="text-xs px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded font-mono">
-                    PizzaCowMC
+                    SteakDinosour
                   </span>
                 </div>
                 <p className="text-xs text-zinc-400 mt-0.5">
@@ -1098,12 +1100,12 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
               </div>
             </div>
             <a
-              href="https://github.com/PizzaCowMC"
+              href="https://github.com/SteakDinosour"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2ea44f] hover:bg-[#2c974b] text-white text-xs font-bold rounded-lg transition-all shadow-md active:scale-95 whitespace-nowrap cursor-pointer"
             >
-              <span>GitHub @PizzaCowMC</span>
+              <span>GitHub @SteakDinosour</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
@@ -1173,7 +1175,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
         {/* Footer */}
         <div className="bg-[#181818] px-6 py-3 border-t-2 border-[#333] flex items-center justify-between text-xs text-zinc-400">
-          <span>{isEn ? 'Minecraft Quarry & Workshop v2.5.30' : 'Minecraft 挖掘場與建築工坊 v2.5.30'}</span>
+          <span>{isEn ? `Minecraft Quarry & Workshop v${currentAppVersion}` : `Minecraft 挖掘場與建築工坊 v${currentAppVersion}`}</span>
           <button
             onClick={() => {
               sound.playClickSound();
