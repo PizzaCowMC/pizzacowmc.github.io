@@ -14,6 +14,7 @@ interface AvatarSelectModalProps {
   coins: number;
   onEquipSkin: (skinId: string) => void;
   onBuySkin: (skin: PlayerSkin) => void;
+  playerName?: string;
 }
 
 export const AvatarSelectModal: React.FC<AvatarSelectModalProps> = ({
@@ -23,7 +24,8 @@ export const AvatarSelectModal: React.FC<AvatarSelectModalProps> = ({
   ownedSkins,
   coins,
   onEquipSkin,
-  onBuySkin
+  onBuySkin,
+  playerName
 }) => {
   const { language } = useLanguage();
   const isEn = language === 'en';
@@ -70,13 +72,18 @@ export const AvatarSelectModal: React.FC<AvatarSelectModalProps> = ({
             </div>
             <div>
               <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <span>{isEn ? 'Currently Equipped Skin' : '目前穿戴像素貼圖'}</span>
+                <span>{playerName ? (isEn ? `Miner: ${playerName}` : `冒險者: ${playerName}`) : (isEn ? 'Currently Equipped Skin' : '目前穿戴像素貼圖')}</span>
                 <span className="text-amber-400 font-mono text-[9px] bg-amber-950/80 px-1 py-0.2 rounded border border-amber-600/60">
                   {currentSkin.avatarEmoji}
                 </span>
               </div>
-              <div className="text-base font-black text-white font-minecraft">
-                {isEn ? currentSkin.nameEn : currentSkin.nameZh}
+              <div className="text-base font-black text-white font-minecraft flex items-center gap-2">
+                <span>{isEn ? currentSkin.nameEn : currentSkin.nameZh}</span>
+                {playerName && (
+                  <span className="text-xs font-normal text-emerald-400 font-sans">
+                    ({playerName})
+                  </span>
+                )}
               </div>
             </div>
           </div>

@@ -34,16 +34,16 @@ export const LEVEL_QUESTS: LevelQuest[] = [
   {
     id: 'quest_lvl_2',
     level: 2,
-    titleZh: '建築工藝第一步',
-    titleEn: 'First Steps of Architecture',
-    descZh: '在建築區的 100 格創作畫布上放置至少 10 塊方塊。',
-    descEn: 'Place at least 10 blocks on the 100-grid building board.',
+    titleZh: '採礦小試身手',
+    titleEn: 'First Steps of Mining',
+    descZh: '在採礦場開採累積達到 100 塊方塊。',
+    descEn: 'Mine at least 100 blocks in the quarry.',
     requiredXp: 260,
     coinReward: 250,
     rewardDescZh: '+250 金幣、急迫能量飲料 x1',
     rewardDescEn: '+250 Coins, Haste Drink x1',
-    targetType: 'place_blocks',
-    targetValue: 10
+    targetType: 'mine_blocks',
+    targetValue: 100
   },
   {
     id: 'quest_lvl_3',

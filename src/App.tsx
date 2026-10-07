@@ -24,6 +24,8 @@ import { CafeInterior } from './components/CafeInterior';
 import { ElevatorView } from './components/ElevatorView';
 import { MusicPlayerModal } from './components/MusicPlayerModal';
 import { BlacksmithModal } from './components/BlacksmithModal';
+import { WelcomeOnboardingModal } from './components/WelcomeOnboardingModal';
+import { IronGolemHarvestModal } from './components/IronGolemHarvestModal';
 import { BLACKSMITH_MODULES, calculateBlacksmithBonuses, getModuleRedstoneCost } from './data/blacksmithData';
 import { PlayerSprite } from './components/PlayerSprite';
 import { CafeState, OverworldZone } from './types';
@@ -87,7 +89,7 @@ const isAlexCrafterFriend = (f: Friend): boolean => {
 };
 
 export default function App() {
-  const { language, toggleLanguage, t, getName, getDesc } = useLanguage();
+  const { language, setLanguage, toggleLanguage, t, getName, getDesc } = useLanguage();
   const isEn = language === 'en';
 
   // --- Game State with LocalStorage Persistence ---
@@ -483,6 +485,27 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
+
+  // Welcome & Iron Golem Offline Harvest Modals (v26.2.80)
+  const [isWelcomeOpen, setIsWelcomeOpen] = useState<boolean>(() => {
+    try {
+      return !localStorage.getItem(`${STORAGE_KEY}_welcome_completed`);
+    } catch {
+      return false;
+    }
+  });
+  const [isGolemHarvestOpen, setIsGolemHarvestOpen] = useState<boolean>(false);
+  const [golemHarvestData, setGolemHarvestData] = useState<{
+    totalBlocks: number;
+    breakdown: Record<string, number>;
+    coins: number;
+    offlineSeconds: number;
+  }>({
+    totalBlocks: 0,
+    breakdown: {},
+    coins: 0,
+    offlineSeconds: 0
+  });
   const [isUserMenuOpen, setIsUserMenuOpen] = useState<boolean>(false);
   const [isChangeNameOpen, setIsChangeNameOpen] = useState<boolean>(false);
   const [isAvatarSelectOpen, setIsAvatarSelectOpen] = useState<boolean>(false);
@@ -1037,6 +1060,112 @@ export default function App() {
   }, [currentLevelQuest, playerStatsForQuest]);
 
   const canLevelUp = playerLevel < MAX_PLAYER_LEVEL && (playerXp || 0) >= currentLevelQuest.requiredXp && levelQuestProgress.isCompleted;
+
+  // Handler: Welcome Onboarding completion (v26.2.80)
+  const handleWelcomeComplete = useCallback((name: string, lang: 'zh' | 'en', skinId: string) => {
+    setMyUsername(name);
+    localStorage.setItem(`${STORAGE_KEY}_username`, JSON.stringify(name));
+    if (currentUser) {
+      setCurrentUser(prev => prev ? { ...prev, displayName: name } : null);
+    }
+    setLanguage(lang);
+    setCurrentSkinId(skinId);
+    localStorage.setItem(`${STORAGE_KEY}_skin`, JSON.stringify(skinId));
+    localStorage.setItem(`${STORAGE_KEY}_welcome_completed`, 'true');
+    setIsWelcomeOpen(false);
+
+    // Initial welcome excavation cache from the loyal Iron Golem
+    const initialBreakdown: Record<string, number> = {
+      dirt: 48,
+      wood: 24,
+      cobblestone: 32,
+      coal_ore: 16,
+      copper_ore: 12,
+      iron_ore: 8
+    };
+    const totalMined = Object.values(initialBreakdown).reduce((a, b) => a + b, 0); // 140 blocks
+    setGolemHarvestData({
+      totalBlocks: totalMined,
+      breakdown: initialBreakdown,
+      coins: 350,
+      offlineSeconds: 0
+    });
+    setIsGolemHarvestOpen(true);
+  }, [currentUser, setLanguage]);
+
+  // Handler: Claim Iron Golem offline harvest to inventory (v26.2.80)
+  const handleClaimGolemHarvest = useCallback(() => {
+    setInventory(prev => {
+      const updated = { ...prev };
+      for (const [blockId, count] of Object.entries(golemHarvestData.breakdown)) {
+        updated[blockId] = (updated[blockId] || 0) + count;
+      }
+      return updated;
+    });
+    if (golemHarvestData.coins > 0) {
+      setCoins(prev => prev + golemHarvestData.coins);
+    }
+    setSupplyToastMsg(
+      isEn
+        ? `🤖 Claimed ${golemHarvestData.totalBlocks.toLocaleString()} blocks & +${golemHarvestData.coins} coins from Iron Golem!`
+        : `🤖 成功領取鐵魁儡為您挖掘的 ${golemHarvestData.totalBlocks.toLocaleString()} 塊方塊與 +${golemHarvestData.coins} 金幣！`
+    );
+    setTimeout(() => setSupplyToastMsg(null), 4500);
+  }, [golemHarvestData, isEn]);
+
+  // Offline AFK Iron Golem Mining Check for Returning Players (v26.2.80)
+  useEffect(() => {
+    try {
+      const isWelcomed = localStorage.getItem(`${STORAGE_KEY}_welcome_completed`);
+      if (!isWelcomed) return; // Handled by welcome complete
+
+      const lastActiveStr = localStorage.getItem(`${STORAGE_KEY}_last_active_time`);
+      const now = Date.now();
+      if (lastActiveStr) {
+        const lastActive = parseInt(lastActiveStr, 10);
+        const elapsedSeconds = Math.floor((now - lastActive) / 1000);
+        // If player was away for at least 15 seconds, Iron Golem harvested!
+        if (elapsedSeconds >= 15) {
+          const cappedSec = Math.min(43200, elapsedSeconds); // cap 12h
+          const totalBlocks = Math.max(8, Math.min(1200, Math.floor(cappedSec / 3)));
+
+          // Pick blocks from the currently selected stratum
+          const activeStratum = STRATA_LAYERS.find(l => l.id === selectedLayerId) || STRATA_LAYERS[0];
+          const candidateBlocks = activeStratum.blockIds.length > 0 ? activeStratum.blockIds : ['dirt', 'cobblestone', 'coal_ore'];
+          const breakdown: Record<string, number> = {};
+          for (let i = 0; i < totalBlocks; i++) {
+            const bId = candidateBlocks[Math.floor(Math.random() * candidateBlocks.length)];
+            breakdown[bId] = (breakdown[bId] || 0) + 1;
+          }
+          const earnedCoins = Math.floor(totalBlocks * 2.2);
+
+          setGolemHarvestData({
+            totalBlocks,
+            breakdown,
+            coins: earnedCoins,
+            offlineSeconds: elapsedSeconds
+          });
+          setIsGolemHarvestOpen(true);
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Update last active timestamp periodically (v26.2.80)
+  useEffect(() => {
+    const updateTime = () => {
+      try {
+        localStorage.setItem(`${STORAGE_KEY}_last_active_time`, Date.now().toString());
+      } catch {}
+    };
+    updateTime();
+    const timer = setInterval(updateTime, 10000);
+    window.addEventListener('beforeunload', updateTime);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('beforeunload', updateTime);
+    };
+  }, []);
 
   const handleLevelUp = useCallback(() => {
     if (playerLevel >= MAX_PLAYER_LEVEL) {
@@ -2247,18 +2376,33 @@ export default function App() {
               <span>{t('nav.menu')}</span>
             </button>
 
+            {/* Player Avatar & Custom Name Field (v26.2.80) */}
             <div className="flex items-center gap-2">
-              <div
+              <button
                 onClick={() => {
                   sound.playClickSound();
                   setIsAvatarSelectOpen(true);
                 }}
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-zinc-900 border-2 border-amber-400 flex items-center justify-center p-0.5 cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-[inset_1px_1px_0_#fde047]"
-                title={isEn ? 'Change Player Skin & Avatar' : '點擊變更玩家像素貼圖與造型'}
+                className="flex items-center gap-2 px-2 py-1 bg-gradient-to-r from-zinc-900 to-zinc-950 hover:from-zinc-850 hover:to-zinc-900 border-2 border-amber-400 rounded-xl cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-[inset_1px_1px_0_#fde047,0_2px_10px_rgba(0,0,0,0.5)] group"
+                title={isEn ? `Player: ${currentUser?.displayName || myUsername} (Click to change avatar & skin)` : `冒險者：${currentUser?.displayName || myUsername}（點擊更換頭像與造型）`}
               >
-                <PlayerSprite skinId={activeSkin.id} size="sm" headOnly glow />
-              </div>
-              <div>
+                <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-zinc-950 border border-amber-400/80 flex items-center justify-center p-0.5 shadow-inner shrink-0 group-hover:border-amber-300">
+                  <PlayerSprite skinId={activeSkin.id} size="sm" headOnly glow />
+                  <span className="absolute -bottom-1 -right-1 text-[10px] leading-none bg-black/90 rounded-full px-0.5 border border-amber-400/70">
+                    {activeSkin.avatarEmoji}
+                  </span>
+                </div>
+                <div className="flex flex-col text-left pr-1 min-w-0">
+                  <span className="text-xs sm:text-sm font-black text-emerald-300 max-w-[75px] sm:max-w-[120px] truncate leading-tight font-minecraft drop-shadow-[1px_1px_0_#000]">
+                    {currentUser?.displayName || myUsername}
+                  </span>
+                  <span className="text-[10px] text-amber-300/80 font-mono font-bold leading-none mt-0.5">
+                    Lv.{playerLevel} • #{myFriendCode}
+                  </span>
+                </div>
+              </button>
+
+              <div className="hidden sm:block">
                 <div className="flex items-center gap-2">
                   <h1 className="text-sm sm:text-base font-black text-amber-300 drop-shadow-[2px_2px_0_#000] tracking-wide font-minecraft">
                     {t('app.title')}
@@ -2269,18 +2413,16 @@ export default function App() {
                       setIsChangelogOpen(true);
                     }}
                     className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-500/20 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 border border-amber-400/50 hover:border-amber-300 rounded-md text-amber-300 font-mono text-[10px] font-bold cursor-pointer transition-all shadow-xs"
-                    title={isEn ? 'View v26.2.70 Changelog' : '查看 v26.2.70 更新日誌'}
+                    title={isEn ? 'View v26.2.80 Changelog' : '查看 v26.2.80 更新日誌'}
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>v26.2.70</span>
+                    <span>v26.2.80</span>
                   </button>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-zinc-400">
-                  <span className="text-emerald-400 font-bold">{myUsername}</span>
-                  <span className="text-zinc-600">•</span>
-                  <span className="font-mono text-zinc-400">#{myFriendCode}</span>
-                  <span className="text-zinc-600">•</span>
                   <span className="text-cyan-400">{getName(activeTheme)}</span>
+                  <span className="text-zinc-600">•</span>
+                  <span className="text-zinc-400 font-mono">{t('app.tagline')}</span>
                 </div>
               </div>
             </div>
@@ -2417,113 +2559,124 @@ export default function App() {
               )}
             </button>
 
-            {/* Account / User Menu or Login/Register Button */}
-            {currentUser ? (
-              <div className="relative">
-                <button
-                  onClick={() => {
-                    sound.playClickSound();
-                    setIsUserMenuOpen(prev => !prev);
-                  }}
-                  title={isEn ? 'User Profile & Menu' : '玩家選單 (變更名稱/頭像/設定/登出)'}
-                  className="px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-emerald-950 via-zinc-900 to-emerald-950 hover:from-emerald-900 hover:to-zinc-800 text-emerald-200 font-black text-xs rounded-lg border-2 border-emerald-500 shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#34d399] active:scale-95 flex items-center gap-1.5 transition-all cursor-pointer font-minecraft"
-                >
-                  <span className="text-base leading-none drop-shadow-[1px_1px_0_#000]">{activeSkin.avatarEmoji}</span>
-                  <span className="max-w-[80px] sm:max-w-[120px] truncate">{currentUser.displayName || myUsername}</span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-emerald-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
-                </button>
+            {/* Account / User Menu & Player Profile Pill (v26.2.80) */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  sound.playClickSound();
+                  setIsUserMenuOpen(prev => !prev);
+                }}
+                title={isEn ? `Player Profile: ${currentUser?.displayName || myUsername}` : `冒險者檔案與選單：${currentUser?.displayName || myUsername}`}
+                className="px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-emerald-950 via-zinc-900 to-emerald-950 hover:from-emerald-900 hover:to-zinc-800 text-emerald-200 font-black text-xs rounded-lg border-2 border-emerald-500 shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#34d399] active:scale-95 flex items-center gap-1.5 transition-all cursor-pointer font-minecraft"
+              >
+                <span className="text-base leading-none drop-shadow-[1px_1px_0_#000]">{activeSkin.avatarEmoji}</span>
+                <span className="max-w-[70px] sm:max-w-[110px] truncate font-bold text-emerald-300">{currentUser?.displayName || myUsername}</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-emerald-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-                {/* Dropdown Menu Backdrop */}
-                {isUserMenuOpen && (
-                  <div
-                    className="fixed inset-0 z-40 cursor-default"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  />
-                )}
+              {/* Dropdown Menu Backdrop */}
+              {isUserMenuOpen && (
+                <div
+                  className="fixed inset-0 z-40 cursor-default"
+                  onClick={() => setIsUserMenuOpen(false)}
+                />
+              )}
 
-                {/* Dropdown Menu Box */}
-                {isUserMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-[#242424] border-4 border-black rounded-lg shadow-[inset_-4px_-4px_0_#111,inset_4px_4px_0_#444,0_12px_30px_rgba(0,0,0,0.95)] z-50 overflow-hidden font-minecraft animate-in fade-in zoom-in-95 duration-100">
-                    {/* Header info */}
-                    <div className="p-3 bg-zinc-900 border-b-2 border-black flex items-center gap-2.5">
-                      <div className="w-10 h-10 rounded-lg bg-zinc-950 border-2 border-emerald-500/80 flex items-center justify-center text-2xl shrink-0 shadow-[inset_1px_1px_0_#34d399]">
-                        {activeSkin.avatarEmoji}
+              {/* Dropdown Menu Box */}
+              {isUserMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-60 bg-[#242424] border-4 border-black rounded-lg shadow-[inset_-4px_-4px_0_#111,inset_4px_4px_0_#444,0_12px_30px_rgba(0,0,0,0.95)] z-50 overflow-hidden font-minecraft animate-in fade-in zoom-in-95 duration-100">
+                  {/* Header info */}
+                  <div className="p-3 bg-zinc-900 border-b-2 border-black flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-lg bg-zinc-950 border-2 border-emerald-500/80 flex items-center justify-center text-2xl shrink-0 shadow-[inset_1px_1px_0_#34d399]">
+                      {activeSkin.avatarEmoji}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-black text-white truncate">
+                        {currentUser?.displayName || myUsername}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-black text-white truncate">
-                          {currentUser.displayName || myUsername}
-                        </div>
-                        <div className="text-[10px] text-zinc-400 font-mono flex items-center gap-1 mt-0.5">
-                          <span className="text-amber-300">#{myFriendCode}</span>
-                          <span className="text-emerald-400">• {isEn ? 'Online' : '已連線'}</span>
-                        </div>
-                        <div className="text-[10px] text-emerald-300 font-bold font-mono mt-0.5 flex items-center justify-between">
-                          <span>Lv.{playerLevel} {getLevelTitle(playerLevel, isEn)}</span>
-                          <span className="text-zinc-400 font-normal">{playerXp}/{currentLevelQuest.requiredXp} XP</span>
-                        </div>
+                      <div className="text-[10px] text-zinc-400 font-mono flex items-center gap-1 mt-0.5">
+                        <span className="text-amber-300">#{myFriendCode}</span>
+                        <span className="text-emerald-400">• {currentUser ? (isEn ? 'Online' : '已連線') : (isEn ? 'Local Miner' : '本機冒險者')}</span>
+                      </div>
+                      <div className="text-[10px] text-emerald-300 font-bold font-mono mt-0.5 flex items-center justify-between">
+                        <span>Lv.{playerLevel} {getLevelTitle(playerLevel, isEn)}</span>
+                        <span className="text-zinc-400 font-normal">{playerXp}/{currentLevelQuest.requiredXp} XP</span>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Menu items */}
-                    <div className="p-1.5 space-y-1">
-                      {/* 等級與晉升任務 */}
-                      <button
-                        onClick={() => {
-                          sound.playClickSound();
-                          setIsUserMenuOpen(false);
-                          setIsLevelModalOpen(true);
-                        }}
-                        className="w-full px-3 py-2 text-left text-xs font-bold text-emerald-300 hover:text-white hover:bg-emerald-950/60 rounded flex items-center justify-between transition-colors cursor-pointer border border-emerald-500/30"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Trophy className="w-4 h-4 text-emerald-400 shrink-0" />
-                          <span>{isEn ? 'Level & Quests' : '等級與晉升任務'}</span>
-                        </div>
-                        <span className="text-[10px] font-mono text-emerald-400">Lv.{playerLevel}</span>
-                      </button>
+                  {/* Menu items */}
+                  <div className="p-1.5 space-y-1">
+                    {/* 等級與晉升任務 */}
+                    <button
+                      onClick={() => {
+                        sound.playClickSound();
+                        setIsUserMenuOpen(false);
+                        setIsLevelModalOpen(true);
+                      }}
+                      className="w-full px-3 py-2 text-left text-xs font-bold text-emerald-300 hover:text-white hover:bg-emerald-950/60 rounded flex items-center justify-between transition-colors cursor-pointer border border-emerald-500/30"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Trophy className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>{isEn ? 'Level & Quests' : '等級與晉升任務'}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-emerald-400">Lv.{playerLevel}</span>
+                    </button>
 
-                      {/* 變更名稱 */}
-                      <button
-                        onClick={() => {
-                          sound.playClickSound();
-                          setIsUserMenuOpen(false);
-                          setIsChangeNameOpen(true);
-                        }}
-                        className="w-full px-3 py-2 text-left text-xs font-bold text-zinc-200 hover:text-white hover:bg-zinc-800 rounded flex items-center gap-2.5 transition-colors cursor-pointer"
-                      >
-                        <Edit3 className="w-4 h-4 text-amber-400 shrink-0" />
-                        <span>{isEn ? 'Change Name' : '變更名稱'}</span>
-                      </button>
+                    {/* 變更名稱 */}
+                    <button
+                      onClick={() => {
+                        sound.playClickSound();
+                        setIsUserMenuOpen(false);
+                        setIsChangeNameOpen(true);
+                      }}
+                      className="w-full px-3 py-2 text-left text-xs font-bold text-zinc-200 hover:text-white hover:bg-zinc-800 rounded flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <Edit3 className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>{isEn ? 'Change Player Name' : '變更冒險者名稱'}</span>
+                    </button>
 
-                      {/* 頭像 */}
-                      <button
-                        onClick={() => {
-                          sound.playClickSound();
-                          setIsUserMenuOpen(false);
-                          setIsAvatarSelectOpen(true);
-                        }}
-                        className="w-full px-3 py-2 text-left text-xs font-bold text-zinc-200 hover:text-white hover:bg-zinc-800 rounded flex items-center gap-2.5 transition-colors cursor-pointer"
-                      >
-                        <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
-                        <span>{isEn ? 'Avatar' : '頭像'}</span>
-                      </button>
+                    {/* 頭像與造型 */}
+                    <button
+                      onClick={() => {
+                        sound.playClickSound();
+                        setIsUserMenuOpen(false);
+                        setIsAvatarSelectOpen(true);
+                      }}
+                      className="w-full px-3 py-2 text-left text-xs font-bold text-zinc-200 hover:text-white hover:bg-zinc-800 rounded flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
+                      <span>{isEn ? 'Avatar & Skins' : '頭像與像素造型'}</span>
+                    </button>
 
-                      {/* 設定 */}
-                      <button
-                        onClick={() => {
-                          sound.playClickSound();
-                          setIsUserMenuOpen(false);
-                          setIsMenuOpen(true);
-                        }}
-                        className="w-full px-3 py-2 text-left text-xs font-bold text-zinc-200 hover:text-white hover:bg-zinc-800 rounded flex items-center gap-2.5 transition-colors cursor-pointer"
-                      >
-                        <Settings className="w-4 h-4 text-blue-400 shrink-0" />
-                        <span>{isEn ? 'Settings' : '設定'}</span>
-                      </button>
+                    {/* 🤖 鐵魁儡離線開採報告 */}
+                    <button
+                      onClick={() => {
+                        sound.playClickSound();
+                        setIsUserMenuOpen(false);
+                        setIsGolemHarvestOpen(true);
+                      }}
+                      className="w-full px-3 py-2 text-left text-xs font-bold text-amber-300 hover:text-white hover:bg-amber-950/50 rounded flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <span className="text-sm shrink-0">🤖</span>
+                      <span>{isEn ? 'Iron Golem Offline Mining' : '鐵魁儡離線開採報告'}</span>
+                    </button>
 
-                      <div className="my-1 border-t border-zinc-800" />
+                    {/* 👋 新手歡迎導引 */}
+                    <button
+                      onClick={() => {
+                        sound.playClickSound();
+                        setIsUserMenuOpen(false);
+                        setIsWelcomeOpen(true);
+                      }}
+                      className="w-full px-3 py-2 text-left text-xs font-bold text-cyan-300 hover:text-white hover:bg-cyan-950/50 rounded flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <span className="text-sm shrink-0">👋</span>
+                      <span>{isEn ? 'Welcome Setup Guide' : '新手歡迎導引設定'}</span>
+                    </button>
 
-                      {/* 登出 */}
+                    {/* 雲端帳號登入 / 註冊 或 登出 */}
+                    {currentUser ? (
                       <button
                         onClick={async () => {
                           sound.playClickSound();
@@ -2538,24 +2691,38 @@ export default function App() {
                         <LogOut className="w-4 h-4 text-rose-400 shrink-0" />
                         <span>{isEn ? 'Logout' : '登出'}</span>
                       </button>
-                    </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          sound.playClickSound();
+                          setIsUserMenuOpen(false);
+                          setIsAuthOpen(true);
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs font-bold text-sky-400 hover:text-sky-300 hover:bg-sky-950/40 rounded flex items-center gap-2.5 transition-colors cursor-pointer"
+                      >
+                        <Cloud className="w-4 h-4 text-sky-400 shrink-0" />
+                        <span>{isEn ? 'Cloud Login / Sync' : '雲端登入與存檔同步'}</span>
+                      </button>
+                    )}
+
+                    <div className="my-1 border-t border-zinc-800" />
+
+                    {/* 設定 */}
+                    <button
+                      onClick={() => {
+                        sound.playClickSound();
+                        setIsUserMenuOpen(false);
+                        setIsMenuOpen(true);
+                      }}
+                      className="w-full px-3 py-2 text-left text-xs font-bold text-zinc-300 hover:text-white hover:bg-zinc-800 rounded flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <Settings className="w-4 h-4 text-blue-400 shrink-0" />
+                      <span>{isEn ? 'Settings' : '設定'}</span>
+                    </button>
                   </div>
-                )}
-              </div>
-            ) : (
-              /* Not logged in: Show 登入 / 註冊 */
-              <button
-                onClick={() => {
-                  sound.playClickSound();
-                  setIsAuthOpen(true);
-                }}
-                title={isEn ? 'Account Login & Register' : '帳號登入與註冊'}
-                className="px-2.5 sm:px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-black text-xs rounded-lg border-2 border-black shadow-[inset_-2px_-2px_0_#27272a,inset_2px_2px_0_#52525b] active:scale-95 flex items-center gap-1.5 transition-all cursor-pointer font-minecraft"
-              >
-                <UserIcon className="w-3.5 h-3.5 text-amber-400" />
-                <span>{isEn ? 'Login / Register' : '登入 / 註冊'}</span>
-              </button>
-            )}
+                </div>
+              )}
+            </div>
 
             {/* Changelog Button */}
             <button
@@ -2746,7 +2913,7 @@ export default function App() {
               coins={coins}
               activeOrdersCount={cafeState.unlockedTables}
               readyDishesCount={Object.values(cafeState.dishInventory).reduce((a: number, b: number) => a + b, 0)}
-              playerName={isEn ? currentSkin.nameEn : currentSkin.nameZh}
+              playerName={currentUser?.displayName || myUsername}
               avatarIcon={currentSkin.avatarEmoji || '⛏️'}
               skinId={currentSkin.id}
               initialPos={overworldSpawnPos}
@@ -2991,10 +3158,10 @@ export default function App() {
               setIsChangelogOpen(true);
             }}
             className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-amber-950/60 to-purple-950/60 hover:from-amber-900/80 hover:to-purple-900/80 border border-amber-400/70 hover:border-amber-300 rounded-lg text-amber-300 font-mono text-xs font-bold transition-all shadow-md cursor-pointer group"
-            title={isEn ? 'View v26.2.70 Changelog' : '查看 v26.2.70 更新日誌'}
+            title={isEn ? 'View v26.2.80 Changelog' : '查看 v26.2.80 更新日誌'}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
-            <span className="group-hover:underline font-black text-amber-300">v26.2.70</span>
+            <span className="group-hover:underline font-black text-amber-300">v26.2.80</span>
             <span className="text-zinc-400 font-sans font-normal text-[11px]">{isEn ? 'Changelog' : '更新日誌'}</span>
           </button>
         </div>
@@ -3097,6 +3264,8 @@ export default function App() {
         onOpenFestivals={() => setIsFestivalsOpen(true)}
         onOpenLevel={() => setIsLevelModalOpen(true)}
         onOpenEncyclopedia={() => setIsEncyclopediaOpen(true)}
+        onOpenGolemHarvest={() => setIsGolemHarvestOpen(true)}
+        onOpenWelcome={() => setIsWelcomeOpen(true)}
         playerLevel={playerLevel}
         currentUser={currentUser}
         soundEnabled={soundEnabled}
@@ -3170,6 +3339,7 @@ export default function App() {
         currentSkinId={currentSkinId}
         ownedSkins={ownedSkins}
         coins={coins}
+        playerName={currentUser?.displayName || myUsername}
         onEquipSkin={(skinId) => {
           setCurrentSkinId(skinId);
           setCloudToast(isEn ? '🎭 Avatar equipped!' : '🎭 頭像已裝備！');
@@ -3332,6 +3502,24 @@ export default function App() {
         isOpen={isEncyclopediaOpen}
         onClose={() => setIsEncyclopediaOpen(false)}
         isEn={isEn}
+      />
+
+      {/* WELCOME ONBOARDING MODAL (v26.2.80) */}
+      <WelcomeOnboardingModal
+        isOpen={isWelcomeOpen}
+        onComplete={handleWelcomeComplete}
+      />
+
+      {/* IRON GOLEM OFFLINE EXCAVATION REPORT (v26.2.80) */}
+      <IronGolemHarvestModal
+        isOpen={isGolemHarvestOpen}
+        onClose={() => setIsGolemHarvestOpen(false)}
+        totalBlocksMined={golemHarvestData.totalBlocks}
+        blockBreakdown={golemHarvestData.breakdown}
+        bonusCoins={golemHarvestData.coins}
+        onClaim={handleClaimGolemHarvest}
+        isEn={isEn}
+        offlineSeconds={golemHarvestData.offlineSeconds}
       />
 
       {/* STEAM ELEVATOR TRANSIT OVERLAY */}

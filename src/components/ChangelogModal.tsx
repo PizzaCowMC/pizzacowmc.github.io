@@ -32,8 +32,68 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
   const logs = [
     {
-      version: '26.2.70',
+      version: '26.2.80',
       isLatest: true,
+      date: isEn
+        ? '26.2.80 Welcome Onboarding, Iron Golem Offline Harvest & 34 Strata Mega Expansion'
+        : '26.2.80 首次進入歡迎導引・鐵魁儡不在時離線開採報告・34大地層擴充與地層合併',
+      badge: isEn
+        ? '26.2.80 Welcome Guide • Iron Golem Harvest • 34 Strata Layers'
+        : '26.2.80 新手歡迎引導 • 鐵魁儡收穫報告 • 34大地層大擴充',
+      badgeColor: 'bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500 text-black shadow-xl animate-pulse font-black',
+      summary: isEn
+        ? 'Milestone Release 26.2.80: Introduced first-time Welcome Onboarding modal (prompts for player name & language, displaying custom name directly on the top avatar profile badge). Added loyal Iron Golem Offline Excavation Report (details how many of what blocks he mined during your absence with one-click claim to inventory). Merged Layer 1 and 2, and expanded with 25 brand-new deep strata layers (34 excavation realms total)!'
+        : '重磅里程碑版本 26.2.80：全新加入初次遊玩新手歡迎引導視窗（自訂玩家冒險者名稱與中英文語言，並將填寫的名字即時連動顯示於頂部頭像旁）。實裝忠誠鐵魁儡不在時離線採掘報告（詳細視覺化清單列出挖了多少什麼方塊與分紅金幣，一鍵收入背包）。正式合併第 1 層與第 2 層，並瘋狂擴充 25 大全新深邃地質世界（總計高達 34 大地層）！',
+      highlights: [
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '👋 Welcome Guide' : '👋 新手歡迎引導',
+          tagColor: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/40',
+          title: isEn
+            ? 'First-Time Welcome Modal & Header Profile Name Sync'
+            : '首次進入歡迎引導視窗與頂部頭像名稱即時連動',
+          desc: isEn
+            ? 'First-time visitors are welcomed with language selection (Traditional Chinese / English), custom name input with random name presets, and starter avatar skins. The chosen name displays prominently beside the player avatar in the top navigation bar.'
+            : '玩家首次登入時將自動彈出親切的歡迎視窗，可自由切換繁體中文或英文介面、自訂冒險者稱號（支援隨機骰出趣味名稱）並挑選初始像素造型；確認後名稱立即顯示於遊戲最頂端的像素頭像旁！'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '🤖 Iron Golem Harvest' : '🤖 鐵魁儡開採報告',
+          tagColor: 'bg-amber-900/60 text-amber-300 border-amber-500/40',
+          title: isEn
+            ? 'Loyal Iron Golem Offline Excavation & Detailed Block Breakdown'
+            : '你不在時鐵魁儡為你挖掘方塊報告（詳細列出挖了多少什麼方塊）',
+          desc: isEn
+            ? 'Your faithful Iron Golem works tirelessly in the mines while you are away! Automatically tallies total mined blocks and breaks down exact quantities of dirt, stone, ores, and gems with one-click collection into your inventory.'
+            : '忠誠的鐵魁儡守護礦坑，趁您休息不在時持續自動開採！登入時以生動卡片顯示總開採塊數，下方逐一列出他為您挖取的各類礦石方塊清單與分紅金幣，支援一鍵領取全數放入背包！'
+        },
+        {
+          category: 'balance',
+          categoryLabel: isEn ? '🗺️ 34 Strata Layers' : '🗺️ 34大地層擴充',
+          tagColor: 'bg-cyan-900/60 text-cyan-300 border-cyan-500/40',
+          title: isEn
+            ? 'Merged Layers 1 & 2 and Added 25 Brand-New Strata (34 Realms)'
+            : '合併第 1 與第 2 地層，並重磅新增 25 個全新地層（總計 34 層）',
+          desc: isEn
+            ? 'Merged surface soil and shallow sedimentary veins into unified Layer 1. Expanded underground exploration with 25 all-new strata: Lush Caves, Dripstone Spire, Blue Ice Glacier, Ocean Prismarine, Desert Pyramid, Badlands Mesa Gold, Nether Fortresses, End City Spires, Warden Sanctuary, and SteakDinosour Godsmith Apex!'
+            : '將表層泥土與淺層沉積礦脈完美合併為第 1 地層，並一口氣擴充 25 個全新地質境界（繁茂洞穴、鐘乳溶洞、萬年藍冰、深海熱泉海晶、沙漠神殿、惡地富金、地獄要塞、終界星塔、遠古幽匿神廟，直至牛排恐龍神匠至高神座），探索深淵更加浩瀚震撼！'
+        },
+        {
+          category: 'sync',
+          categoryLabel: isEn ? '🏷️ Version 26.2.80' : '🏷️ 版本號躍升 26.2.80',
+          tagColor: 'bg-purple-900/60 text-purple-300 border-purple-500/40',
+          title: isEn
+            ? 'Global Version Tag Upgraded to 26.2.80 Across App & Server'
+            : '全域版本標籤同步升級至 26.2.80',
+          desc: isEn
+            ? 'Synchronized top header badge, bottom footer, menu changelog button, server API, and package.json to v26.2.80.'
+            : '頂端導航列徽章、底部頁尾、遊戲主選單按鈕、伺服器狀態與 package.json 均已全面同步更新至 26.2.80。'
+        }
+      ]
+    },
+    {
+      version: '26.2.70',
+      isLatest: false,
       date: isEn
         ? '26.2.70 Blacksmith Forge Cards Layout Fix & Version 26.2.70 Upgrade'
         : '26.2.70 鐵匠鋪 100 種模項卡片重疊排版修復・版本號全面升級 26.2.70',
@@ -967,7 +1027,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
     return true;
   };
 
-  const currentAppVersion = logs[0]?.version || '26.2.70';
+  const currentAppVersion = logs[0]?.version || '26.2.80';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">

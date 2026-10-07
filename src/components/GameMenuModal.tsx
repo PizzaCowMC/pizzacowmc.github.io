@@ -43,6 +43,8 @@ interface GameMenuModalProps {
   onOpenBlacksmith?: () => void;
   unlockedBlacksmithCount?: number;
   playerLevel?: number;
+  onOpenGolemHarvest?: () => void;
+  onOpenWelcome?: () => void;
   onResetProgress?: () => void;
   currentUser: { email: string | null; displayName: string | null } | null;
   soundEnabled: boolean;
@@ -69,6 +71,8 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
   onOpenBlacksmith,
   unlockedBlacksmithCount = 0,
   playerLevel = 0,
+  onOpenGolemHarvest,
+  onOpenWelcome,
   onResetProgress,
   currentUser,
   soundEnabled,
@@ -304,16 +308,46 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
               </button>
             )}
 
+            {onOpenGolemHarvest && (
+              <button
+                onClick={() => handleAction(onOpenGolemHarvest)}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-amber-950/30 to-[#282828] hover:from-amber-900/40 hover:to-[#333] border border-amber-600/40 rounded-xl flex items-center justify-between text-xs font-bold text-amber-200 transition-all active:scale-98"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">🤖</span>
+                  <span>{isEn ? 'Iron Golem Offline Excavation Report' : '鐵魁儡離線開採報告'}</span>
+                </div>
+                <span className="text-amber-400 font-mono text-[10px] bg-amber-950/80 px-1.5 py-0.5 rounded border border-amber-700/60">
+                  {isEn ? 'Harvest' : '採掘清單'}
+                </span>
+              </button>
+            )}
+
+            {onOpenWelcome && (
+              <button
+                onClick={() => handleAction(onOpenWelcome)}
+                className="w-full px-4 py-2.5 bg-[#282828] hover:bg-[#323232] border border-[#383838] rounded-xl flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white transition-all active:scale-98"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">👋</span>
+                  <span>{isEn ? 'Welcome Onboarding & Name Settings' : '新手歡迎導引與玩家設定'}</span>
+                </div>
+                <span className="text-cyan-400 font-mono text-[10px] bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-800">
+                  {isEn ? 'Wizard' : '導引設定'}
+                </span>
+              </button>
+            )}
+
             <button
               onClick={() => handleAction(onOpenChangelog)}
               className="w-full px-4 py-2.5 bg-[#282828] hover:bg-[#323232] border border-[#383838] rounded-xl flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white transition-all active:scale-98"
             >
               <div className="flex items-center gap-2.5">
                 <Scroll className="w-4 h-4 text-amber-300" />
-                <span>{isEn ? '📜 Release Notes (Changelog v26.2.70)' : '📜 版本更新日誌 (Changelog v26.2.70)'}</span>
+                <span>{isEn ? '📜 Release Notes (Changelog v26.2.80)' : '📜 版本更新日誌 (Changelog v26.2.80)'}</span>
               </div>
               <span className="text-emerald-400 font-mono text-[10px] bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
-                v26.2.70
+                v26.2.80
               </span>
             </button>
           </div>

@@ -91,7 +91,7 @@ async function startServer() {
   app.get('/api/health', (req, res) => {
     res.json({
       status: 'ok',
-      version: '26.2.70',
+      version: '26.2.80',
       cloudSync: 'active',
       timestamp: new Date().toISOString()
     });
@@ -376,7 +376,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Minecraft Workshop Server] running on http://0.0.0.0:${PORT} (v26.2.70)`);
+    console.log(`[Minecraft Workshop Server] running on http://0.0.0.0:${PORT} (v26.2.80)`);
   });
 }
 
