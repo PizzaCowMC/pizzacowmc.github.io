@@ -95,9 +95,12 @@ export const IronGolemHarvestModal: React.FC<IronGolemHarvestModalProps> = ({
                     : `你不在時鐵魁儡為你挖掘了 ${totalBlocksMined.toLocaleString()} 塊！`}
                 </h2>
               </div>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex flex-wrap items-center gap-2 mt-1">
                 <span className="text-[11px] font-mono font-bold px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-full">
                   ⏱️ {formatDuration(offlineSeconds)}
+                </span>
+                <span className="text-[11px] font-mono font-bold px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-full">
+                  ⚡ {isEn ? 'Offline Rate: 1% of Normal' : '離線速率：普通時候 1%'}
                 </span>
                 <span className="text-xs text-zinc-300">
                   {isEn

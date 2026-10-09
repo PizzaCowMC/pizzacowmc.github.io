@@ -5,6 +5,7 @@ import { BlockType, PickaxeState, ThemeBackground, PlayerSkin, Friend, Achieveme
 import { AXE_TIERS, SHOVEL_TIERS, SWORD_TIERS } from './data/toolsData';
 import { QuarryMining } from './components/QuarryMining';
 import { BuildingZone } from './components/BuildingZone';
+import { BUILDING_LOTS, BuildingLotId, getBuildingLot, makeEmptyLotGrids, normalizeLotGrids, countPlaced, LOT_SPAWN_POS } from './data/buildingLots';
 import { Hotbar } from './components/Hotbar';
 import { MarketModal } from './components/MarketModal';
 import { ShopModal } from './components/ShopModal';
@@ -26,6 +27,12 @@ import { MusicPlayerModal } from './components/MusicPlayerModal';
 import { BlacksmithModal } from './components/BlacksmithModal';
 import { WelcomeOnboardingModal } from './components/WelcomeOnboardingModal';
 import { IronGolemHarvestModal } from './components/IronGolemHarvestModal';
+import { CoffeeLoungeModal } from './components/CoffeeLoungeModal';
+import { PickaxeEvolutionModal } from './components/PickaxeEvolutionModal';
+import { ServerStatusModal } from './components/ServerStatusModal';
+import { AIBristaModal } from './components/AIBristaModal';
+import { AIBlueprintModal } from './components/AIBlueprintModal';
+import { LeisureHotelModal } from './components/LeisureHotelModal';
 import { BLACKSMITH_MODULES, calculateBlacksmithBonuses, getModuleRedstoneCost } from './data/blacksmithData';
 import { PlayerSprite } from './components/PlayerSprite';
 import { CafeState, OverworldZone } from './types';
@@ -277,16 +284,43 @@ export default function App() {
     }
   });
 
-  // 100-slot building canvas
-  const [buildGrid, setBuildGrid] = useState<(string | null)[]>(() => {
+  // 建築工地:每塊工地各有一個 100 格畫布 (森林小木屋、石磚城堡、海風燈塔、麥田風車、紅石神殿)
+  const [lotGrids, setLotGrids] = useState<Record<string, (string | null)[]>>(() => {
+    const base = makeEmptyLotGrids();
     try {
-      const saved = localStorage.getItem(`${STORAGE_KEY}_grid`);
-      if (saved) return JSON.parse(saved);
+      const savedLots = localStorage.getItem(`${STORAGE_KEY}_lot_grids`);
+      if (savedLots) return normalizeLotGrids(JSON.parse(savedLots));
+      // 舊版存檔只有一塊畫布 → 沿用到第一塊工地「森林小木屋」
+      const legacy = localStorage.getItem(`${STORAGE_KEY}_grid`);
+      if (legacy) {
+        const g = JSON.parse(legacy);
+        if (Array.isArray(g) && g.length === 100) base.cabin = g;
+      }
     } catch {
       // Fallback
     }
-    return Array(100).fill(null);
+    return base;
   });
+  const [activeLotId, setActiveLotId] = useState<BuildingLotId>('cabin');
+  // 目前正在施工那一塊工地的畫布 (放置 / 回收 / 清空的處理函式都作用在它身上)
+  const buildGrid: (string | null)[] = lotGrids[activeLotId] || Array(100).fill(null);
+  const setBuildGrid = useCallback(
+    (updater: (string | null)[] | ((prev: (string | null)[]) => (string | null)[])) => {
+      setLotGrids(prev => {
+        const current = prev[activeLotId] || Array(100).fill(null);
+        const next = typeof updater === 'function' ? updater(current) : updater;
+        return { ...prev, [activeLotId]: next };
+      });
+    },
+    [activeLotId]
+  );
+  const lotPlacedCounts = useMemo(() => {
+    const out: Record<string, number> = {};
+    BUILDING_LOTS.forEach(l => {
+      out[l.id] = countPlaced(lotGrids[l.id]);
+    });
+    return out;
+  }, [lotGrids]);
 
   // Friends & social state
   const [myUsername, setMyUsername] = useState<string>(() => {
@@ -546,6 +580,41 @@ export default function App() {
   const [hasteRemainingSeconds, setHasteRemainingSeconds] = useState<number>(0);
   const [supplyToastMsg, setSupplyToastMsg] = useState<string | null>(null);
 
+  // Coffee Lounge, Pickaxe Tech Tree, Server Status, AI Barista & AI Blueprint
+  const [isCoffeeLoungeOpen, setIsCoffeeLoungeOpen] = useState<boolean>(false);
+  const [isPickaxeEvolutionOpen, setIsPickaxeEvolutionOpen] = useState<boolean>(false);
+  const [isServerStatusOpen, setIsServerStatusOpen] = useState<boolean>(false);
+  const [isAIBristaOpen, setIsAIBristaOpen] = useState<boolean>(false);
+  const [isAIBlueprintOpen, setIsAIBlueprintOpen] = useState<boolean>(false);
+  const [isLeisureHotelOpen, setIsLeisureHotelOpen] = useState<boolean>(false);
+
+  const handleApplyCoffeeBuff = useCallback((
+    buffType: 'haste' | 'fortune' | 'double_coins' | 'overclock',
+    durationSec: number,
+    nameZh: string,
+    nameEn: string,
+    cost: number
+  ) => {
+    if (cost > 0) {
+      setCoins(prev => Math.max(0, prev - cost));
+    }
+
+    if (buffType === 'haste') {
+      setExtremeHasteSeconds(prev => prev + durationSec);
+    } else if (buffType === 'fortune') {
+      setExtremeHasteSeconds(prev => prev + durationSec);
+      setHasteRemainingSeconds(prev => prev + durationSec);
+    } else if (buffType === 'double_coins') {
+      setDoubleCoinsSeconds(prev => prev + durationSec);
+    } else if (buffType === 'overclock') {
+      setExtremeHasteSeconds(prev => prev + durationSec);
+      setHasAutoMiner(true);
+    }
+
+    setSupplyToastMsg(isEn ? `☕ ${nameEn} Buff Active!` : `☕ ${nameZh} Buff 已生效！`);
+    setTimeout(() => setSupplyToastMsg(null), 3500);
+  }, [isEn]);
+
   // Redstone Blacksmith & Automation Modules (100 Collectibles)
   const [isBlacksmithOpen, setIsBlacksmithOpen] = useState<boolean>(false);
   const [unlockedModuleIds, setUnlockedModuleIds] = useState<string[]>(() => {
@@ -592,6 +661,8 @@ export default function App() {
   // Overworld Zone Navigation (Overworld map, Cafe, Quarry, Elevator, Building)
   const [currentZone, setCurrentZone] = useState<OverworldZone>('overworld');
   const [overworldSpawnPos, setOverworldSpawnPos] = useState<{ x: number; y: number }>({ x: 50, y: 44 });
+  // 玩家回到大地圖時所在的區域:main = 主地圖,site = 地圖左側的建築工地
+  const [overworldArea, setOverworldArea] = useState<'main' | 'site'>('main');
 
   // Steam Elevator transit animation state
   const [elevatorTransit, setElevatorTransit] = useState<{
@@ -601,6 +672,7 @@ export default function App() {
 
   const handleElevatorAscent = useCallback((targetZone: OverworldZone, floorName: string) => {
     sound.playUpgradeSound();
+    setOverworldArea('main');
     setElevatorTransit({
       targetZone,
       targetFloorName: floorName
@@ -608,9 +680,16 @@ export default function App() {
     if (targetZone === 'overworld') {
       // Land right in front of the elevator doors on the overworld map
       setOverworldSpawnPos({ x: 76, y: 44 });
+    } else if (targetZone === 'hotel') {
+      setOverworldSpawnPos({ x: 78, y: 26 });
     }
     setTimeout(() => {
-      setCurrentZone(targetZone);
+      if (targetZone === 'hotel') {
+        setCurrentZone('overworld');
+        setIsLeisureHotelOpen(true);
+      } else {
+        setCurrentZone(targetZone);
+      }
       setElevatorTransit(null);
     }, 950);
   }, []);
@@ -787,7 +866,8 @@ export default function App() {
       ownedThemes,
       currentSkinId,
       ownedSkins,
-      buildGrid,
+      buildGrid: lotGrids.cabin,
+      lotGrids,
       myUsername,
       myFriendCode,
       friends,
@@ -817,7 +897,7 @@ export default function App() {
     ownedThemes,
     currentSkinId,
     ownedSkins,
-    buildGrid,
+    lotGrids,
     myUsername,
     myFriendCode,
     friends,
@@ -848,7 +928,13 @@ export default function App() {
       if (Array.isArray(d.ownedThemes)) setOwnedThemes(d.ownedThemes);
       if (d.currentSkinId) setCurrentSkinId(d.currentSkinId);
       if (Array.isArray(d.ownedSkins)) setOwnedSkins(d.ownedSkins);
-      if (Array.isArray(d.buildGrid)) setBuildGrid(d.buildGrid);
+      if (d.lotGrids && typeof d.lotGrids === 'object') {
+        setLotGrids(normalizeLotGrids(d.lotGrids));
+      } else if (Array.isArray(d.buildGrid) && d.buildGrid.length === 100) {
+        // 舊版雲端存檔只有一塊畫布 → 放進「森林小木屋」
+        const legacyGrid = d.buildGrid;
+        setLotGrids(prev => ({ ...prev, cabin: legacyGrid }));
+      }
       if (d.myUsername) setMyUsername(d.myUsername);
       if (Array.isArray(d.friends)) setFriends(d.friends.filter(f => !isAlexCrafterFriend(f)));
       if (typeof d.friendRewardClaimed === 'boolean') setFriendRewardClaimed(d.friendRewardClaimed);
@@ -938,8 +1024,8 @@ export default function App() {
   }, [ownedSkins]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_grid`, JSON.stringify(buildGrid));
-  }, [buildGrid]);
+    localStorage.setItem(`${STORAGE_KEY}_lot_grids`, JSON.stringify(lotGrids));
+  }, [lotGrids]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_username`, JSON.stringify(myUsername));
@@ -1126,8 +1212,11 @@ export default function App() {
         const elapsedSeconds = Math.floor((now - lastActive) / 1000);
         // If player was away for at least 15 seconds, Iron Golem harvested!
         if (elapsedSeconds >= 15) {
-          const cappedSec = Math.min(43200, elapsedSeconds); // cap 12h
-          const totalBlocks = Math.max(8, Math.min(1200, Math.floor(cappedSec / 3)));
+          const cappedSec = Math.min(86400, elapsedSeconds); // cap 24h
+          // Ordinary normal rate: 1 block per 3 seconds (~0.33 blk/sec online baseline)
+          // Offline mining speed is strictly 1% of normal ordinary rate (v26.3.00)
+          const normalOnlineBlocks = Math.floor(cappedSec / 3);
+          const totalBlocks = Math.max(1, Math.floor(normalOnlineBlocks * 0.01));
 
           // Pick blocks from the currently selected stratum
           const activeStratum = STRATA_LAYERS.find(l => l.id === selectedLayerId) || STRATA_LAYERS[0];
@@ -1473,13 +1562,18 @@ export default function App() {
         const current = prev[layerId] || 0;
         const next = current + amount;
 
-        // Check if 100,000 threshold reached to unlock next layer
-        if (current < 100000 && next >= 100000) {
-          sound.playAchievementSound();
-          const currentLayerIdx = STRATA_LAYERS.findIndex(l => l.id === layerId);
-          const nextLayerObj = STRATA_LAYERS[currentLayerIdx + 1];
-          if (nextLayerObj) {
-            setLayerUnlockToast(`🎉 恭喜！您已在該層挖掘突破 100,000 格！【${nextLayerObj.nameZh}】已正式解鎖！`);
+        // Check if stratum required threshold reached to unlock next layer (v26.3.00)
+        const currentLayerIdx = STRATA_LAYERS.findIndex(l => l.id === layerId);
+        const nextLayerObj = STRATA_LAYERS[currentLayerIdx + 1];
+        if (nextLayerObj) {
+          const req = nextLayerObj.requiredMinedToUnlock || 25000;
+          if (current < req && next >= req) {
+            sound.playAchievementSound();
+            setLayerUnlockToast(
+              isEn
+                ? `🎉 Congratulations! Mined ${req.toLocaleString()} blocks in this stratum! [${nextLayerObj.nameEn}] is now unlocked!`
+                : `🎉 恭喜！您已在該地層挖掘突破 ${req.toLocaleString()} 格！【${nextLayerObj.nameZh}】已正式解鎖！`
+            );
             setTimeout(() => setLayerUnlockToast(null), 5500);
           }
         }
@@ -1615,7 +1709,7 @@ export default function App() {
       ...prev,
       totalBlocksPlaced: prev.totalBlocksPlaced + 1
     }));
-  }, [inventory, selectedBlockId]);
+  }, [inventory, selectedBlockId, setBuildGrid]);
 
   const handleReclaimBlock = useCallback((index: number) => {
     const blockId = buildGrid[index];
@@ -1635,7 +1729,7 @@ export default function App() {
     });
 
     unlockAchievement('build_reclaim_1');
-  }, [buildGrid, unlockAchievement]);
+  }, [buildGrid, setBuildGrid, unlockAchievement]);
 
   const handleClearAllBlocks = useCallback(() => {
     sound.playClickSound();
@@ -1660,7 +1754,7 @@ export default function App() {
 
     setBuildGrid(Array(100).fill(null));
     unlockAchievement('build_clear_all');
-  }, [buildGrid, unlockAchievement]);
+  }, [buildGrid, setBuildGrid, unlockAchievement]);
 
   // Presets for building
   const handleLoadPreset = useCallback((presetName: string) => {
@@ -2195,8 +2289,8 @@ export default function App() {
     setCurrentSkinId('steve');
     setOwnedSkins(['steve']);
 
-    // 4. Reset building canvas
-    setBuildGrid(Array(100).fill(null));
+    // 4. Reset all building canvases (every construction plot)
+    setLotGrids(makeEmptyLotGrids());
 
     // 5. Reset strata layers progression
     setLayerMinedCounts({
@@ -2413,10 +2507,10 @@ export default function App() {
                       setIsChangelogOpen(true);
                     }}
                     className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-500/20 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 border border-amber-400/50 hover:border-amber-300 rounded-md text-amber-300 font-mono text-[10px] font-bold cursor-pointer transition-all shadow-xs"
-                    title={isEn ? 'View v26.2.80 Changelog' : '查看 v26.2.80 更新日誌'}
+                    title={isEn ? 'View v26.3.10 Changelog' : '查看 v26.3.10 更新日誌'}
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>v26.2.80</span>
+                    <span>v26.3.10</span>
                   </button>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-zinc-400">
@@ -2512,6 +2606,44 @@ export default function App() {
             >
               <Trophy className="w-3.5 h-3.5" />
               <span>{t('nav.achievements')}</span>
+            </button>
+
+            {/* Dedicated Overworld Map Portal Button (獨立地圖介面) */}
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                if (currentZone !== 'overworld') {
+                  setCurrentZone('overworld');
+                }
+              }}
+              className={`px-3 py-1.5 font-black text-xs rounded-lg border-2 shadow active:scale-95 flex items-center gap-1.5 cursor-pointer transition-all ${
+                currentZone === 'overworld'
+                  ? 'bg-gradient-to-r from-emerald-600 to-green-600 text-white border-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.5)] ring-2 ring-emerald-400'
+                  : 'bg-emerald-950/80 hover:bg-emerald-900 text-emerald-200 border-emerald-600/70 hover:border-emerald-400'
+              }`}
+              title={isEn ? 'Open Independent Overworld Map Interface' : '切換至獨立大地圖探索介面'}
+            >
+              <span>🗺️</span>
+              <span className="font-minecraft tracking-wide">{isEn ? 'Map Hub' : '冒險大地圖'}</span>
+              {currentZone === 'overworld' && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+              )}
+            </button>
+
+            {/* Leisure Resort Hotel Button (整合吧台、鎬具樹、伺服器、老鐵AI、藍圖與溫泉) */}
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                setIsLeisureHotelOpen(true);
+              }}
+              className="px-3 py-1.5 bg-gradient-to-r from-amber-700 via-yellow-600 to-amber-700 hover:from-amber-600 hover:to-yellow-500 text-black font-black text-xs rounded-lg border-2 border-yellow-300 shadow-[0_0_12px_rgba(234,179,8,0.4)] active:scale-95 flex items-center gap-1.5 cursor-pointer transition-all relative font-minecraft"
+              title={isEn ? 'Leisure Resort Hotel: Coffee Lounge, Pickaxe Tree, Server Status, AI Barista & Hot Springs Spa' : '休閒渡假旅館：掛機吧台、鎬具樹、伺服器、老鐵AI店長、建築藍圖與露天溫泉'}
+            >
+              <span>🏨</span>
+              <span>{isEn ? 'Resort Hotel' : '休閒旅館'}</span>
+              {(extremeHasteSeconds > 0 || doubleCoinsSeconds > 0) && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-400 rounded-full animate-ping" />
+              )}
             </button>
 
             {/* Friends Button */}
@@ -2902,11 +3034,17 @@ export default function App() {
           <div className="w-full pb-20 sm:pb-24">
             <OverworldMap
               onEnterZone={(zone) => {
+                if (zone === 'hotel') {
+                  sound.playDoorSound ? sound.playDoorSound() : sound.playClickSound();
+                  setIsLeisureHotelOpen(true);
+                  return;
+                }
                 if (zone === 'cafe') {
                   sound.playDoorSound ? sound.playDoorSound() : sound.playClickSound();
                 } else {
                   sound.playClickSound();
                 }
+                setOverworldArea('main');
                 setCurrentZone(zone);
               }}
               isEn={isEn}
@@ -2917,6 +3055,14 @@ export default function App() {
               avatarIcon={currentSkin.avatarEmoji || '⛏️'}
               skinId={currentSkin.id}
               initialPos={overworldSpawnPos}
+              initialArea={overworldArea}
+              lotGrids={lotGrids}
+              onEnterLot={(lotId) => {
+                sound.playClickSound();
+                setActiveLotId(lotId);
+                setOverworldArea('site');
+                setCurrentZone('building');
+              }}
               onOpenEncyclopedia={() => {
                 sound.playClickSound();
                 setIsEncyclopediaOpen(true);
@@ -2927,6 +3073,7 @@ export default function App() {
               playerLevel={playerLevel}
               branch2Unlocked={cafeState.branch2Unlocked}
               onSetPlayerLevel={setPlayerLevel}
+              onOpenHotel={() => setIsLeisureHotelOpen(true)}
               onArriveAtSkyIsland={() => {
                 setCafeState(prev => ({
                   ...prev,
@@ -2966,7 +3113,43 @@ export default function App() {
               setIsEncyclopediaOpen(true);
             }}
             onOpenMusicPlayer={() => setIsMusicPlayerOpen(true)}
+            onOpenCoffeeLounge={() => setIsCoffeeLoungeOpen(true)}
+            onOpenAIBrista={() => setIsAIBristaOpen(true)}
+            onOpenAIBlueprint={() => setIsAIBlueprintOpen(true)}
+            onOpenServerStatus={() => setIsServerStatusOpen(true)}
+            onOpenPickaxeEvolution={() => setIsPickaxeEvolutionOpen(true)}
+            onOpenHotel={() => setIsLeisureHotelOpen(true)}
           />
+        )}
+
+        {/* ZONE 5: LEISURE RESORT HOTEL */}
+        {currentZone === 'hotel' && (
+          <div className="w-full pb-20 sm:pb-24">
+            <LeisureHotelModal
+              isOpen={true}
+              onClose={() => setCurrentZone('overworld')}
+              isEn={isEn}
+              coins={coins}
+              playerName={currentUser?.displayName || myUsername}
+              playerLevel={playerLevel}
+              onOpenCoffeeLounge={() => setIsCoffeeLoungeOpen(true)}
+              onOpenPickaxeEvolution={() => setIsPickaxeEvolutionOpen(true)}
+              onOpenServerStatus={() => setIsServerStatusOpen(true)}
+              onOpenAIBrista={() => setIsAIBristaOpen(true)}
+              onOpenAIBlueprint={() => setIsAIBlueprintOpen(true)}
+              onApplyBuff={handleApplyCoffeeBuff}
+              activeBuffTimers={{
+                hasteSec: hasteRemainingSeconds,
+                doubleCoinsSec: doubleCoinsSeconds,
+                extremeHasteSec: extremeHasteSeconds
+              }}
+              onOpenMusicPlayer={() => setIsMusicPlayerOpen(true)}
+              onGoToMap={() => {
+                setOverworldSpawnPos({ x: 78, y: 26 });
+                setCurrentZone('overworld');
+              }}
+            />
+          </div>
         )}
 
         {/* ZONE 3: ELEVATOR VIEW */}
@@ -3118,18 +3301,20 @@ export default function App() {
             <div className="p-3.5 bg-zinc-950/90 border-2 border-zinc-800 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-lg">
               <div className="flex items-center gap-2 text-xs text-zinc-300">
                 <span className="text-xl">🧱</span>
-                <span>{isEn ? 'Design custom architecture and cafe decorations in the 100-grid zone!' : '在 100 格創作區自由設計特色建築與咖啡館裝潢！'}</span>
+                <span>{isEn ? `Construction Site • Now building: ${getBuildingLot(activeLotId).nameEn}` : `建築工地・目前施工：${getBuildingLot(activeLotId).nameZh}`}</span>
               </div>
               <button
                 onClick={() => {
                   sound.playClickSound();
-                  setOverworldSpawnPos({ x: 50, y: 44 });
+                  // 回到地圖左側的建築工地,站在這棟建築前方的泥土路上
+                  setOverworldSpawnPos(LOT_SPAWN_POS[activeLotId]);
+                  setOverworldArea('site');
                   setCurrentZone('overworld');
                 }}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm rounded-xl border-2 border-black shadow-[inset_-2px_-2px_0_#064e3b,inset_2px_2px_0_#6ee7b7] active:scale-95 flex items-center gap-2 cursor-pointer transition-all hover:brightness-110"
               >
                 <span>🚪</span>
-                <span>{isEn ? 'Exit Workshop (Return to Map)' : '離開工坊 (返回大地圖)'}</span>
+                <span>{isEn ? 'Leave Site (Back to Map)' : '離開工地 (返回地圖)'}</span>
               </button>
             </div>
 
@@ -3140,7 +3325,9 @@ export default function App() {
               onPlaceBlock={handlePlaceBlock}
               onReclaimBlock={handleReclaimBlock}
               onClearAll={handleClearAllBlocks}
-              onLoadPreset={handleLoadPreset}
+              lot={getBuildingLot(activeLotId)}
+              lotPlacedCounts={lotPlacedCounts}
+              onSelectLot={setActiveLotId}
             />
           </div>
         )}
@@ -3158,10 +3345,10 @@ export default function App() {
               setIsChangelogOpen(true);
             }}
             className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-amber-950/60 to-purple-950/60 hover:from-amber-900/80 hover:to-purple-900/80 border border-amber-400/70 hover:border-amber-300 rounded-lg text-amber-300 font-mono text-xs font-bold transition-all shadow-md cursor-pointer group"
-            title={isEn ? 'View v26.2.80 Changelog' : '查看 v26.2.80 更新日誌'}
+            title={isEn ? 'View v26.3.10 Changelog' : '查看 v26.3.10 更新日誌'}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
-            <span className="group-hover:underline font-black text-amber-300">v26.2.80</span>
+            <span className="group-hover:underline font-black text-amber-300">v26.3.10</span>
             <span className="text-zinc-400 font-sans font-normal text-[11px]">{isEn ? 'Changelog' : '更新日誌'}</span>
           </button>
         </div>
@@ -3251,7 +3438,15 @@ export default function App() {
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
         activeTab={activeView === 'building' ? 'building' : 'quarry'}
-        onSelectTab={(tab) => setActiveView(tab)}
+        onSelectTab={(tab) => {
+          setActiveView(tab);
+          if (tab === 'building') {
+            // 建築工地位於大地圖左側:直接傳送到工地的主幹道上
+            setOverworldSpawnPos({ x: 90, y: 47 });
+            setOverworldArea('site');
+            setCurrentZone('overworld');
+          }
+        }}
         onOpenMarket={() => setIsMarketOpen(true)}
         onOpenShop={() => {
           setShopInitialTab('pickaxes');
@@ -3282,6 +3477,11 @@ export default function App() {
         onOpenMusicPlayer={() => setIsMusicPlayerOpen(true)}
         onOpenBlacksmith={() => setIsBlacksmithOpen(true)}
         unlockedBlacksmithCount={unlockedModuleIds.length}
+        onOpenCoffeeLounge={() => setIsCoffeeLoungeOpen(true)}
+        onOpenPickaxeEvolution={() => setIsPickaxeEvolutionOpen(true)}
+        onOpenServerStatus={() => setIsServerStatusOpen(true)}
+        onOpenAIBrista={() => setIsAIBristaOpen(true)}
+        onOpenAIBlueprint={() => setIsAIBlueprintOpen(true)}
         onResetProgress={handleResetProgress}
       />
 
@@ -3520,6 +3720,104 @@ export default function App() {
         onClaim={handleClaimGolemHarvest}
         isEn={isEn}
         offlineSeconds={golemHarvestData.offlineSeconds}
+      />
+
+      {/* COFFEE LOUNGE & IDLE BUFF BAR */}
+      <CoffeeLoungeModal
+        isOpen={isCoffeeLoungeOpen}
+        onClose={() => setIsCoffeeLoungeOpen(false)}
+        isEn={isEn}
+        coins={coins}
+        onApplyBuff={handleApplyCoffeeBuff}
+        activeBuffTimers={{
+          hasteSec: hasteRemainingSeconds,
+          doubleCoinsSec: doubleCoinsSeconds,
+          extremeHasteSec: extremeHasteSeconds
+        }}
+        onOpenMusicPlayer={() => setIsMusicPlayerOpen(true)}
+        onOpenAIBrista={() => {
+          setIsCoffeeLoungeOpen(false);
+          setIsAIBristaOpen(true);
+        }}
+      />
+
+      {/* PICKAXE EVOLUTION TECH TREE */}
+      <PickaxeEvolutionModal
+        isOpen={isPickaxeEvolutionOpen}
+        onClose={() => setIsPickaxeEvolutionOpen(false)}
+        isEn={isEn}
+        currentPickaxeTier={PICKAXE_TIERS.find(p => p.id === pickaxeState.currentTierId)?.tier ?? 0}
+        ownedPickaxeIds={ownedPickaxes}
+        coins={coins}
+        onOpenShop={() => {
+          setShopInitialTab('pickaxes');
+          setIsShopOpen(true);
+        }}
+        onEquipPickaxe={(pickaxe) => handleEquipPickaxe(pickaxe.id)}
+      />
+
+      {/* SERVER STATUS & LEADERBOARDS */}
+      <ServerStatusModal
+        isOpen={isServerStatusOpen}
+        onClose={() => setIsServerStatusOpen(false)}
+        isEn={isEn}
+        playerName={currentUser?.displayName || myUsername}
+        playerStats={{
+          totalBlocksMined: stats.totalBlocksMined,
+          totalCoinsEarned: stats.totalCoinsEarned
+        }}
+        cafeServedCount={cafeState.totalDishesServed}
+        onManualSave={() => {
+          handleCloudSave();
+        }}
+      />
+
+      {/* AI VILLAGER BARISTA TIE NPC CHATBOT */}
+      <AIBristaModal
+        isOpen={isAIBristaOpen}
+        onClose={() => setIsAIBristaOpen(false)}
+        isEn={isEn}
+        playerName={currentUser?.displayName || myUsername}
+        coins={coins}
+        onApplyBuff={handleApplyCoffeeBuff}
+        onAddCoins={(amount) => {
+          setCoins(prev => prev + amount);
+          setStats(prev => ({ ...prev, totalCoinsEarned: prev.totalCoinsEarned + amount }));
+        }}
+      />
+
+      {/* AI MINECRAFT ARCHITECTURE & BLUEPRINT GENERATOR */}
+      <AIBlueprintModal
+        isOpen={isAIBlueprintOpen}
+        onClose={() => setIsAIBlueprintOpen(false)}
+        isEn={isEn}
+      />
+
+      {/* LEISURE RESORT HOTEL MODAL */}
+      <LeisureHotelModal
+        isOpen={isLeisureHotelOpen}
+        onClose={() => setIsLeisureHotelOpen(false)}
+        isEn={isEn}
+        coins={coins}
+        playerName={currentUser?.displayName || myUsername}
+        playerLevel={playerLevel}
+        onOpenCoffeeLounge={() => setIsCoffeeLoungeOpen(true)}
+        onOpenPickaxeEvolution={() => setIsPickaxeEvolutionOpen(true)}
+        onOpenServerStatus={() => setIsServerStatusOpen(true)}
+        onOpenAIBrista={() => setIsAIBristaOpen(true)}
+        onOpenAIBlueprint={() => setIsAIBlueprintOpen(true)}
+        onApplyBuff={handleApplyCoffeeBuff}
+        activeBuffTimers={{
+          hasteSec: hasteRemainingSeconds,
+          doubleCoinsSec: doubleCoinsSeconds,
+          extremeHasteSec: extremeHasteSeconds
+        }}
+        onOpenMusicPlayer={() => setIsMusicPlayerOpen(true)}
+        onGoToMap={() => {
+          setIsLeisureHotelOpen(false);
+          setOverworldSpawnPos({ x: 78, y: 26 });
+          setCurrentZone('overworld');
+        }}
       />
 
       {/* STEAM ELEVATOR TRANSIT OVERLAY */}

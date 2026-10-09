@@ -107,6 +107,27 @@ export const ElevatorView: React.FC<ElevatorViewProps> = ({
             <ChevronRight className="w-5 h-5 text-amber-400 group-hover:translate-x-1 transition-transform" />
           </button>
 
+          {/* 1F: Leisure Resort Hotel & Hot Springs */}
+          <button
+            onClick={() => handleRide('hotel' as OverworldZone, undefined, isEn ? '1F Resort Hotel & Spa' : '1F 休閒渡假旅館・露天溫泉')}
+            className="w-full p-3.5 bg-gradient-to-r from-yellow-950/60 to-zinc-900 hover:from-yellow-900/80 hover:to-zinc-800 border-2 border-yellow-600/60 rounded-xl flex items-center justify-between group transition-all cursor-pointer shadow-md"
+          >
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-10 h-10 rounded-lg bg-yellow-500/20 border border-yellow-500 flex items-center justify-center text-xl">
+                🏨
+              </div>
+              <div>
+                <div className="font-black text-yellow-300 text-sm group-hover:text-yellow-200">
+                  {isEn ? '1F • Leisure Resort Hotel & Hot Springs' : '1F • 休閒渡假旅館・露天溫泉'}
+                </div>
+                <div className="text-[11px] text-zinc-400">
+                  {isEn ? 'Coffee Lounge, Tech Tree, Server Monitor, AI Staff & Spa' : '掛機吧台、鎬具樹、伺服器狀態、老鐵店長AI與露天溫泉'}
+                </div>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-yellow-400 group-hover:translate-x-1 transition-transform" />
+          </button>
+
           {/* 1F: Overworld Ground Pathway */}
           <button
             onClick={() => handleRide('overworld', undefined, isEn ? '1F Overworld Map' : '1F 大地圖綠色步道')}

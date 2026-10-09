@@ -467,6 +467,185 @@ class SoundSystem {
       osc.stop(time + 0.25);
     });
   }
+
+  // Realistic pickaxe striking sound: crisp metallic ping + stone thud
+  public playPickaxeClinkSound(isOre: boolean = false, hardness: number = 1) {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    // 1. High-frequency metallic pickaxe ping
+    const oscPing = ctx.createOscillator();
+    const gainPing = ctx.createGain();
+    oscPing.type = 'sine';
+    const pingFreq = isOre ? 1800 + Math.random() * 400 : 1200 + Math.random() * 300;
+    oscPing.frequency.setValueAtTime(pingFreq, now);
+    oscPing.frequency.exponentialRampToValueAtTime(pingFreq * 0.4, now + 0.06);
+
+    gainPing.gain.setValueAtTime(isOre ? 0.22 : 0.15, now);
+    gainPing.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+    oscPing.connect(gainPing);
+    gainPing.connect(this.getOutput(ctx));
+    oscPing.start(now);
+    oscPing.stop(now + 0.06);
+
+    // 2. Low physical stone contact thump
+    const oscThump = ctx.createOscillator();
+    const gainThump = ctx.createGain();
+    oscThump.type = 'triangle';
+    const baseFreq = Math.max(80, 150 - hardness * 12);
+    oscThump.frequency.setValueAtTime(baseFreq, now);
+    oscThump.frequency.exponentialRampToValueAtTime(45, now + 0.08);
+
+    gainThump.gain.setValueAtTime(0.2, now);
+    gainThump.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+    oscThump.connect(gainThump);
+    gainThump.connect(this.getOutput(ctx));
+    oscThump.start(now);
+    oscThump.stop(now + 0.08);
+  }
+
+  // Rare mineral chime: diamond, emerald, gold, amethyst, ancient debris
+  public playRareOreChime() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const notes = [1318.51, 1661.22, 1975.53, 2637.02]; // E6, G#6, B6, E7
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const time = ctx.currentTime + idx * 0.045;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.12, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.28);
+
+      osc.connect(gain);
+      gain.connect(this.getOutput(ctx));
+
+      osc.start(time);
+      osc.stop(time + 0.28);
+    });
+  }
+
+  // Critical hit impact sound: punchy bass burst with high-frequency blade zing
+  public playCriticalHitSound() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    // Zing
+    const oscZing = ctx.createOscillator();
+    const gainZing = ctx.createGain();
+    oscZing.type = 'sawtooth';
+    oscZing.frequency.setValueAtTime(800, now);
+    oscZing.frequency.exponentialRampToValueAtTime(2200, now + 0.1);
+
+    gainZing.gain.setValueAtTime(0.18, now);
+    gainZing.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+    oscZing.connect(gainZing);
+    gainZing.connect(this.getOutput(ctx));
+    oscZing.start(now);
+    oscZing.stop(now + 0.12);
+
+    // Punch
+    const oscPunch = ctx.createOscillator();
+    const gainPunch = ctx.createGain();
+    oscPunch.type = 'triangle';
+    oscPunch.frequency.setValueAtTime(160, now);
+    oscPunch.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+
+    gainPunch.gain.setValueAtTime(0.35, now);
+    gainPunch.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+    oscPunch.connect(gainPunch);
+    gainPunch.connect(this.getOutput(ctx));
+    oscPunch.start(now);
+    oscPunch.stop(now + 0.15);
+  }
+
+  // Sip coffee sound: gentle warm gulp with relaxing chime
+  public playSipCoffeeSound() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(320, now);
+    osc.frequency.exponentialRampToValueAtTime(480, now + 0.08);
+    osc.frequency.exponentialRampToValueAtTime(260, now + 0.18);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+
+    osc.connect(gain);
+    gain.connect(this.getOutput(ctx));
+    osc.start(now);
+    osc.stop(now + 0.22);
+
+    // Warm peaceful chime
+    setTimeout(() => {
+      this.playCoinSound();
+    }, 120);
+  }
+
+  // Level up or major reward triumphant fanfare
+  public playLevelUpSound() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const time = ctx.currentTime + idx * 0.08;
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.18, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.3);
+
+      osc.connect(gain);
+      gain.connect(this.getOutput(ctx));
+
+      osc.start(time);
+      osc.stop(time + 0.3);
+    });
+  }
+
+  // Fail or insufficient balance sound
+  public playFailSound() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.linearRampToValueAtTime(100, now + 0.15);
+
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+    osc.connect(gain);
+    gain.connect(this.getOutput(ctx));
+
+    osc.start(now);
+    osc.stop(now + 0.15);
+  }
 }
 
 export const sound = new SoundSystem();

@@ -41,6 +41,11 @@ interface QuarryMiningProps {
   onOpenEncyclopedia?: () => void;
   onOpenBlacksmith?: () => void;
   unlockedBlacksmithCount?: number;
+  onOpenCoffeeLounge?: () => void;
+  onOpenPickaxeEvolution?: () => void;
+  onOpenServerStatus?: () => void;
+  onOpenAIBrista?: () => void;
+  onOpenAIBlueprint?: () => void;
 }
 
 export const QuarryMining: React.FC<QuarryMiningProps> = ({
@@ -72,7 +77,12 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   onRepairSword,
   onOpenEncyclopedia,
   onOpenBlacksmith,
-  unlockedBlacksmithCount = 0
+  unlockedBlacksmithCount = 0,
+  onOpenCoffeeLounge,
+  onOpenPickaxeEvolution,
+  onOpenServerStatus,
+  onOpenAIBrista,
+  onOpenAIBlueprint
 }) => {
   const { language, getName, t } = useLanguage();
   const isEn = language === 'en';
@@ -113,6 +123,7 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
   const [miningProgress, setMiningProgress] = useState<number>(0); // 0 to 100%
   const [isMiningActive, setIsMiningActive] = useState<boolean>(false);
   const [floatingTexts, setFloatingTexts] = useState<{ id: number; text: string; x: number; y: number; color?: string }[]>([]);
+  const [particles, setParticles] = useState<{ id: number; x: number; y: number; vx: number; vy: number; color: string; size: number; isSparkle?: boolean }[]>([]);
 
   // Monster combat state
   const [activeMonster, setActiveMonster] = useState<MonsterData | null>(null);
@@ -269,6 +280,34 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     setMiningProgress(0);
   }, [fallbackBlocks.length]);
 
+  // Particle splatter generator for enhanced visual feedback
+  const spawnMiningParticles = useCallback((isBreak = false) => {
+    const isRare = activeBlock.category === 'ore' || activeBlock.category === 'gem';
+    const baseColor = activeBlock.color || '#94a3b8';
+    const count = isBreak ? 16 : 6;
+
+    const newParticles: { id: number; x: number; y: number; vx: number; vy: number; color: string; size: number; isSparkle?: boolean }[] = [];
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = (Math.random() * 20 + 8) * (isBreak ? 1.5 : 0.8);
+      newParticles.push({
+        id: Date.now() + Math.random(),
+        x: 50 + (Math.random() * 8 - 4),
+        y: 50 + (Math.random() * 8 - 4),
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - (isBreak ? 14 : 6),
+        color: isRare && Math.random() < 0.45 ? (Math.random() < 0.5 ? '#fde047' : '#38bdf8') : baseColor,
+        size: Math.floor(Math.random() * 5 + 4),
+        isSparkle: isRare
+      });
+    }
+
+    setParticles(prev => [...prev.slice(-25), ...newParticles]);
+    setTimeout(() => {
+      setParticles(prev => prev.filter(p => !newParticles.some(np => np.id === p.id)));
+    }, 550);
+  }, [activeBlock]);
+
   // Complete a mine operation (strictly idempotent, prevents duplicate execution)
   const completeMine = useCallback(() => {
     if (isCompletingRef.current) return;
@@ -276,7 +315,12 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
     completingStartTimeRef.current = Date.now();
     lastBlockMinedTimeRef.current = Date.now();
 
+    spawnMiningParticles(true);
     sound.playBlockBreakSound();
+
+    if (activeBlock.category === 'ore' || activeBlock.category === 'gem') {
+      sound.playRareOreChime();
+    }
 
     // Default amount is STRICTLY 1
     let amount = 1;
@@ -292,6 +336,10 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
       if (Math.random() < 0.35) {
         amount += 1;
       }
+    }
+
+    if (amount > 1) {
+      sound.playCriticalHitSound();
     }
 
     // Floating text feedback
@@ -402,7 +450,9 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
       isDefeatingMonsterRef.current = false;
     }
 
-    sound.playHitSound(activeBlock.hardness);
+    // Visual particles and authentic pickaxe feedback
+    spawnMiningParticles(false);
+    sound.playPickaxeClinkSound(activeBlock.category === 'ore' || activeBlock.category === 'gem', activeBlock.hardness);
 
     const strikeFraction = (120 / requiredMiningTimeMs) * 100;
     const nextProgress = miningProgress + Math.max(15, strikeFraction);
@@ -904,6 +954,78 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
         </div>
       </div>
 
+      {/* 2.8 GAMIFICATION & FEATURE HUBS: COFFEE LOUNGE, TECH TREE, SERVER MONITOR, AI ASSISTANTS */}
+      <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-[#1b1917] border-2 border-amber-800/60 rounded-xl text-xs">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {onOpenCoffeeLounge && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenCoffeeLounge();
+              }}
+              className="px-2.5 py-1.5 bg-gradient-to-r from-amber-700 to-amber-900 hover:from-amber-600 hover:to-amber-800 text-white font-minecraft text-[11px] font-bold rounded-lg border border-amber-500/80 shadow cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+            >
+              <span>☕</span>
+              <span>{isEn ? 'Coffee Lounge & Buffs' : '邊喝咖啡邊掛機'}</span>
+            </button>
+          )}
+
+          {onOpenPickaxeEvolution && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenPickaxeEvolution();
+              }}
+              className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-amber-300 font-minecraft text-[11px] font-bold rounded-lg border border-amber-600/60 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+            >
+              <span>⛏️</span>
+              <span>{isEn ? 'Evolution Tree' : '鎬具合成進化樹'}</span>
+            </button>
+          )}
+
+          {onOpenServerStatus && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenServerStatus();
+              }}
+              className="px-2.5 py-1.5 bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 font-minecraft text-[11px] font-bold rounded-lg border border-cyan-500/60 cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+            >
+              <span>🌐</span>
+              <span>{isEn ? 'Server & Rankings' : '伺服器狀態與排行'}</span>
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          {onOpenAIBrista && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenAIBrista();
+              }}
+              className="px-2.5 py-1.5 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 font-minecraft text-[11px] font-bold rounded-lg border border-emerald-500/60 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+            >
+              <span>👨‍🌾</span>
+              <span>{isEn ? 'AI Barista' : '店員老鐵'}</span>
+            </button>
+          )}
+
+          {onOpenAIBlueprint && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenAIBlueprint();
+              }}
+              className="px-2.5 py-1.5 bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 font-minecraft text-[11px] font-bold rounded-lg border border-indigo-500/60 cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+            >
+              <span>📐</span>
+              <span>{isEn ? 'AI Blueprint' : 'AI建築藍圖'}</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* 3. Main Quarry Arena: Monster Combat or Mining Block */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
         {/* Left Arena Box */}
@@ -1180,6 +1302,23 @@ export const QuarryMining: React.FC<QuarryMiningProps> = ({
                     showName={false}
                     className="transition-transform group-hover:scale-105 drop-shadow-[0_8px_16px_rgba(0,0,0,0.6)]"
                   />
+
+                  {/* Mineral Debris & Sparkle Particles */}
+                  {particles.map(p => (
+                    <div
+                      key={p.id}
+                      className="absolute pointer-events-none rounded-xs z-30 animate-ping opacity-90"
+                      style={{
+                        left: `${p.x + p.vx * 0.9}%`,
+                        top: `${p.y + p.vy * 0.9}%`,
+                        width: `${p.size}px`,
+                        height: `${p.size}px`,
+                        backgroundColor: p.color,
+                        boxShadow: p.isSparkle ? `0 0 10px ${p.color}, 0 0 4px #ffffff` : 'none',
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                    />
+                  ))}
                 </button>
 
                 {/* Floating drop rewards */}

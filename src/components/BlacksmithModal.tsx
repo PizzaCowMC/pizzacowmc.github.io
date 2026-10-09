@@ -67,7 +67,7 @@ export const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [showAnalytics, setShowAnalytics] = useState<boolean>(true);
+  const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
   const [showGuide, setShowGuide] = useState<boolean>(false);
 
   const bonuses = useMemo(() => {

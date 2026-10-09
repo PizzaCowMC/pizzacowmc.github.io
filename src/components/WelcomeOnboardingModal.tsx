@@ -99,7 +99,7 @@ export const WelcomeOnboardingModal: React.FC<WelcomeOnboardingModalProps> = ({
                   {isEn ? 'Welcome to Minecraft Workshop!' : '歡迎來到 Minecraft 礦業咖啡廳！'}
                 </h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 bg-amber-500/20 border border-amber-400 text-amber-300 rounded font-bold">
-                  v26.2.80
+                  v26.3.10
                 </span>
               </div>
               <p className="text-xs text-zinc-300 mt-0.5">

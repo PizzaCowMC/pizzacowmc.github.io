@@ -1,9 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { sound } from '../utils/soundEffects';
-import { Pickaxe, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
+import {
+  Pickaxe,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  Compass,
+  MapPin,
+  Hotel,
+  Coffee,
+  Sparkles,
+  Waves,
+  Maximize2,
+  Minimize2,
+  Gamepad2,
+  Zap,
+  Info
+} from 'lucide-react';
 import { OverworldZone } from '../types';
 import { SkyIslandTransition } from './SkyIslandTransition';
 import { PlayerSprite } from './PlayerSprite';
+import { BuildingSite, getNearLotId } from './BuildingSite';
+import { BuildingLotId, getBuildingLot } from '../data/buildingLots';
 
 interface OverworldMapProps {
   onEnterZone: (zone: OverworldZone) => void;
@@ -23,6 +42,11 @@ interface OverworldMapProps {
   branch2Unlocked?: boolean;
   onArriveAtSkyIsland?: () => void;
   onSetPlayerLevel?: (lvl: number) => void;
+  onOpenHotel?: () => void;
+  /** 進入地圖時所在區域:main = 主地圖,site = 地圖左側的建築工地 */
+  initialArea?: 'main' | 'site';
+  lotGrids?: Record<string, (string | null)[]>;
+  onEnterLot?: (lotId: BuildingLotId) => void;
 }
 
 export const OverworldMap: React.FC<OverworldMapProps> = ({
@@ -42,21 +66,38 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
   playerLevel = 0,
   branch2Unlocked = false,
   onArriveAtSkyIsland,
-  onSetPlayerLevel
+  onSetPlayerLevel,
+  onOpenHotel,
+  initialArea = 'main',
+  lotGrids = {},
+  onEnterLot
 }) => {
   // Player coordinate on map (in percentage: 0 to 100)
-  // Default spawn at the central crossroads
+  // Default spawn at the central crossroads plaza
   const [pos, setPos] = useState<{ x: number; y: number }>(() => initialPos || { x: 50, y: 44 });
   const [facing, setFacing] = useState<'left' | 'right' | 'up' | 'down'>('down');
+  // 地圖區域:主地圖 (main) 或 左側的建築工地 (site)
+  const [area, setArea] = useState<'main' | 'site'>(initialArea);
+  const posRef = useRef(pos);
+  const areaRef = useRef(area);
+  posRef.current = pos;
+  areaRef.current = area;
   const [isWalking, setIsWalking] = useState<boolean>(false);
   const [footsteps, setFootsteps] = useState<{ id: number; x: number; y: number }[]>([]);
   const nextFootstepId = useRef(0);
+
+  // Independent Map HUD state
+  const [viewMode, setViewMode] = useState<'normal' | 'expanded' | 'wide'>('expanded');
+  const [showTouchDPad, setShowTouchDPad] = useState<boolean>(true);
 
   // Sync initialPos if updated from outside
   useEffect(() => {
     if (initialPos) {
       setPos(initialPos);
+      setArea(initialArea);
+      areaRef.current = initialArea;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialPos]);
 
   const getDistance = (p1: { x: number; y: number }, p2: { x: number; y: number }) => {
@@ -65,22 +106,46 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
     return Math.sqrt(dx * dx + dy * dy);
   };
 
-  // Sky Island unlock requirement: Strictly Rank 15!
+  // Sky Island unlock requirement: Rank 15!
   const isSkyIslandUnlocked = playerLevel >= 15;
   const [isAscending, setIsAscending] = useState<boolean>(false);
   const [showLockedModal, setShowLockedModal] = useState<boolean>(false);
 
-  // Logical proximity zones:
-  // 1. Cafe: Top-left area (x <= 42, y <= 38)
-  const nearCafe = (pos.x <= 42 && pos.y <= 38) || getDistance(pos, { x: 28, y: 22 }) <= 16;
-  // 2. Quarry: South road & bottom mine pit (y >= 62, x <= 62) - perfectly aligned with walking down!
-  const nearQuarry = (pos.y >= 62 && pos.x <= 62) || getDistance(pos, { x: 36, y: 76 }) <= 20;
-  // 3. Elevator: East elevator tower (x >= 64, y >= 20, y <= 78)
-  const nearElevator = (pos.x >= 64 && pos.y >= 20 && pos.y <= 78) || getDistance(pos, { x: 80, y: 46 }) <= 18;
-  // 4. Mysterious Sky Island: Top-center floating zone (x: 34 to 70, y <= 34)
-  const nearSkyIsland = (pos.x >= 34 && pos.x <= 70 && pos.y <= 34) || getDistance(pos, { x: 52, y: 16 }) <= 18;
-  // 5. Redstone Blacksmith: South-center forge (x: 40 to 74, y >= 58)
-  const nearBlacksmith = (pos.x >= 40 && pos.x <= 74 && pos.y >= 58) || getDistance(pos, { x: 58, y: 76 }) <= 18;
+  const inMain = area === 'main';
+  // 建築工地:靠近哪一塊工地
+  const nearLotId: BuildingLotId | null = area === 'site' ? getNearLotId(pos) : null;
+
+  // Logical proximity zones for the expanded 6-landmark world:
+  // 1. Cafe: Top-left area (x <= 35, y <= 40)
+  const nearCafe = inMain && ((pos.x <= 35 && pos.y <= 40) || getDistance(pos, { x: 18, y: 22 }) <= 17);
+  // 2. Mysterious Sky Island: Top-center floating zone (x: 35 to 65, y <= 32)
+  const nearSkyIsland = inMain && ((pos.x >= 35 && pos.x <= 65 && pos.y <= 32) || getDistance(pos, { x: 50, y: 16 }) <= 18);
+  // 3. Leisure Resort Hotel: Top-right area (x >= 65, y <= 42)
+  const nearHotel = inMain && ((pos.x >= 65 && pos.y <= 42) || getDistance(pos, { x: 82, y: 22 }) <= 18);
+  // 4. Quarry Pit: Bottom-left mine (x <= 35, y >= 56)
+  const nearQuarry = inMain && ((pos.x <= 35 && pos.y >= 56) || getDistance(pos, { x: 18, y: 76 }) <= 18);
+  // 5. Redstone Blacksmith: Bottom-center forge (x: 35 to 65, y >= 56)
+  const nearBlacksmith = inMain && ((pos.x >= 35 && pos.x <= 65 && pos.y >= 56) || getDistance(pos, { x: 50, y: 76 }) <= 18);
+  // 6. Elevator Tower: Bottom-right express tower (x >= 65, y >= 50)
+  const nearElevator = inMain && ((pos.x >= 65 && pos.y >= 50) || getDistance(pos, { x: 82, y: 74 }) <= 18);
+
+  // Current zone label for the GPS HUD
+  const getCurrentAreaName = () => {
+    if (area === 'site') {
+      if (nearLotId) {
+        const lot = getBuildingLot(nearLotId);
+        return `${lot.emoji} ${isEn ? lot.nameEn : lot.nameZh}`;
+      }
+      return isEn ? '🏗️ Construction Site (West)' : '🏗️ 建築工地(地圖左側)';
+    }
+    if (nearHotel) return isEn ? '🏨 Resort Hotel & Spa District' : '🏨 休閒渡假旅館・溫泉特區';
+    if (nearCafe) return isEn ? '☕ Mining Cafe Square' : '☕ 礦業咖啡廳廣場';
+    if (nearSkyIsland) return isEn ? '☁️ Sky Island Ascension Portal' : '☁️ 神秘空島飛升口';
+    if (nearQuarry) return isEn ? '⛏️ Subterranean Mine Entrance' : '⛏️ 地底採掘礦坑入口';
+    if (nearBlacksmith) return isEn ? '🔨 Redstone Forge Works' : '🔨 紅石自動鐵匠鋪';
+    if (nearElevator) return isEn ? '🛗 Steam Elevator Tower' : '🛗 蒸氣直達電梯塔台';
+    return isEn ? '🌲 Overworld Forest Crossroads' : '🌲 大地圖森林十字大道';
+  };
 
   const handleTriggerSkyIsland = () => {
     if (!isSkyIslandUnlocked) {
@@ -101,10 +166,94 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
     }
   };
 
+  const handleTriggerHotel = () => {
+    sound.playDoorSound ? sound.playDoorSound() : sound.playClickSound();
+    if (onOpenHotel) {
+      onOpenHotel();
+    } else {
+      onEnterZone('hotel');
+    }
+  };
+
   // Add subtle footstep particle
   const triggerFootstep = (x: number, y: number) => {
     const id = nextFootstepId.current++;
     setFootsteps(prev => [...prev.slice(-10), { id, x, y }]);
+  };
+
+  // Fast Travel teleport shortcut
+  const handleFastTravel = (target: 'site' | 'cafe' | 'island' | 'hotel' | 'quarry' | 'forge' | 'elevator') => {
+    sound.playClickSound();
+    setIsWalking(true);
+    setArea(target === 'site' ? 'site' : 'main');
+    areaRef.current = target === 'site' ? 'site' : 'main';
+    switch (target) {
+      case 'site':
+        setPos({ x: 90, y: 47 });
+        setFacing('left');
+        break;
+      case 'cafe':
+        setPos({ x: 26, y: 26 });
+        setFacing('up');
+        break;
+      case 'island':
+        setPos({ x: 50, y: 24 });
+        setFacing('up');
+        break;
+      case 'hotel':
+        setPos({ x: 78, y: 26 });
+        setFacing('up');
+        break;
+      case 'quarry':
+        setPos({ x: 26, y: 70 });
+        setFacing('down');
+        break;
+      case 'forge':
+        setPos({ x: 50, y: 70 });
+        setFacing('down');
+        break;
+      case 'elevator':
+        setPos({ x: 78, y: 70 });
+        setFacing('down');
+        break;
+    }
+    setTimeout(() => setIsWalking(false), 200);
+  };
+
+  // ===== 區域切換:主地圖最左側 ←→ 建築工地最右側 =====
+  const GATE_BAND_MIN = 34;
+  const GATE_BAND_MAX = 62;
+  const isInGateBand = (y: number) => y >= GATE_BAND_MIN && y <= GATE_BAND_MAX;
+
+  const switchArea = (next: 'main' | 'site', x: number, y: number, face: 'left' | 'right') => {
+    sound.playDoorSound ? sound.playDoorSound() : sound.playClickSound();
+    setArea(next);
+    areaRef.current = next;
+    const p = { x, y };
+    posRef.current = p;
+    setPos(p);
+    setFacing(face);
+    setFootsteps([]);
+    setIsWalking(true);
+    setTimeout(() => setIsWalking(false), 300);
+  };
+
+  // 統一的移動入口:走出主地圖左緣 → 建築工地;走出工地右緣 → 回主地圖
+  const applyMove = (rawX: number, rawY: number) => {
+    const y = Math.min(92, Math.max(8, rawY));
+    if (areaRef.current === 'main' && rawX < 6 && isInGateBand(y)) {
+      switchArea('site', 92, y, 'left');
+      return;
+    }
+    if (areaRef.current === 'site' && rawX > 94 && isInGateBand(y)) {
+      switchArea('main', 8, y, 'right');
+      return;
+    }
+    const x = Math.min(94, Math.max(6, rawX));
+    triggerFootstep(x, y);
+    const p = { x, y };
+    posRef.current = p;
+    setPos(p);
   };
 
   // Keyboard movement handler
@@ -134,7 +283,14 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
         newFacing = 'right';
       } else if (e.key === 'e' || e.key === 'E' || e.key === 'Enter' || e.key === ' ') {
         // Interact / Enter trigger
-        if (nearSkyIsland) {
+        if (areaRef.current === 'site') {
+          if (nearLotId && onEnterLot) {
+            sound.playClickSound();
+            onEnterLot(nearLotId);
+          }
+        } else if (nearHotel) {
+          handleTriggerHotel();
+        } else if (nearSkyIsland) {
           handleTriggerSkyIsland();
         } else if (nearCafe) {
           sound.playClickSound();
@@ -157,12 +313,7 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
       setFacing(newFacing);
       setIsWalking(true);
 
-      setPos(prev => {
-        const nextX = Math.min(94, Math.max(6, prev.x + dx));
-        const nextY = Math.min(90, Math.max(10, prev.y + dy));
-        triggerFootstep(nextX, nextY);
-        return { x: nextX, y: nextY };
-      });
+      applyMove(posRef.current.x + dx, posRef.current.y + dy);
 
       if (stepTimer) clearTimeout(stepTimer);
       stepTimer = setTimeout(() => setIsWalking(false), 200);
@@ -173,7 +324,7 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       if (stepTimer) clearTimeout(stepTimer);
     };
-  }, [facing, nearCafe, nearQuarry, nearElevator, nearSkyIsland, nearBlacksmith, onEnterZone, onOpenBlacksmith, isSkyIslandUnlocked]);
+  }, [facing, area, nearLotId, onEnterLot, nearCafe, nearQuarry, nearElevator, nearSkyIsland, nearBlacksmith, nearHotel, onEnterZone, onOpenBlacksmith, onOpenHotel, isSkyIslandUnlocked]);
 
   // Click on map to move
   const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -182,7 +333,7 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
     const clickY = ((e.clientY - rect.top) / rect.height) * 100;
 
     const targetX = Math.min(94, Math.max(6, clickX));
-    const targetY = Math.min(90, Math.max(10, clickY));
+    const targetY = Math.min(92, Math.max(8, clickY));
 
     if (Math.abs(targetX - pos.x) > Math.abs(targetY - pos.y)) {
       setFacing(targetX < pos.x ? 'left' : 'right');
@@ -191,99 +342,254 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
     }
 
     setIsWalking(true);
-    triggerFootstep(targetX, targetY);
-    setPos({ x: targetX, y: targetY });
+    applyMove(clickX, targetY);
 
     setTimeout(() => setIsWalking(false), 300);
   };
 
   return (
     <div className="w-full flex flex-col items-center select-none animate-in fade-in duration-300">
-      {/* Control Banner & Quick Stats */}
-      <div className="w-full max-w-5xl mb-3 px-4 py-2.5 bg-zinc-950/95 border-2 border-zinc-800 rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-lg text-xs">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-950/80 border border-amber-500/50 rounded-lg text-amber-300 font-bold font-minecraft">
-            <span className="text-base">🗺️</span>
-            <span>{isEn ? 'Overworld Map Exploration' : '1F 地面大地圖探索'}</span>
+      <style>{`
+        @keyframes owSlideFromLeft { from { transform: translateX(-9%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes owSlideFromRight { from { transform: translateX(9%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .ow-slide-from-left { animation: owSlideFromLeft 0.38s ease-out; }
+        .ow-slide-from-right { animation: owSlideFromRight 0.38s ease-out; }
+      `}</style>
+
+      {/* ================= INDEPENDENT MAP INTERFACE HUD ================= */}
+      <div className="w-full max-w-6xl mb-3 space-y-2">
+        {/* Top Control Header */}
+        <div className="px-4 py-2.5 bg-zinc-950/95 border-2 border-emerald-700/80 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-2xl text-xs backdrop-blur-md">
+          {/* Left: Map Title & Coordinates HUD */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-emerald-950 to-green-900 border border-emerald-500/60 rounded-xl text-emerald-300 font-black font-minecraft shadow-sm">
+              <span className="text-base animate-pulse">🗺️</span>
+              <span className="tracking-wide">{isEn ? 'Overworld Map (Independent Hub)' : '1F 大地圖獨立探索系統'}</span>
+              <span className="text-[10px] px-1.5 py-0.2 bg-emerald-500/20 text-emerald-200 rounded font-mono">
+                LIVE
+              </span>
+            </div>
+
+            {/* GPS & Compass */}
+            <div className="hidden md:flex items-center gap-2 px-2.5 py-1 bg-black/60 border border-zinc-700 rounded-lg text-zinc-300 font-mono text-[11px]">
+              <Compass className="w-3.5 h-3.5 text-cyan-400 animate-spin-slow" />
+              <span className="text-cyan-300 font-bold">X: {pos.x.toFixed(0)}% • Y: {pos.y.toFixed(0)}%</span>
+              <span className="text-zinc-600">|</span>
+              <span className="text-amber-300 font-bold">{getCurrentAreaName()}</span>
+            </div>
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-zinc-400">
-            <span className="px-1.5 py-0.5 bg-zinc-800 rounded text-[11px] font-mono border border-zinc-700">W A S D</span>
-            <span>/</span>
-            <span className="px-1.5 py-0.5 bg-zinc-800 rounded text-[11px] font-mono border border-zinc-700">{isEn ? 'Arrow Keys or Click Ground' : '方向鍵 或 點擊地面行走'}</span>
+
+          {/* Right: Viewport Controls, Audio & Encyclopedia */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* View Mode Switcher */}
+            <div className="hidden sm:flex items-center gap-1 bg-black/50 p-1 rounded-xl border border-zinc-700">
+              <button
+                onClick={() => setViewMode('normal')}
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
+                  viewMode === 'normal' ? 'bg-emerald-600 text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                {isEn ? 'Standard' : '標準'}
+              </button>
+              <button
+                onClick={() => setViewMode('expanded')}
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
+                  viewMode === 'expanded' ? 'bg-emerald-600 text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                {isEn ? 'Expanded' : '擴展全景'}
+              </button>
+            </div>
+
+            {/* Touch D-Pad Toggle */}
+            <button
+              onClick={() => setShowTouchDPad(!showTouchDPad)}
+              className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                showTouchDPad
+                  ? 'bg-amber-950/80 text-amber-300 border-amber-600/80'
+                  : 'bg-zinc-900 text-zinc-400 border-zinc-700'
+              }`}
+              title={isEn ? 'Toggle Touch D-Pad' : '切換方向鍵控制面板'}
+            >
+              <Gamepad2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{isEn ? 'D-Pad' : '虛擬按鍵'}</span>
+            </button>
+
+            {onOpenHotel && (
+              <button
+                onClick={() => {
+                  sound.playClickSound();
+                  onOpenHotel();
+                }}
+                className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-yellow-700 to-amber-800 hover:from-yellow-600 hover:to-amber-700 border border-yellow-400/80 rounded-xl text-yellow-100 font-black font-minecraft active:scale-95 cursor-pointer shadow transition-all"
+                title={isEn ? 'Direct Access: Leisure Resort Hotel' : '直接前往：休閒渡假旅館'}
+              >
+                <span>🏨</span>
+                <span>{isEn ? 'Resort Hotel' : '休閒旅館'}</span>
+              </button>
+            )}
+
+            {onOpenEncyclopedia && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  sound.playClickSound();
+                  onOpenEncyclopedia();
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 bg-amber-900/80 hover:bg-amber-800 border border-amber-600/60 rounded-xl text-amber-200 font-bold active:scale-95 cursor-pointer shadow transition-all"
+                title={isEn ? 'Encyclopedia' : '百科全書'}
+              >
+                <span>📖</span>
+                <span className="hidden sm:inline">{isEn ? 'Wiki' : '百科'}</span>
+              </button>
+            )}
+
+            {onOpenMusicPlayer && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  sound.playClickSound();
+                  onOpenMusicPlayer();
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-xl text-amber-300 font-bold active:scale-95 cursor-pointer shadow transition-all"
+                title={isEn ? 'Jukebox' : '唱片機'}
+              >
+                <span>💽</span>
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 font-mono">
-          {onOpenEncyclopedia && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                sound.playClickSound();
-                onOpenEncyclopedia();
-              }}
-              className="flex items-center gap-1.5 px-3 py-1 bg-amber-800/90 hover:bg-amber-700 border border-amber-500/80 rounded-lg text-amber-100 font-bold font-minecraft active:scale-95 cursor-pointer shadow transition-all hover:brightness-110"
-              title={isEn ? 'Open Minecraft Encyclopedia' : '開啟 Minecraft 百科全書'}
-            >
-              <span>📖</span>
-              <span>{isEn ? 'Encyclopedia' : '百科全書'}</span>
-            </button>
-          )}
+        {/* Fast Travel / Landmark Navigation Portal Bar */}
+        <div className="px-4 py-2 bg-zinc-950/80 border border-zinc-800 rounded-xl flex items-center gap-1.5 overflow-x-auto scrollbar-none text-xs">
+          <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1 mr-2 shrink-0">
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span>{isEn ? 'Fast Travel Portals:' : '地標導航傳送：'}</span>
+          </span>
 
-          {onOpenMusicPlayer && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                sound.playClickSound();
-                onOpenMusicPlayer();
-              }}
-              className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-950 to-[#2c2214] hover:from-amber-900 border border-amber-500/80 rounded-lg text-amber-200 font-bold font-minecraft active:scale-95 cursor-pointer shadow transition-all hover:brightness-110"
-              title={isEn ? 'Open Jukebox & BGM Tracks' : '開啟紅石唱片機'}
-            >
-              <span>💽</span>
-              <span>{isEn ? 'Jukebox' : '唱片機'}</span>
-            </button>
-          )}
+          <button
+            onClick={() => handleFastTravel('site')}
+            className={`px-3 py-1 rounded-lg border font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              area === 'site' ? 'bg-orange-600 text-white border-orange-300 shadow' : 'bg-gradient-to-r from-orange-950 to-zinc-900 text-orange-300 border-orange-700 hover:border-orange-500'
+            }`}
+            title={isEn ? 'West of the map: walk left from the main road to reach it' : '位於地圖左側:從主幹道一路往左走也能抵達'}
+          >
+            <span>🏗️</span>
+            <span>{isEn ? '◀ Construction Site' : '◀ 建築工地'}</span>
+            <span className="text-[9px] px-1 bg-orange-400/20 rounded text-orange-200">NEW</span>
+          </button>
 
-          <div className="px-2.5 py-1 bg-zinc-900 rounded-lg border border-zinc-700 text-zinc-300 flex items-center gap-1">
-            <span>🪙</span>
-            <strong className="text-amber-300">{coins.toLocaleString()}</strong>
-          </div>
-          <div className="px-2.5 py-1 bg-emerald-950/70 border border-emerald-700/60 rounded-lg text-emerald-300 flex items-center gap-1">
+          <button
+            onClick={() => handleFastTravel('cafe')}
+            className={`px-3 py-1 rounded-lg border font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              nearCafe ? 'bg-emerald-600 text-white border-emerald-400 shadow' : 'bg-[#222] text-zinc-300 border-zinc-700 hover:bg-[#333]'
+            }`}
+          >
             <span>☕</span>
-            <span>{isEn ? 'Kitchen: ' : '備餐: '}</span>
-            <strong className="text-amber-200">{readyDishesCount}</strong>
-          </div>
+            <span>{isEn ? '2F Cafe' : '超級咖啡廳'}</span>
+          </button>
+
+          <button
+            onClick={() => handleFastTravel('island')}
+            className={`px-3 py-1 rounded-lg border font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              nearSkyIsland ? 'bg-purple-600 text-white border-purple-400 shadow' : 'bg-[#222] text-zinc-300 border-zinc-700 hover:bg-[#333]'
+            }`}
+          >
+            <span>☁️</span>
+            <span>{isEn ? 'Sky Island' : '神秘空島'}</span>
+          </button>
+
+          <button
+            onClick={() => handleFastTravel('hotel')}
+            className={`px-3 py-1 rounded-lg border font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              nearHotel ? 'bg-amber-600 text-white border-amber-400 shadow animate-pulse' : 'bg-gradient-to-r from-amber-950 to-zinc-900 text-amber-300 border-amber-700 hover:border-amber-500'
+            }`}
+          >
+            <span>🏨</span>
+            <span className="font-minecraft font-black">{isEn ? 'Resort Hotel' : '休閒旅館 (溫泉・吧台)'}</span>
+            <span className="text-[9px] px-1 bg-amber-400/20 rounded text-amber-200">NEW</span>
+          </button>
+
+          <button
+            onClick={() => handleFastTravel('quarry')}
+            className={`px-3 py-1 rounded-lg border font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              nearQuarry ? 'bg-amber-600 text-white border-amber-400 shadow' : 'bg-[#222] text-zinc-300 border-zinc-700 hover:bg-[#333]'
+            }`}
+          >
+            <span>⛏️</span>
+            <span>{isEn ? 'Mine Shaft' : '採掘礦坑'}</span>
+          </button>
+
+          <button
+            onClick={() => handleFastTravel('forge')}
+            className={`px-3 py-1 rounded-lg border font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              nearBlacksmith ? 'bg-amber-600 text-white border-amber-400 shadow' : 'bg-[#222] text-zinc-300 border-zinc-700 hover:bg-[#333]'
+            }`}
+          >
+            <span>🔨</span>
+            <span>{isEn ? 'Redstone Forge' : '紅石鐵匠鋪'}</span>
+          </button>
+
+          <button
+            onClick={() => handleFastTravel('elevator')}
+            className={`px-3 py-1 rounded-lg border font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              nearElevator ? 'bg-cyan-600 text-white border-cyan-400 shadow' : 'bg-[#222] text-zinc-300 border-zinc-700 hover:bg-[#333]'
+            }`}
+          >
+            <span>🛗</span>
+            <span>{isEn ? 'Elevator' : '直達電梯'}</span>
+          </button>
         </div>
       </div>
 
-      {/* OVERWORLD MAP CANVAS CONTAINER */}
+      {/* ================= EXPANDED OVERWORLD MAP CANVAS ================= */}
       <div
         onClick={handleMapClick}
-        className="relative w-full max-w-5xl aspect-[16/9] min-h-[440px] border-4 border-[#143015] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.8)] cursor-crosshair"
-        style={{
-          backgroundColor: '#2d6a2e',
-          backgroundImage: `
-            radial-gradient(#3a853b 15%, transparent 16%),
-            radial-gradient(#245825 15%, transparent 16%)
-          `,
-          backgroundSize: '24px 24px',
-          backgroundPosition: '0 0, 12px 12px'
-        }}
+        className={`relative w-full max-w-6xl transition-all duration-300 border-4 border-[#143015] rounded-3xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.85)] cursor-crosshair ${
+          viewMode === 'normal' ? 'aspect-[16/9] min-h-[480px]' : 'min-h-[580px] sm:min-h-[660px]'
+        }`}
+        style={
+          area === 'site'
+            ? {
+                backgroundColor: '#8a6d3b',
+                backgroundImage: `
+                  radial-gradient(#9c7c46 15%, transparent 16%),
+                  radial-gradient(#76592e 15%, transparent 16%)
+                `,
+                backgroundSize: '24px 24px',
+                backgroundPosition: '0 0, 12px 12px'
+              }
+            : {
+                backgroundColor: '#276228',
+                backgroundImage: `
+                  radial-gradient(#388139 15%, transparent 16%),
+                  radial-gradient(#205121 15%, transparent 16%)
+                `,
+                backgroundSize: '24px 24px',
+                backgroundPosition: '0 0, 12px 12px'
+              }
+        }
       >
-        {/* Pixel Grass Tufts & Wildflower Details */}
-        <div className="absolute inset-0 pointer-events-none opacity-40">
-          <div className="absolute top-[8%] left-[45%] text-xs">🌿</div>
-          <div className="absolute top-[25%] left-[62%] text-xs">🌼</div>
-          <div className="absolute top-[65%] left-[70%] text-xs">🌹</div>
-          <div className="absolute top-[85%] left-[58%] text-xs">🌿</div>
+        {/* ===== 主地圖內容 (area === 'main') ===== */}
+        {area === 'main' && (
+        <div className="absolute inset-0 ow-slide-from-right">
+        {/* Pixel Grass Tufts, Wildflowers & Forest Flora */}
+        <div className="absolute inset-0 pointer-events-none opacity-45">
+          <div className="absolute top-[8%] left-[46%] text-xs">🌿</div>
+          <div className="absolute top-[25%] left-[64%] text-xs">🌼</div>
+          <div className="absolute top-[68%] left-[72%] text-xs">🌹</div>
+          <div className="absolute top-[88%] left-[58%] text-xs">🌿</div>
           <div className="absolute top-[18%] left-[12%] text-xs">🌼</div>
-          <div className="absolute top-[80%] left-[10%] text-xs">🍄</div>
+          <div className="absolute top-[82%] left-[10%] text-xs">🍄</div>
+          <div className="absolute top-[48%] left-[8%] text-xs">🌾</div>
+          <div className="absolute top-[48%] right-[8%] text-xs">🌲</div>
+          <div className="absolute top-[75%] left-[48%] text-xs">🌷</div>
         </div>
 
-        {/* ================= ROAD NETWORK ================= */}
-        {/* 1. CENTRAL EAST-WEST HIGHWAY (Cobblestone Highway) */}
+        {/* ================= HIGHWAY & ROAD SYSTEM ================= */}
+        {/* 1. CENTRAL MAIN EAST-WEST HIGHWAY */}
         <div
-          className="absolute left-0 right-[24%] top-[38%] h-[14%] bg-[#57534e] border-y-4 border-[#292524] shadow-[0_4px_16px_rgba(0,0,0,0.4)] z-0 flex items-center justify-around"
+          className="absolute left-[2%] right-[2%] top-[40%] h-[14%] bg-[#57534e] border-y-4 border-[#292524] shadow-[0_6px_20px_rgba(0,0,0,0.5)] z-0 flex items-center justify-around"
           style={{
             backgroundImage: 'repeating-linear-gradient(90deg, #57534e, #57534e 20px, #44403c 20px, #44403c 40px)'
           }}
@@ -291,9 +597,9 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
           <div className="w-full border-t-2 border-dashed border-amber-200/40" />
         </div>
 
-        {/* 2. NORTH ROAD TO CAFE (Turning up from Crossroads) */}
+        {/* 2. NORTH ROAD TO CAFE */}
         <div
-          className="absolute left-[24%] top-[14%] w-[12%] h-[26%] bg-[#57534e] border-x-4 border-[#292524] z-0"
+          className="absolute left-[16%] top-[14%] w-[10%] h-[28%] bg-[#57534e] border-x-4 border-[#292524] z-0"
           style={{
             backgroundImage: 'repeating-linear-gradient(0deg, #57534e, #57534e 20px, #44403c 20px, #44403c 40px)'
           }}
@@ -301,47 +607,66 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
           <div className="h-full border-l-2 border-dashed border-amber-200/40 ml-[48%]" />
         </div>
 
-        {/* 3. SOUTH ROAD TO QUARRY (The Red Arrow Path! Directly under Crossroads) */}
+        {/* 3. NORTH ROAD TO SKY ISLAND PORTAL */}
         <div
-          className="absolute left-[36%] top-[50%] w-[15%] h-[38%] bg-[#44403c] border-x-4 border-[#1c1917] z-0 shadow-lg flex flex-col justify-around items-center"
+          className="absolute left-[45%] top-[12%] w-[10%] h-[30%] bg-[#57534e] border-x-4 border-[#292524] z-0"
           style={{
-            backgroundImage: 'repeating-linear-gradient(0deg, #44403c, #44403c 16px, #292524 16px, #292524 32px)'
+            backgroundImage: 'repeating-linear-gradient(0deg, #57534e, #57534e 20px, #44403c 20px, #44403c 40px)'
           }}
         >
-          {/* Minecart Rails & Wooden Ties */}
+          <div className="h-full border-l-2 border-dashed border-purple-300/40 ml-[48%]" />
+        </div>
+
+        {/* 4. NORTH ROAD TO RESORT HOTEL */}
+        <div
+          className="absolute right-[16%] top-[14%] w-[10%] h-[28%] bg-[#6b4e3d] border-x-4 border-[#3b2314] z-0 shadow-md"
+          style={{
+            backgroundImage: 'repeating-linear-gradient(0deg, #6b4e3d, #6b4e3d 20px, #523829 20px, #523829 40px)'
+          }}
+        >
+          <div className="h-full border-l-2 border-dashed border-yellow-300/40 ml-[48%]" />
+        </div>
+
+        {/* 5. SOUTH ROAD TO QUARRY */}
+        <div
+          className="absolute left-[16%] top-[52%] w-[11%] h-[38%] bg-[#44403c] border-x-4 border-[#1c1917] z-0 shadow-lg flex flex-col justify-around items-center"
+        >
           <div className="w-[70%] h-full flex justify-between border-x-2 border-zinc-400/80 relative">
             <div className="w-full h-full flex flex-col justify-between py-1 pointer-events-none">
               <div className="w-full h-1 bg-amber-900 border-t border-amber-950" />
               <div className="w-full h-1 bg-amber-900 border-t border-amber-950" />
               <div className="w-full h-1 bg-amber-900 border-t border-amber-950" />
               <div className="w-full h-1 bg-amber-900 border-t border-amber-950" />
-              <div className="w-full h-1 bg-amber-900 border-t border-amber-950" />
-            </div>
-            {/* South Road Direction Indicator */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-60 text-amber-200 text-xs font-minecraft pointer-events-none">
-              <span>{isEn ? '▼ Quarry Mine ▼' : '▼ 採掘礦坑 ▼'}</span>
             </div>
           </div>
         </div>
 
+        {/* 6. SOUTH ROAD TO FORGE */}
+        <div
+          className="absolute left-[45%] top-[52%] w-[10%] h-[38%] bg-[#44403c] border-x-4 border-[#1c1917] z-0"
+        />
+
+        {/* 7. SOUTH ROAD TO ELEVATOR */}
+        <div
+          className="absolute right-[16%] top-[52%] w-[10%] h-[38%] bg-[#3f3f46] border-x-4 border-[#18181b] z-0"
+        />
+
         {/* Central Crossroads Cobblestone Plaza */}
-        <div className="absolute left-[35%] top-[38%] w-[17%] h-[14%] bg-[#78716c] border-4 border-[#292524] rounded-lg z-0 flex items-center justify-center shadow-inner">
-          <div className="text-[10px] text-amber-300 font-bold font-minecraft opacity-70">
-            {isEn ? '✦ Crossroads ✦' : '✦ 十字路口 ✦'}
+        <div className="absolute left-[34%] top-[39%] w-[32%] h-[16%] bg-[#78716c] border-4 border-[#292524] rounded-2xl z-0 flex items-center justify-center shadow-inner">
+          <div className="text-[11px] text-amber-300 font-black font-minecraft flex items-center gap-1.5 opacity-80">
+            <span>⛲</span>
+            <span>{isEn ? '✦ Central Grand Crossroads Plaza ✦' : '✦ 中央星芒大廣場 ✦'}</span>
           </div>
         </div>
 
         {/* Wooden Directional Signpost at Crossroads */}
-        <div className="absolute left-[54%] top-[36%] z-10 pointer-events-none">
+        <div className="absolute left-[58%] top-[36%] z-10 pointer-events-none">
           <div className="bg-amber-900/95 border-2 border-amber-600 px-2 py-1 rounded-md text-[9px] font-minecraft text-amber-200 shadow-xl flex flex-col gap-0.5">
-            <div>{isEn ? '⬆ 2F Cafe' : '⬆ 2F 咖啡廳'}</div>
-            <div className={`font-bold ${isSkyIslandUnlocked ? 'text-emerald-300' : 'text-amber-300'}`}>
-              {isSkyIslandUnlocked
-                ? (isEn ? '☁ Sky Island (Rank 15 Unlocked)' : '☁ 神秘空島 (Rank 15 已解鎖)')
-                : (isEn ? `☁ Sky Island (Req Rank 15 • Lv.${playerLevel}/15)` : `☁ 神秘空島 (需 Rank 15 • Lv.${playerLevel}/15)`)}
-            </div>
-            <div>{isEn ? '⬇ B1~B10 Mine' : '⬇ B1~B10 礦坑'}</div>
-            <div>{isEn ? '➡ Elevator' : '➡ 直達電梯'}</div>
+            <div>{isEn ? '◀ Construction Site' : '◀ 建築工地 (往左走)'}</div>
+            <div>{isEn ? '↖ 2F Cafe' : '↖ 2F 咖啡廳'}</div>
+            <div>{isEn ? '↗ Hotel Resort' : '↗ 休閒旅館 (溫泉/吧台)'}</div>
+            <div>{isEn ? '↙ Quarry Mine' : '↙ 地底礦坑'}</div>
+            <div>{isEn ? '↘ Elevator' : '↘ 直達電梯'}</div>
           </div>
           <div className="w-1.5 h-4 bg-amber-950 mx-auto" />
         </div>
@@ -353,12 +678,11 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
             sound.playClickSound();
             if (onOpenMusicPlayer) onOpenMusicPlayer();
           }}
-          className="absolute left-[52%] top-[41%] z-10 cursor-pointer group flex flex-col items-center hover:scale-110 transition-transform"
+          className="absolute left-[48%] top-[42%] z-10 cursor-pointer group flex flex-col items-center hover:scale-110 transition-transform"
           title={isEn ? 'Redstone Jukebox (Click to open BGM Player)' : '紅石唱片機 (點擊開啟音樂播放器)'}
         >
           <div className="w-8 h-8 rounded bg-[#452817] border-2 border-[#824d2c] shadow-lg flex items-center justify-center relative group-hover:border-amber-400">
             <span className="text-sm">💽</span>
-            {/* Animated musical note floats */}
             <span className="absolute -top-3 -right-2 text-[10px] animate-bounce">🎵</span>
           </div>
           <span className="text-[8px] bg-black/85 px-1 py-0.2 rounded font-minecraft text-amber-300 whitespace-nowrap mt-0.5 border border-amber-700/80 shadow">
@@ -366,105 +690,24 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
           </span>
         </div>
 
-        {/* ================= 4. MYSTERIOUS SKY ISLAND (Top-Center Floating Realm - Branch #2) ================= */}
-        <div className="absolute left-[34%] top-[2%] w-[36%] h-[32%] z-10">
+        {/* ================= 1. CAFE BUILDING (Top-Left: x: 2%~30%, y: 4%~36%) ================= */}
+        <div className="absolute left-[2%] top-[3%] w-[30%] h-[35%] z-10">
           <div
             onClick={(e) => {
               e.stopPropagation();
-              handleTriggerSkyIsland();
+              sound.playClickSound();
+              onEnterZone('cafe');
             }}
-            className={`relative w-full h-full bg-[#18112e]/95 border-4 ${
-              isSkyIslandUnlocked ? 'border-purple-400 shadow-[0_0_25px_rgba(168,85,247,0.4)]' : 'border-amber-600/80 shadow-[0_0_15px_rgba(217,119,6,0.3)]'
-            } rounded-2xl flex flex-col p-2.5 overflow-hidden group hover:scale-[1.02] transition-transform text-white cursor-pointer ${
-              nearSkyIsland ? 'ring-4 ring-purple-300 animate-pulse bg-[#251747]' : ''
+            className={`relative w-full h-full bg-[#fefce8] border-4 border-[#15803d] rounded-2xl shadow-2xl flex flex-col p-2.5 overflow-hidden group hover:scale-[1.02] transition-transform cursor-pointer ${
+              nearCafe ? 'ring-4 ring-emerald-300 animate-pulse' : ''
             }`}
           >
-            {/* Sky Island Floating Awning / Banner */}
-            <div className={`absolute -top-2 left-1/2 -translate-x-1/2 w-[94%] h-7 ${
-              isSkyIslandUnlocked
-                ? 'bg-gradient-to-r from-purple-800 via-indigo-700 to-purple-800 border-purple-400'
-                : 'bg-gradient-to-r from-amber-950 via-purple-950 to-amber-950 border-amber-500'
-            } border-b-2 rounded-t-xl flex items-center justify-center gap-1.5 shadow`}>
-              <span className="text-amber-300 text-xs animate-pulse">☁️</span>
-              <span className="text-white text-[10px] font-black tracking-wider uppercase font-minecraft">
-                {isEn ? '2ND BRANCH • SKY ISLAND (REQ RANK 15)' : '第二分店 • 神秘空島 (需 RANK 15)'}
-              </span>
-              <span className="text-amber-300 text-xs animate-pulse">✨</span>
-            </div>
-
-            <div className="mt-4 flex-1 flex flex-col justify-between items-center text-center">
-              {/* Island Title & Unlock Tag */}
-              <div className="flex items-center gap-1.5 bg-purple-950/80 px-2.5 py-0.5 rounded-full border border-purple-400/50">
-                <span className="text-base">🏝️</span>
-                <span className="text-xs sm:text-sm font-black text-purple-200 font-minecraft">
-                  {isEn ? 'Mysterious Sky Island' : '神秘空島'}
-                </span>
-                <span className={`text-[9px] px-1.5 py-0.2 rounded font-black font-minecraft ${
-                  isSkyIslandUnlocked
-                    ? 'bg-emerald-950 text-emerald-300 border border-emerald-500'
-                    : 'bg-amber-950 text-amber-300 border border-amber-500 animate-pulse'
-                }`}>
-                  {isSkyIslandUnlocked
-                    ? (isEn ? '✨ Rank 15 Unlocked' : '✨ Rank 15 已解鎖')
-                    : (isEn ? `🔒 Req Rank 15 (Lv.${playerLevel}/15)` : `🔒 需 Rank 15 解鎖 (Lv.${playerLevel}/15)`)}
-                </span>
-              </div>
-
-              {/* Sky Island Atmosphere Details */}
-              <div className="flex items-center gap-1 text-[10px] text-purple-200/90 font-bold">
-                <span>{isEn ? '🌌 Celestial Starlight' : '🌌 星空祕境露天'}</span>
-                <span>•</span>
-                <span>{isEn ? '12 Starlight Tables' : '12 張星空餐桌'}</span>
-              </div>
-
-              {/* Mini Level Progress Bar when locked */}
-              {!isSkyIslandUnlocked && (
-                <div className="w-full bg-black/60 px-2 py-1 rounded-lg border border-amber-600/50 space-y-0.5">
-                  <div className="flex items-center justify-between text-[9px] font-minecraft text-amber-300">
-                    <span>{isEn ? 'Rank 15 Req:' : '需達到 Rank 15：'}</span>
-                    <span className="font-mono font-bold text-amber-200">Lv.{playerLevel} / 15</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden border border-zinc-700">
-                    <div
-                      className="h-full bg-gradient-to-r from-amber-500 to-purple-500 rounded-full"
-                      style={{ width: `${Math.min(100, Math.max(5, (playerLevel / 15) * 100))}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Action Button: Travel to Sky Island */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleTriggerSkyIsland();
-                }}
-                className={`w-full py-1.5 font-black text-xs rounded-xl border-2 shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1.5 font-minecraft ${
-                  isSkyIslandUnlocked
-                    ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white border-amber-300 shadow-[0_0_12px_rgba(168,85,247,0.6)]'
-                    : 'bg-amber-950/90 hover:bg-amber-900 text-amber-200 border-amber-500 shadow'
-                }`}
-              >
-                <span>{isSkyIslandUnlocked ? '🚀' : '🔒'}</span>
-                <span>
-                  {isSkyIslandUnlocked
-                    ? (isEn ? 'TRAVEL TO SKY ISLAND' : '前往神秘空島')
-                    : (isEn ? `LOCKED • Requires Rank 15 (Lv.${playerLevel}/15)` : `尚未解鎖 • 需 Rank 15 (目前 Lv.${playerLevel}/15)`)}
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ================= 1. CAFE BUILDING (Top-Left) ================= */}
-        <div className="absolute left-[3%] top-[4%] w-[29%] h-[38%] z-10">
-          <div className="relative w-full h-full bg-[#fefce8] border-4 border-[#15803d] rounded-2xl shadow-2xl flex flex-col p-2.5 overflow-hidden group hover:scale-[1.02] transition-transform">
             {/* Cafe Awning */}
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-[92%] h-8 bg-[#16a34a] border-b-4 border-[#15803d] rounded-t-xl flex items-center justify-center shadow">
-              <span className="text-white text-[11px] font-black tracking-wider">☕ 2F MINING CAFE</span>
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-[92%] h-7 bg-[#16a34a] border-b-4 border-[#15803d] rounded-t-xl flex items-center justify-center shadow">
+              <span className="text-white text-[10px] font-black tracking-wider uppercase">☕ 2F MINING CAFE</span>
             </div>
 
-            <div className="mt-4 flex-1 flex flex-col justify-between items-center text-center">
+            <div className="mt-3 flex-1 flex flex-col justify-between items-center text-center">
               <div className="flex items-center gap-1.5 bg-[#15803d]/10 px-2.5 py-0.5 rounded-full border border-[#16a34a]/30">
                 <span className="text-base">☕</span>
                 <span className="text-xs sm:text-sm font-black text-[#15803d] font-minecraft">
@@ -485,9 +728,7 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
                   sound.playClickSound();
                   onEnterZone('cafe');
                 }}
-                className={`w-full py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl border-2 border-black shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
-                  nearCafe ? 'ring-4 ring-emerald-300 animate-pulse bg-emerald-500' : ''
-                }`}
+                className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl border-2 border-black shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1.5"
               >
                 <span>☕</span>
                 <span>{isEn ? 'ENTER CAFE' : '進入咖啡廳大廳'}</span>
@@ -496,8 +737,125 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
           </div>
         </div>
 
-        {/* ================= 2. QUARRY MINE SHAFT (Bottom-Left) ================= */}
-        <div className="absolute left-[4%] bottom-[4%] w-[36%] h-[38%] z-10">
+        {/* ================= 2. MYSTERIOUS SKY ISLAND (Top-Center: x: 34%~66%, y: 2%~32%) ================= */}
+        <div className="absolute left-[34%] top-[2%] w-[32%] h-[33%] z-10">
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTriggerSkyIsland();
+            }}
+            className={`relative w-full h-full bg-[#18112e]/95 border-4 ${
+              isSkyIslandUnlocked ? 'border-purple-400 shadow-[0_0_25px_rgba(168,85,247,0.4)]' : 'border-amber-600/80 shadow-[0_0_15px_rgba(217,119,6,0.3)]'
+            } rounded-2xl flex flex-col p-2.5 overflow-hidden group hover:scale-[1.02] transition-transform text-white cursor-pointer ${
+              nearSkyIsland ? 'ring-4 ring-purple-300 animate-pulse bg-[#251747]' : ''
+            }`}
+          >
+            {/* Sky Island Floating Banner */}
+            <div className={`absolute -top-2 left-1/2 -translate-x-1/2 w-[94%] h-6 ${
+              isSkyIslandUnlocked
+                ? 'bg-gradient-to-r from-purple-800 via-indigo-700 to-purple-800 border-purple-400'
+                : 'bg-gradient-to-r from-amber-950 via-purple-950 to-amber-950 border-amber-500'
+            } border-b-2 rounded-t-xl flex items-center justify-center gap-1 shadow`}>
+              <span className="text-amber-300 text-xs">☁️</span>
+              <span className="text-white text-[9px] font-black tracking-wider uppercase font-minecraft">
+                {isEn ? '2ND BRANCH • SKY ISLAND (REQ RANK 15)' : '第二分店 • 神秘空島'}
+              </span>
+            </div>
+
+            <div className="mt-3 flex-1 flex flex-col justify-between items-center text-center">
+              <div className="flex items-center gap-1.5 bg-purple-950/80 px-2 py-0.5 rounded-full border border-purple-400/50">
+                <span className="text-base">🏝️</span>
+                <span className="text-xs sm:text-sm font-black text-purple-200 font-minecraft">
+                  {isEn ? 'Mysterious Sky Island' : '神秘空島'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1 text-[10px] text-purple-200/90 font-bold">
+                <span>{isSkyIslandUnlocked ? (isEn ? '✨ Rank 15 Unlocked' : '✨ 已解鎖') : `🔒 Lv.${playerLevel}/15`}</span>
+                <span>•</span>
+                <span>{isEn ? '12 Tables' : '星空露天座'}</span>
+              </div>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTriggerSkyIsland();
+                }}
+                className={`w-full py-1.5 font-black text-xs rounded-xl border-2 shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1 font-minecraft ${
+                  isSkyIslandUnlocked
+                    ? 'bg-purple-600 hover:bg-purple-500 text-white border-amber-300'
+                    : 'bg-amber-950/90 text-amber-200 border-amber-500'
+                }`}
+              >
+                <span>{isSkyIslandUnlocked ? '🚀' : '🔒'}</span>
+                <span>{isSkyIslandUnlocked ? (isEn ? 'ASCEND' : '前往空島') : (isEn ? 'LOCKED (Lv.15)' : '未解鎖 (需Lv.15)')}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ================= 3. LEISURE RESORT HOTEL & HOT SPRINGS (Top-Right: x: 68%~98%, y: 3%~36%) ================= */}
+        <div className="absolute right-[2%] top-[3%] w-[30%] h-[35%] z-10">
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTriggerHotel();
+            }}
+            className={`relative w-full h-full bg-[#241a12] border-4 border-[#d97706] rounded-2xl shadow-2xl flex flex-col p-2.5 overflow-hidden group hover:scale-[1.02] transition-transform cursor-pointer text-white ${
+              nearHotel ? 'ring-4 ring-amber-300 animate-pulse bg-[#332215]' : ''
+            }`}
+          >
+            {/* Hotel Roof Chalet Trim */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-[94%] h-7 bg-gradient-to-r from-amber-700 via-yellow-600 to-amber-700 border-b-4 border-amber-800 rounded-t-xl flex items-center justify-center gap-1.5 shadow">
+              <span className="text-amber-200 text-xs animate-bounce">♨️</span>
+              <span className="text-white text-[10px] font-black tracking-wider uppercase font-minecraft">
+                {isEn ? 'LEISURE RESORT HOTEL & SPA' : '🏨 休閒渡假旅館 • 露天溫泉'}
+              </span>
+              <span className="text-amber-200 text-xs animate-bounce">♨️</span>
+            </div>
+
+            <div className="mt-3 flex-1 flex flex-col justify-between items-center text-center">
+              {/* Hotel Title & Badges */}
+              <div className="flex items-center gap-1.5 bg-amber-950/80 px-2.5 py-0.5 rounded-full border border-amber-500/60">
+                <span className="text-base">🏨</span>
+                <span className="text-xs sm:text-sm font-black text-amber-200 font-minecraft">
+                  {isEn ? 'Cozy Leisure Hotel' : '休閒旅館'}
+                </span>
+                <span className="text-[9px] px-1.5 py-0.2 bg-rose-950 text-rose-300 rounded font-bold border border-rose-700">
+                  ♨️ 溫泉水療
+                </span>
+              </div>
+
+              {/* Facility Icons preview */}
+              <div className="flex items-center justify-around w-full px-1 text-[11px] bg-black/40 py-1 rounded-lg border border-amber-900/60 text-amber-300">
+                <span title="邊喝咖啡邊掛機吧台">☕ 吧台</span>
+                <span>•</span>
+                <span title="經典鎬具合成進化樹">⛏️ 鎬具樹</span>
+                <span>•</span>
+                <span title="即時伺服器狀態">🌐 伺服器</span>
+                <span>•</span>
+                <span title="老鐵店長 AI">👨‍🌾 老鐵</span>
+                <span>•</span>
+                <span title="建築藍圖工坊">📐 藍圖</span>
+              </div>
+
+              {/* Enter Hotel Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTriggerHotel();
+                }}
+                className="w-full py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs rounded-xl border-2 border-amber-200 shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1.5 font-minecraft shadow-[0_0_12px_rgba(245,158,11,0.5)]"
+              >
+                <span>🏨</span>
+                <span>{isEn ? 'ENTER HOTEL' : '進入 休閒旅館'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ================= 4. QUARRY MINE SHAFT (Bottom-Left: x: 2%~30%, y: 58%~96%) ================= */}
+        <div className="absolute left-[2%] bottom-[3%] w-[30%] h-[36%] z-10">
           <div
             onClick={(e) => {
               e.stopPropagation();
@@ -508,7 +866,6 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
               nearQuarry ? 'ring-4 ring-amber-400 bg-zinc-900' : ''
             }`}
           >
-            {/* Rocky Cavern Title */}
             <div className="flex items-center justify-between border-b-2 border-zinc-700 pb-1">
               <div className="flex items-center gap-1.5">
                 <Pickaxe className="w-4 h-4 text-amber-400" />
@@ -521,19 +878,17 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
               </span>
             </div>
 
-            {/* Cavern Scenery & Rails */}
-            <div className="flex-1 flex items-center justify-between px-1">
+            <div className="flex-1 flex items-center justify-between px-1 my-1">
               <div className="flex flex-col text-left text-[10px] text-zinc-300">
                 <div className="flex items-center gap-1 text-amber-300 font-bold">
                   <span>⛏️</span>
-                  <span>{isEn ? 'Dig deep for rare ores!' : '深入地層開採方塊！'}</span>
+                  <span>{isEn ? 'Mine for rare ores' : '深入地層開採方塊'}</span>
                 </div>
                 <div className="text-zinc-400 text-[9px] line-clamp-1">
-                  {isEn ? 'Supplies 1,000 cafe recipes' : '供應咖啡廳千道料理食材'}
+                  {isEn ? 'Supplies cafe ingredients' : '供應千道料理食材'}
                 </div>
               </div>
 
-              {/* Ore Chunks visual */}
               <div className="flex gap-1 text-base bg-black/50 p-1 rounded-lg border border-zinc-700">
                 <span>💎</span>
                 <span>🌋</span>
@@ -541,27 +896,22 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
               </div>
             </div>
 
-            {/* Enter Quarry Button Pad */}
-            <div className="w-full pt-1 flex items-center justify-between gap-1 border-t border-zinc-700">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  sound.playClickSound();
-                  onEnterZone('quarry');
-                }}
-                className={`w-full py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl border-2 border-black shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
-                  nearQuarry ? 'ring-2 ring-amber-200 animate-bounce' : ''
-                }`}
-              >
-                <span>⛏️</span>
-                <span>{isEn ? 'ENTER MINE' : '進入 採掘礦坑'}</span>
-              </button>
-            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                sound.playClickSound();
+                onEnterZone('quarry');
+              }}
+              className="w-full py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl border-2 border-black shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1.5"
+            >
+              <span>⛏️</span>
+              <span>{isEn ? 'ENTER MINE' : '進入 採掘礦坑'}</span>
+            </button>
           </div>
         </div>
 
-        {/* ================= 3. REDSTONE BLACKSMITH & AUTOMATION FORGE (Bottom-Center) ================= */}
-        <div className="absolute left-[42%] bottom-[4%] w-[33%] h-[38%] z-10">
+        {/* ================= 5. REDSTONE BLACKSMITH (Bottom-Center: x: 34%~66%, y: 58%~96%) ================= */}
+        <div className="absolute left-[34%] bottom-[3%] w-[32%] h-[36%] z-10">
           <div
             onClick={(e) => {
               e.stopPropagation();
@@ -572,7 +922,6 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
               nearBlacksmith ? 'ring-4 ring-amber-400 bg-[#291b15]' : ''
             }`}
           >
-            {/* Forge Header */}
             <div className="flex items-center justify-between border-b-2 border-amber-950 pb-1">
               <div className="flex items-center gap-1.5">
                 <span className="text-base animate-pulse">🔨</span>
@@ -585,124 +934,114 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
               </span>
             </div>
 
-            {/* Forge Visual & Progress */}
             <div className="flex-1 flex flex-col justify-between my-1 py-0.5">
               <div className="flex items-center justify-between text-[10px] text-zinc-300">
                 <div className="flex items-center gap-1 text-amber-300 font-bold">
                   <span>⚙️</span>
-                  <span>{isEn ? 'Auto-Gather Modules' : '自動採集升級模項'}</span>
+                  <span>{isEn ? 'Auto-Gather Modules' : '自動採集模組'}</span>
                 </div>
                 <span className="text-emerald-400 font-mono font-bold">
                   {Math.round((unlockedBlacksmithCount / 100) * 100)}%
                 </span>
               </div>
 
-              {/* Mini Forge Anvil Scene */}
-              <div className="bg-black/60 p-1.5 rounded-lg border border-amber-900/60 flex items-center justify-around text-base">
+              <div className="bg-black/60 p-1 rounded-lg border border-amber-900/60 flex items-center justify-around text-base">
                 <span>🔥</span>
                 <span>🛠️</span>
                 <span className="animate-pulse">🤖</span>
                 <span>💎</span>
               </div>
-
-              {/* Progress mini bar */}
-              <div className="w-full h-1.5 bg-zinc-950 rounded-full overflow-hidden border border-zinc-700">
-                <div
-                  className="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-emerald-400 rounded-full"
-                  style={{ width: `${Math.max(3, (unlockedBlacksmithCount / 100) * 100)}%` }}
-                />
-              </div>
             </div>
 
-            {/* Enter Blacksmith Button */}
-            <div className="w-full pt-1 border-t border-amber-950 flex justify-center">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  sound.playClickSound();
-                  if (onOpenBlacksmith) onOpenBlacksmith();
-                }}
-                className={`w-full py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-black text-xs rounded-xl border-2 border-black shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1.5 font-minecraft ${
-                  nearBlacksmith ? 'ring-2 ring-amber-300 animate-pulse' : ''
-                }`}
-              >
-                <span>🔨</span>
-                <span>{isEn ? 'ENTER FORGE (100)' : '進入 鐵匠鋪 (100種)'}</span>
-              </button>
-            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                sound.playClickSound();
+                if (onOpenBlacksmith) onOpenBlacksmith();
+              }}
+              className="w-full py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-black text-xs rounded-xl border-2 border-black shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1.5 font-minecraft"
+            >
+              <span>🔨</span>
+              <span>{isEn ? 'ENTER FORGE' : '進入 鐵匠鋪'}</span>
+            </button>
           </div>
         </div>
 
-        {/* ================= 4. REDSTONE STEAM ELEVATOR TOWER (Right) ================= */}
-        <div className="absolute right-[2%] top-[10%] w-[21%] h-[82%] z-10">
+        {/* ================= 6. REDSTONE STEAM ELEVATOR TOWER (Bottom-Right: x: 68%~98%, y: 54%~96%) ================= */}
+        <div className="absolute right-[2%] bottom-[3%] w-[30%] h-[38%] z-10">
           <div
             onClick={(e) => {
               e.stopPropagation();
               sound.playClickSound();
               onEnterZone('elevator');
             }}
-            className={`relative w-full h-full bg-[#18181b] border-4 border-cyan-800 rounded-2xl shadow-2xl flex flex-col p-3 overflow-hidden cursor-pointer group hover:scale-[1.02] transition-transform text-white ${
+            className={`relative w-full h-full bg-[#18181b] border-4 border-cyan-800 rounded-2xl shadow-2xl flex flex-col p-2.5 overflow-hidden cursor-pointer group hover:scale-[1.02] transition-transform text-white ${
               nearElevator ? 'ring-4 ring-cyan-400' : ''
             }`}
-            style={{
-              backgroundImage: 'radial-gradient(#0e7490 1px, transparent 1px)',
-              backgroundSize: '16px 16px'
-            }}
           >
-            {/* Top Gear / Wheel of elevator */}
             <div className="flex items-center justify-between border-b-2 border-zinc-800 pb-1">
               <div className="flex items-center gap-1.5">
-                <span className="text-base animate-spin">⚙️</span>
+                <span className="text-base animate-spin-slow">⚙️</span>
                 <span className="text-xs sm:text-sm font-black text-cyan-300 font-minecraft">
-                  {isEn ? 'Elevator Tower' : '紅石蒸氣電梯塔'}
+                  {isEn ? 'Elevator Tower' : '蒸氣電梯塔'}
                 </span>
               </div>
-              <span className="text-[10px] bg-cyan-950 px-1.5 py-0.5 rounded text-cyan-300 border border-cyan-700">
-                {isEn ? 'Express' : '直達傳送'}
+              <span className="text-[10px] bg-cyan-950 px-1.5 py-0.2 rounded text-cyan-300 border border-cyan-700 font-mono">
+                B10 ~ 4F
               </span>
             </div>
 
-            {/* Elevator shaft cables & floor display */}
-            <div className="flex-1 my-2 flex flex-col items-center justify-between border-2 border-zinc-800 rounded-lg p-2 bg-black/60">
-              <div className="flex items-center gap-1 font-mono text-xs text-amber-400 font-bold">
-                <span>▲</span>
-                <span>{isEn ? 'B10 ~ 4F Express' : 'B10 ~ 4F 直達'}</span>
-                <span>▼</span>
-              </div>
-
-              {/* Elevator Cabin Indicator */}
-              <div className="w-16 h-20 bg-gradient-to-b from-cyan-900 to-zinc-900 border-2 border-cyan-400 rounded-lg flex flex-col items-center justify-center gap-1 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-                <span className="text-2xl">🛗</span>
-                <span className="text-[9px] font-black text-cyan-200">EXPRESS</span>
-              </div>
-
-              <div className="w-full flex justify-around text-[10px] text-zinc-400">
-                <span>{isEn ? 'Cafe 2F' : '咖啡廳 2F'}</span>
-                <span>•</span>
-                <span>{isEn ? 'Mine B10' : '礦坑 B10'}</span>
+            <div className="flex-1 my-1 flex items-center justify-between px-2 bg-black/60 border border-zinc-800 rounded-lg">
+              <span className="text-2xl">🛗</span>
+              <div className="text-right text-[10px] text-zinc-300 font-mono">
+                <div className="text-cyan-300 font-bold">{isEn ? 'High Speed Transit' : '極速直達傳送'}</div>
+                <div className="text-zinc-400">{isEn ? 'Cafe • Mine • Strata' : '咖啡廳 • 礦坑 • 地層'}</div>
               </div>
             </div>
 
-            {/* Elevator Ride Button */}
-            <div className="w-full pt-1 border-t-2 border-zinc-800 flex justify-center">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  sound.playClickSound();
-                  onEnterZone('elevator');
-                }}
-                className={`w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-black font-black text-xs rounded-xl border-2 border-black shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1.5 ${
-                  nearElevator ? 'ring-2 ring-cyan-200 animate-pulse bg-cyan-400' : ''
-                }`}
-              >
-                <span>🛗</span>
-                <span>{isEn ? 'RIDE ELEVATOR' : '搭乘紅石電梯'}</span>
-              </button>
-            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                sound.playClickSound();
+                onEnterZone('elevator');
+              }}
+              className="w-full py-1.5 bg-cyan-600 hover:bg-cyan-500 text-black font-black text-xs rounded-xl border-2 border-black shadow active:scale-95 cursor-pointer transition-all flex items-center justify-center gap-1.5"
+            >
+              <span>🛗</span>
+              <span>{isEn ? 'RIDE ELEVATOR' : '搭乘 紅石電梯'}</span>
+            </button>
           </div>
         </div>
 
-        {/* 8. FOOTSTEP PARTICLES */}
+        {/* 左側入口告示牌:往左走 → 建築工地 */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            sound.playClickSound();
+            switchArea('site', 92, 47, 'left');
+          }}
+          className="absolute left-[0.5%] top-[43%] z-20 px-2 py-1 bg-orange-900/95 border-2 border-orange-500 rounded-md text-[9px] font-minecraft text-orange-100 shadow-xl animate-pulse cursor-pointer hover:bg-orange-800"
+          title={isEn ? 'Walk left to reach the Construction Site' : '往左走就會到建築工地'}
+        >
+          {isEn ? '◀ Construction Site' : '◀ 建築工地'}
+        </button>
+        </div>
+        )}
+
+        {/* ===== 地圖左側:建築工地 (area === 'site') ===== */}
+        {area === 'site' && (
+          <div className="absolute inset-0 ow-slide-from-left">
+            <BuildingSite
+              isEn={isEn}
+              nearLotId={nearLotId}
+              lotGrids={lotGrids}
+              onEnterLot={(id) => onEnterLot && onEnterLot(id)}
+              onLeaveSite={() => switchArea('main', 8, 47, 'right')}
+            />
+          </div>
+        )}
+
+        {/* 7. FOOTSTEP PARTICLES */}
         {footsteps.map(f => (
           <div
             key={f.id}
@@ -713,7 +1052,7 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
           </div>
         ))}
 
-        {/* 9. PLAYER AVATAR ON MAP */}
+        {/* 8. PLAYER AVATAR ON MAP */}
         <div
           className="absolute z-30 -translate-x-1/2 -translate-y-1/2 transition-all duration-150 pointer-events-none"
           style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
@@ -725,7 +1064,7 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
               <span>{playerName}</span>
             </div>
 
-            {/* Walking Character Sprite (Authentic Minecraft Pixel Art) */}
+            {/* Walking Character Sprite */}
             <div
               className={`transition-transform duration-100 ${
                 isWalking ? 'scale-110' : 'hover:scale-105'
@@ -746,38 +1085,75 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
           </div>
         </div>
 
-        {/* 10. INTERACTION PROMPT POPUP (When near any zone) */}
-        {(nearCafe || nearQuarry || nearElevator || nearSkyIsland) && (
+        {/* 9a. 建築工地互動提示 */}
+        {area === 'site' && nearLotId && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 px-5 py-2.5 bg-black/95 border-3 border-amber-400 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce">
-            <span className="text-xl">
-              {nearSkyIsland ? '☁️' : nearCafe ? '☕' : nearQuarry ? '⛏️' : '🛗'}
+            <span className="text-2xl">{getBuildingLot(nearLotId).emoji}</span>
+            <div className="text-left">
+              <div className="text-xs sm:text-sm font-black text-amber-300 font-minecraft">
+                {isEn
+                  ? `Press [E] or Click to Build: ${getBuildingLot(nearLotId).nameEn}`
+                  : `按 [E] 或點擊進入「${getBuildingLot(nearLotId).nameZh}」施工`}
+              </div>
+              <div className="text-[10px] text-zinc-400">
+                {isEn ? getBuildingLot(nearLotId).taglineEn : getBuildingLot(nearLotId).taglineZh}
+              </div>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                sound.playClickSound();
+                if (onEnterLot) onEnterLot(nearLotId);
+              }}
+              className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-300 text-black font-black text-xs rounded-lg border border-black shadow active:scale-95 cursor-pointer font-minecraft"
+            >
+              {isEn ? 'BUILD' : '開始施工'}
+            </button>
+          </div>
+        )}
+
+        {/* 9. INTERACTION PROMPT POPUP (When near any zone) */}
+        {(nearCafe || nearQuarry || nearElevator || nearSkyIsland || nearHotel || nearBlacksmith) && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 px-5 py-2.5 bg-black/95 border-3 border-amber-400 rounded-2xl shadow-2xl flex items-center gap-3 animate-bounce">
+            <span className="text-2xl">
+              {nearHotel ? '🏨' : nearSkyIsland ? '☁️' : nearCafe ? '☕' : nearQuarry ? '⛏️' : nearBlacksmith ? '🔨' : '🛗'}
             </span>
             <div className="text-left">
               <div className="text-xs sm:text-sm font-black text-amber-300 font-minecraft">
-                {nearSkyIsland
+                {nearHotel
+                  ? (isEn ? 'Press [E] or Click to Enter Resort Hotel' : '按 [E] 或點擊進入「休閒渡假旅館」')
+                  : nearSkyIsland
                   ? isSkyIslandUnlocked
                     ? (isEn ? 'Press [E] or Click to Travel to Sky Island' : '按 [E] 或點擊「前往神秘空島」')
-                    : (isEn ? `🔒 Sky Island Locked (Requires Rank 15, current Lv.${playerLevel})` : `🔒 神秘空島未解鎖（需 Rank 15，目前 Lv.${playerLevel}）`)
+                    : (isEn ? `🔒 Sky Island Locked (Requires Rank 15)` : `🔒 神秘空島未解鎖（需 Rank 15）`)
                   : nearCafe
                   ? (isEn ? 'Press [E] or Click to Enter Cafe' : '按 [E] 或點擊進入「超級咖啡廳」')
                   : nearQuarry
                   ? (isEn ? 'Press [E] or Click to Enter Quarry Mine' : '按 [E] 或點擊進入「地底採掘礦坑」')
+                  : nearBlacksmith
+                  ? (isEn ? 'Press [E] or Click to Enter Forge' : '按 [E] 或點擊進入「紅石鐵匠鋪」')
                   : (isEn ? 'Press [E] or Click to Enter Elevator' : '按 [E] 或點擊搭乘「紅石電梯」')}
               </div>
               <div className="text-[10px] text-zinc-400">
-                {nearSkyIsland
-                  ? (isEn ? 'Ascend into the clouds to visit Branch #2 (Celestial Starlight Realm)' : '乘著浮空風壓升空，抵達第二分店・星空祕境露天分店')
+                {nearHotel
+                  ? (isEn ? 'Coffee Lounge • Pickaxe Tree • Server Monitor • AI Barista • Hot Springs Spa' : '掛機吧台 • 鎬具樹 • 伺服器狀態 • 老鐵AI店長 • 建築藍圖 • 露天溫泉水療')
+                  : nearSkyIsland
+                  ? (isEn ? 'Ascend to Branch #2 (Celestial Starlight Realm)' : '抵達第二分店・星空祕境露天分店')
                   : nearCafe
-                  ? (isEn ? 'Manage 1,000 gourmet dishes & serve guests' : '製作千道料理、招呼入座顧客')
+                  ? (isEn ? 'Serve guests & cook 1,000 gourmet recipes' : '製作千道料理、招呼入座顧客')
                   : nearQuarry
-                  ? (isEn ? 'Descend into deep underground strata for mineral ores' : '沿著礦軌直達萬丈地底，採掘各層礦石食材')
+                  ? (isEn ? 'Descend into deep underground strata for mineral ores' : '沿著礦軌直達萬丈地底，採掘各層礦石方塊')
+                  : nearBlacksmith
+                  ? (isEn ? '100 automatic gathering modules & analytics' : '100種自動採集魔像模組與鍛造分析')
                   : (isEn ? 'High-speed transit between B10 and 4F' : '雙向高速穿梭於地表、咖啡廳與地下10大地層')}
               </div>
             </div>
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (nearSkyIsland) {
+                if (nearHotel) {
+                  handleTriggerHotel();
+                } else if (nearSkyIsland) {
                   handleTriggerSkyIsland();
                 } else if (nearCafe) {
                   sound.playClickSound();
@@ -785,6 +1161,9 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
                 } else if (nearQuarry) {
                   sound.playClickSound();
                   onEnterZone('quarry');
+                } else if (nearBlacksmith && onOpenBlacksmith) {
+                  sound.playClickSound();
+                  onOpenBlacksmith();
                 } else {
                   sound.playClickSound();
                   onEnterZone('elevator');
@@ -798,64 +1177,71 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
         )}
       </div>
 
-      {/* MOBILE / TOUCH CONTROLS (D-PAD) */}
-      <div className="flex sm:hidden items-center justify-center gap-4 mt-4">
-        <div className="grid grid-cols-3 gap-2 bg-zinc-900 p-2 rounded-2xl border-2 border-zinc-700 shadow-lg">
-          <div />
-          <button
-            onClick={() => {
-              setFacing('up');
-              setPos(p => ({ ...p, y: Math.max(10, p.y - 5) }));
-            }}
-            className="w-11 h-11 bg-zinc-800 active:bg-zinc-700 rounded-xl flex items-center justify-center text-white border border-zinc-600 shadow active:scale-95"
-          >
-            <ArrowUp className="w-5 h-5" />
-          </button>
-          <div />
+      {/* ================= TOUCH CONTROLS / D-PAD (MOBILE & TABLET) ================= */}
+      {showTouchDPad && (
+        <div className="flex items-center justify-center gap-4 mt-4 select-none">
+          <div className="grid grid-cols-3 gap-2 bg-zinc-950/90 p-2.5 rounded-2xl border-2 border-zinc-700 shadow-2xl backdrop-blur-sm">
+            <div />
+            <button
+              onClick={() => {
+                setFacing('up');
+                setPos(p => ({ ...p, y: Math.max(8, p.y - 4) }));
+                triggerFootstep(pos.x, Math.max(8, pos.y - 4));
+              }}
+              className="w-12 h-12 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 rounded-xl flex items-center justify-center text-white border border-zinc-600 shadow active:scale-95 cursor-pointer"
+            >
+              <ArrowUp className="w-6 h-6" />
+            </button>
+            <div />
 
-          <button
-            onClick={() => {
-              setFacing('left');
-              setPos(p => ({ ...p, x: Math.max(6, p.x - 5) }));
-            }}
-            className="w-11 h-11 bg-zinc-800 active:bg-zinc-700 rounded-xl flex items-center justify-center text-white border border-zinc-600 shadow active:scale-95"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => {
-              if (nearSkyIsland) handleTriggerSkyIsland();
-              else if (nearCafe) onEnterZone('cafe');
-              else if (nearQuarry) onEnterZone('quarry');
-              else if (nearElevator) onEnterZone('elevator');
-            }}
-            className="w-11 h-11 bg-emerald-600 active:bg-emerald-500 rounded-xl flex items-center justify-center text-white font-black text-xs border border-emerald-400 shadow active:scale-95"
-          >
-            {nearSkyIsland ? (isSkyIslandUnlocked ? (isEn ? 'FLY' : '前往') : (isEn ? 'LOCK' : '上鎖')) : (isEn ? 'ENTER' : '進入')}
-          </button>
-          <button
-            onClick={() => {
-              setFacing('right');
-              setPos(p => ({ ...p, x: Math.min(94, p.x + 5) }));
-            }}
-            className="w-11 h-11 bg-zinc-800 active:bg-zinc-700 rounded-xl flex items-center justify-center text-white border border-zinc-600 shadow active:scale-95"
-          >
-            <ArrowRight className="w-5 h-5" />
-          </button>
+            <button
+              onClick={() => {
+                setFacing('left');
+                applyMove(posRef.current.x - 4, posRef.current.y);
+              }}
+              className="w-12 h-12 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 rounded-xl flex items-center justify-center text-white border border-zinc-600 shadow active:scale-95 cursor-pointer"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <button
+              onClick={() => {
+                if (nearLotId && onEnterLot) onEnterLot(nearLotId);
+                else if (nearHotel) handleTriggerHotel();
+                else if (nearSkyIsland) handleTriggerSkyIsland();
+                else if (nearCafe) onEnterZone('cafe');
+                else if (nearQuarry) onEnterZone('quarry');
+                else if (nearBlacksmith && onOpenBlacksmith) onOpenBlacksmith();
+                else if (nearElevator) onEnterZone('elevator');
+              }}
+              className="w-12 h-12 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 rounded-xl flex items-center justify-center text-black font-black text-xs border border-black shadow active:scale-95 cursor-pointer font-minecraft"
+            >
+              {nearLotId ? getBuildingLot(nearLotId).emoji : nearHotel ? '🏨' : nearSkyIsland ? '☁️' : nearCafe ? '☕' : nearQuarry ? '⛏️' : nearBlacksmith ? '🔨' : area === 'site' ? '🏗️' : '🛗'}
+            </button>
+            <button
+              onClick={() => {
+                setFacing('right');
+                applyMove(posRef.current.x + 4, posRef.current.y);
+              }}
+              className="w-12 h-12 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 rounded-xl flex items-center justify-center text-white border border-zinc-600 shadow active:scale-95 cursor-pointer"
+            >
+              <ArrowRight className="w-6 h-6" />
+            </button>
 
-          <div />
-          <button
-            onClick={() => {
-              setFacing('down');
-              setPos(p => ({ ...p, y: Math.min(90, p.y + 5) }));
-            }}
-            className="w-11 h-11 bg-zinc-800 active:bg-zinc-700 rounded-xl flex items-center justify-center text-white border border-zinc-600 shadow active:scale-95"
-          >
-            <ArrowDown className="w-5 h-5" />
-          </button>
-          <div />
+            <div />
+            <button
+              onClick={() => {
+                setFacing('down');
+                setPos(p => ({ ...p, y: Math.min(92, p.y + 4) }));
+                triggerFootstep(pos.x, Math.min(92, pos.y + 4));
+              }}
+              className="w-12 h-12 bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 rounded-xl flex items-center justify-center text-white border border-zinc-600 shadow active:scale-95 cursor-pointer"
+            >
+              <ArrowDown className="w-6 h-6" />
+            </button>
+            <div />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* FULLSCREEN SKY ISLAND ASCENSION TRANSITION */}
       {isAscending && (
@@ -878,7 +1264,6 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-md bg-[#18112e] border-4 border-purple-500 rounded-2xl shadow-2xl p-6 text-white font-minecraft relative space-y-4 text-center"
           >
-            {/* Top Close Button */}
             <button
               onClick={() => setShowLockedModal(false)}
               className="absolute top-3 right-3 text-zinc-400 hover:text-white text-lg cursor-pointer bg-zinc-800/80 px-2 py-0.5 rounded-lg border border-zinc-700"
@@ -886,7 +1271,6 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
               ✕
             </button>
 
-            {/* Glowing Icon & Locked Badge */}
             <div className="relative inline-flex items-center justify-center">
               <div className="w-20 h-20 rounded-2xl bg-purple-950/80 border-2 border-purple-400 flex items-center justify-center text-4xl shadow-[0_0_25px_rgba(168,85,247,0.5)]">
                 🏝️
@@ -911,7 +1295,6 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
                 : '前往神秘空島（第二分店・星空祕境）需要冒險家等級達到 Rank 15，方能承受浮空風壓並開啟星空露天露台！'}
             </p>
 
-            {/* Rank Progress Bar */}
             <div className="p-3 bg-black/60 rounded-xl border border-purple-900/80 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-zinc-400">{isEn ? 'Adventurer Rank Progress:' : '冒險家等級進度：'}</span>
@@ -932,18 +1315,6 @@ export const OverworldMap: React.FC<OverworldMapProps> = ({
               </div>
             </div>
 
-            {/* How to level up tips */}
-            <div className="text-left text-[11px] bg-purple-950/40 p-3 rounded-xl border border-purple-800/40 space-y-1 text-zinc-300">
-              <div className="font-bold text-amber-300 mb-1 flex items-center gap-1">
-                <span>💡</span>
-                <span>{isEn ? 'How to Reach Rank 15 Faster:' : '如何快速升至 Rank 15：'}</span>
-              </div>
-              <div>⛏️ {isEn ? 'Mine underground blocks to gain Adventure XP' : '深入地底礦坑開採稀有礦石方塊累積大量冒險經驗'}</div>
-              <div>☕ {isEn ? 'Serve cafe guests to earn coins and cafe reputation' : '在咖啡廳料理送餐累積金幣與店鋪知名度'}</div>
-              <div>📜 {isEn ? 'Complete Level Promotion Quests in the top bar' : '點擊頂部等級勳章查看並突破晉升特殊任務'}</div>
-            </div>
-
-            {/* Got it button */}
             <button
               onClick={() => setShowLockedModal(false)}
               className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs rounded-xl border-2 border-purple-300 shadow active:scale-95 cursor-pointer transition-all font-minecraft"

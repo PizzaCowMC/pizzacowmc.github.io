@@ -45,6 +45,11 @@ interface GameMenuModalProps {
   playerLevel?: number;
   onOpenGolemHarvest?: () => void;
   onOpenWelcome?: () => void;
+  onOpenCoffeeLounge?: () => void;
+  onOpenPickaxeEvolution?: () => void;
+  onOpenServerStatus?: () => void;
+  onOpenAIBrista?: () => void;
+  onOpenAIBlueprint?: () => void;
   onResetProgress?: () => void;
   currentUser: { email: string | null; displayName: string | null } | null;
   soundEnabled: boolean;
@@ -73,6 +78,11 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
   playerLevel = 0,
   onOpenGolemHarvest,
   onOpenWelcome,
+  onOpenCoffeeLounge,
+  onOpenPickaxeEvolution,
+  onOpenServerStatus,
+  onOpenAIBrista,
+  onOpenAIBlueprint,
   onResetProgress,
   currentUser,
   soundEnabled,
@@ -338,16 +348,91 @@ export const GameMenuModal: React.FC<GameMenuModalProps> = ({
               </button>
             )}
 
+            {onOpenCoffeeLounge && (
+              <button
+                onClick={() => handleAction(onOpenCoffeeLounge)}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-amber-950/40 to-[#282828] hover:from-amber-900/50 hover:to-[#333] border border-amber-600/50 rounded-xl flex items-center justify-between text-xs font-bold text-amber-200 transition-all active:scale-98"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">☕</span>
+                  <span>{isEn ? 'Idle Coffee Lounge & Buffs' : '邊喝咖啡邊掛機・特調吧台'}</span>
+                </div>
+                <span className="text-amber-400 font-mono text-[10px] bg-amber-950/80 px-1.5 py-0.5 rounded border border-amber-700/60">
+                  BUFF BAR
+                </span>
+              </button>
+            )}
+
+            {onOpenPickaxeEvolution && (
+              <button
+                onClick={() => handleAction(onOpenPickaxeEvolution)}
+                className="w-full px-4 py-2.5 bg-[#282828] hover:bg-[#323232] border border-[#383838] rounded-xl flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white transition-all active:scale-98"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">⛏️</span>
+                  <span>{isEn ? 'Pickaxe Evolution Tech Tree' : '鎬具階梯合成與進化樹'}</span>
+                </div>
+                <span className="text-amber-400 font-mono text-[10px] bg-amber-950/80 px-1.5 py-0.5 rounded border border-amber-700/60">
+                  {isEn ? 'TREE' : '科技樹'}
+                </span>
+              </button>
+            )}
+
+            {onOpenServerStatus && (
+              <button
+                onClick={() => handleAction(onOpenServerStatus)}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-cyan-950/30 to-[#282828] hover:from-cyan-900/40 hover:to-[#333] border border-cyan-600/40 rounded-xl flex items-center justify-between text-xs font-bold text-cyan-200 transition-all active:scale-98"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">🌐</span>
+                  <span>{isEn ? 'Server Status & Leaderboards' : '即時伺服器狀態與全服排行榜'}</span>
+                </div>
+                <span className="text-cyan-400 font-mono text-[10px] bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-800">
+                  TPS / RANK
+                </span>
+              </button>
+            )}
+
+            {onOpenAIBrista && (
+              <button
+                onClick={() => handleAction(onOpenAIBrista)}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-950/30 to-[#282828] hover:from-emerald-900/40 hover:to-[#333] border border-emerald-600/40 rounded-xl flex items-center justify-between text-xs font-bold text-emerald-200 transition-all active:scale-98"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">👨‍🌾</span>
+                  <span>{isEn ? 'AI Barista Tie (NPC Chat)' : '智慧咖啡師・老鐵 (AI店員)'}</span>
+                </div>
+                <span className="text-emerald-400 font-mono text-[10px] bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
+                  AI NPC
+                </span>
+              </button>
+            )}
+
+            {onOpenAIBlueprint && (
+              <button
+                onClick={() => handleAction(onOpenAIBlueprint)}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-indigo-950/30 to-[#282828] hover:from-indigo-900/40 hover:to-[#333] border border-indigo-600/40 rounded-xl flex items-center justify-between text-xs font-bold text-indigo-200 transition-all active:scale-98"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">📐</span>
+                  <span>{isEn ? 'AI Cafe Blueprint Architect' : 'AI 咖啡廳建築藍圖設計師'}</span>
+                </div>
+                <span className="text-indigo-400 font-mono text-[10px] bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-800">
+                  BLUEPRINT
+                </span>
+              </button>
+            )}
+
             <button
               onClick={() => handleAction(onOpenChangelog)}
               className="w-full px-4 py-2.5 bg-[#282828] hover:bg-[#323232] border border-[#383838] rounded-xl flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white transition-all active:scale-98"
             >
               <div className="flex items-center gap-2.5">
                 <Scroll className="w-4 h-4 text-amber-300" />
-                <span>{isEn ? '📜 Release Notes (Changelog v26.2.80)' : '📜 版本更新日誌 (Changelog v26.2.80)'}</span>
+                <span>{isEn ? '📜 Release Notes (Changelog v26.3.10)' : '📜 版本更新日誌 (Changelog v26.3.10)'}</span>
               </div>
               <span className="text-emerald-400 font-mono text-[10px] bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
-                v26.2.80
+                v26.3.10
               </span>
             </button>
           </div>

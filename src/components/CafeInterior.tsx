@@ -57,6 +57,12 @@ interface CafeInteriorProps {
   onOpenEncyclopedia?: () => void;
   onOpenMusicPlayer?: () => void;
   totalBlocksMined?: number;
+  onOpenCoffeeLounge?: () => void;
+  onOpenAIBrista?: () => void;
+  onOpenAIBlueprint?: () => void;
+  onOpenServerStatus?: () => void;
+  onOpenPickaxeEvolution?: () => void;
+  onOpenHotel?: () => void;
 }
 
 const CATEGORY_TABS: { id: DishCategory | "all"; nameZh: string; nameEn: string; icon: string; count: number }[] = [
@@ -86,7 +92,13 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
   layerMinedCounts = {},
   onOpenEncyclopedia,
   onOpenMusicPlayer,
-  totalBlocksMined = 0
+  totalBlocksMined = 0,
+  onOpenCoffeeLounge,
+  onOpenAIBrista,
+  onOpenAIBlueprint,
+  onOpenServerStatus,
+  onOpenPickaxeEvolution,
+  onOpenHotel
 }) => {
   const [activeTab, setActiveTab] = useState<"map" | "dining" | "kitchen" | "facilities_stars" | "upgrades">("map");
   const isBranch2 = cafeState.currentVenue === 'branch_2';
@@ -543,6 +555,90 @@ export const CafeInterior: React.FC<CafeInteriorProps> = ({
 
         {/* Navigation & Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
+          {onOpenHotel && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenHotel();
+              }}
+              className="px-3 py-2 bg-gradient-to-r from-yellow-700 via-amber-600 to-yellow-800 hover:from-yellow-600 hover:to-amber-500 text-black font-black text-xs sm:text-sm rounded-xl border-2 border-yellow-300 shadow active:scale-95 flex items-center gap-1.5 cursor-pointer transition-all hover:brightness-110 font-minecraft"
+              title={isEn ? "Visit Leisure Resort Hotel & Spa" : "前往休閒渡假旅館：掛機吧台・鎬具樹・伺服器・老鐵・藍圖與露天溫泉"}
+            >
+              <span className="text-base">🏨</span>
+              <span>{isEn ? "Resort Hotel" : "休閒旅館"}</span>
+            </button>
+          )}
+
+          {onOpenCoffeeLounge && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenCoffeeLounge();
+              }}
+              className="px-3 py-2 bg-gradient-to-r from-amber-700 to-amber-900 hover:from-amber-600 hover:to-amber-800 text-amber-100 font-bold text-xs sm:text-sm rounded-xl border-2 border-black shadow active:scale-95 flex items-center gap-1.5 cursor-pointer transition-all hover:brightness-110 font-minecraft"
+              title={isEn ? "Idle Coffee Lounge: Sip coffee to earn mining buffs" : "邊喝咖啡邊掛機：點咖啡獲得挖礦速度與幸運 Buff"}
+            >
+              <span className="text-base">☕</span>
+              <span>{isEn ? "Coffee Lounge" : "掛機吧台"}</span>
+            </button>
+          )}
+
+          {onOpenAIBrista && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenAIBrista();
+              }}
+              className="px-3 py-2 bg-gradient-to-r from-emerald-800 to-zinc-900 hover:from-emerald-700 hover:to-zinc-800 text-emerald-200 font-bold text-xs sm:text-sm rounded-xl border-2 border-emerald-600/70 shadow active:scale-95 flex items-center gap-1.5 cursor-pointer transition-all hover:brightness-110 font-minecraft"
+              title={isEn ? "Chat with AI Villager Barista Tie" : "智慧店長老鐵：村民 AI 角色對話與彩蛋"}
+            >
+              <span className="text-base">👨‍🌾</span>
+              <span>{isEn ? "AI Barista" : "店長老鐵"}</span>
+            </button>
+          )}
+
+          {onOpenAIBlueprint && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenAIBlueprint();
+              }}
+              className="px-3 py-2 bg-gradient-to-r from-indigo-900 to-zinc-900 hover:from-indigo-800 hover:to-zinc-800 text-indigo-200 font-bold text-xs sm:text-sm rounded-xl border-2 border-indigo-500/70 shadow active:scale-95 flex items-center gap-1.5 cursor-pointer transition-all hover:brightness-110 font-minecraft"
+              title={isEn ? "Generate Minecraft Cafe blueprints with AI" : "AI 咖啡廳建築藍圖與指令生成工具"}
+            >
+              <span className="text-base">📐</span>
+              <span>{isEn ? "AI Blueprint" : "建築藍圖"}</span>
+            </button>
+          )}
+
+          {onOpenServerStatus && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenServerStatus();
+              }}
+              className="px-3 py-2 bg-gradient-to-r from-cyan-950 to-zinc-900 hover:from-cyan-900 hover:to-zinc-800 text-cyan-200 font-bold text-xs sm:text-sm rounded-xl border-2 border-cyan-600/70 shadow active:scale-95 flex items-center gap-1.5 cursor-pointer transition-all hover:brightness-110 font-minecraft"
+              title={isEn ? "Server TPS, ping & real-time mining leaderboards" : "伺服器 TPS/Ping 監控與全服排行榜"}
+            >
+              <span className="text-base">🌐</span>
+              <span>{isEn ? "Server & Rank" : "伺服器狀態"}</span>
+            </button>
+          )}
+
+          {onOpenPickaxeEvolution && (
+            <button
+              onClick={() => {
+                sound.playClickSound();
+                onOpenPickaxeEvolution();
+              }}
+              className="px-3 py-2 bg-gradient-to-r from-amber-950 to-zinc-900 hover:from-amber-900 hover:to-zinc-800 text-amber-200 font-bold text-xs sm:text-sm rounded-xl border-2 border-amber-600/70 shadow active:scale-95 flex items-center gap-1.5 cursor-pointer transition-all hover:brightness-110 font-minecraft"
+              title={isEn ? "Minecraft Pickaxe Progression Tech Tree" : "鎬具合成階梯與進化科技樹"}
+            >
+              <span className="text-base">⛏️</span>
+              <span>{isEn ? "Pickaxe Tree" : "鎬具進化樹"}</span>
+            </button>
+          )}
+
           {onOpenEncyclopedia && (
             <button
               onClick={() => {

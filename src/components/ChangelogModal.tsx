@@ -32,8 +32,173 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
   const logs = [
     {
-      version: '26.2.80',
+      version: '26.3.10',
       isLatest: true,
+      //內容26.3.10
+      date: isEn
+        ? '26.3.10 Pickaxe Tree, Audiovisual Mining, Coffee Lounge AFK, Server Status & Gemini AI'
+        : '26.3.10 鎬子進化樹・沉浸挖礦手感音效・咖啡廳掛機Buff・即時伺服器監控・老鐵店長AI與建築藍圖',
+      badge: isEn
+        ? '26.3.10 Pickaxe Tree • Coffee Lounge • Server Ping • Gemini AI'
+        : '26.3.10 鎬子合成樹 • 咖啡廳掛機 • 即時伺服器監控 • 老鐵AI與藍圖',
+      badgeColor: 'bg-gradient-to-r from-amber-500 via-yellow-400 to-emerald-500 text-black shadow-xl animate-pulse font-black',
+      summary: isEn
+        ? 'Milestone Release 26.3.10: Massive upgrade featuring full mining audiovisual feedback (pickaxe clink, rock fracturing, crit particles & rare ore chimes), multi-tier Pickaxe Evolution Tree (Wood ➔ Stone ➔ Iron ➔ Diamond ➔ Netherite), immersive Coffee Lounge AFK buffs (Espresso, Cold Brew, Cappuccino & Enchanted Golden Coffee with Haste/Fortune/Double Coins multipliers), real-time Minecraft server monitor (live TPS, Ping & Player Leaderboard), AI Barista NPC "Old Iron" with villager dialogue & quests, plus AI Architectural Blueprint Generator for Minecraft cafes with command block exports!'
+        : '重磅里程碑版本 26.3.10：全面實裝四大核心維度升級！【互動與遊戲化體驗】加入高反饋鎬頭敲擊、石塊碎裂音效與粒子爆擊，以及五階「鎬子進化與合成樹」（木鎬➔石鎬➔鐵鎬➔鑽石鎬➔獄髓鎬）；【咖啡廳掛機特色】全新「邊喝咖啡邊掛機」咖啡沙龍，享用特調咖啡獲得急迫、幸運翻倍與金幣加倍Buff，沉浸Lo-Fi音樂放鬆；【即時伺服器整合】即時監控伺服器TPS/Ping、在線玩家與挖礦排行榜；【AI深度整合】Gemini強烈驅動村民形象「老鐵店長」NPC點餐對話互動，以及一鍵AI生成Minecraft風格咖啡廳建築藍圖與遊戲指令（/fill, /setblock）！',
+      highlights: [
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '⛏️ Pickaxe Evolution' : '⛏️ 鎬子升級與合成樹',
+          tagColor: 'bg-amber-900/60 text-amber-300 border-amber-500/40',
+          title: isEn
+            ? 'Minecraft Pickaxe Evolution Tree (Wood ➔ Netherite)'
+            : '經典 Minecraft 鎬子合成與進階升級樹（木鎬 ➔ 獄髓鎬）',
+          desc: isEn
+            ? 'Progress from Wooden, Stone, Iron, Diamond, up to Netherite Pickaxes! Each tier unleashes higher block damage, instant mining speeds, critical strike rates, and unlocks higher-tier cafe facilities and mining automation.'
+            : '引入正統 Minecraft 升級機制：從木鎬、石鎬、鐵鎬、鑽石鎬一路鍛造至獄髓鎬！高等級鎬子大幅提升開採威力、攻擊速度與幸運暴擊率，並能依序解鎖頂級咖啡廳設施與自動採礦魔像。'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '🔊 Audiovisual Feedback' : '🔊 挖礦視覺與聽覺手感',
+          tagColor: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/40',
+          title: isEn
+            ? 'Satisfying Pickaxe Strikes, Block Cracks & Particle Bursts'
+            : '細緻鎬頭敲擊聲、石塊崩裂音效與爆擊粒子特效',
+          desc: isEn
+            ? 'Every mining hit triggers distinct pickaxe clinks, fracturing stone sounds, and vibrant block crumble particles. Hitting rare ores plays celebratory Minecraft XP chimes for maximum tactile satisfaction.'
+            : '精心調校手感反饋：每次敲擊皆有金屬敲擊回音、石質碎裂破裂聲與動態方塊碎屑粒子！挖掘到稀有寶石更觸發神聖經驗值音效與光芒震顫，手感十足。'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '☕ Coffee Lounge AFK' : '☕ 邊喝咖啡邊掛機機制',
+          tagColor: 'bg-yellow-900/60 text-yellow-300 border-yellow-500/40',
+          title: isEn
+            ? 'Simulated Coffee Lounge with Powerful Buffs & Lo-Fi Music'
+            : '放鬆咖啡沙龍：點咖啡獲取挖礦速度加倍與幸運Buff',
+          desc: isEn
+            ? 'Order handcrafted coffees (Espresso, Cold Brew, Caramel Macchiato, Enchanted Golden Brew) to receive active Haste, Double Coins, and Fortune drop boosts while relaxing to curated Lo-Fi background tracks.'
+            : '打造放鬆掛機體驗：在咖啡沙龍挑選濃縮咖啡、冰滴咖啡、焦糖瑪奇朵或附魔金咖啡，即刻啟動急迫挖掘、雙倍金幣、幸運掉落等強力Buff，搭配沉浸式Lo-Fi輕音樂邊喝咖啡邊掛機！'
+        },
+        {
+          category: 'sync',
+          categoryLabel: isEn ? '🌐 Live Server Status' : '🌐 即時伺服器狀態整合',
+          tagColor: 'bg-cyan-900/60 text-cyan-300 border-cyan-500/40',
+          title: isEn
+            ? 'Real-Time Server TPS, Ping Monitor & Global Mining Leaderboard'
+            : '即時在線玩家列表、伺服器 TPS/Ping 監控與挖礦排行榜',
+          desc: isEn
+            ? 'Monitor live server health with 20.0 TPS indicators, latency ping meters, active online player rosters, and an interactive mining leaderboard ranking top excavators.'
+            : '隨時掌握伺服器脈搏：即時監控伺服器在線狀態、20.0 TPS穩定度指標、毫秒延遲Ping監控，並可直接在網頁端查看全服玩家挖礦排行榜（Leaderboard）與榮譽勳章！'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '🤖 AI Barista NPC' : '🤖 智慧村民店員老鐵 (AI)',
+          tagColor: 'bg-purple-900/60 text-purple-300 border-purple-500/40',
+          title: isEn
+            ? 'Interactive Minecraft Villager Barista with Dynamic Dialogues'
+            : '智慧咖啡廳店員 / NPC「老鐵店長」點餐與彩蛋互動',
+          desc: isEn
+            ? 'Chat with "Old Iron", the legendary Minecraft villager barista powered by Gemini AI! Order specialty beverages, hear tavern gossip, and trigger secret discount easter eggs through conversational dialogue.'
+            : '由 Gemini AI 深度驅動的村民形象咖啡廳店員「老鐵」！玩家可向店員點餐、詢問採礦秘技與生活八卦，透過對話還能觸發隱藏咖啡折扣與彩蛋任務。'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '📐 AI Blueprint Maker' : '📐 AI 咖啡廳建築藍圖產生器',
+          tagColor: 'bg-blue-900/60 text-blue-300 border-blue-500/40',
+          title: isEn
+            ? 'Generate Minecraft Cafe Blueprints, Block Lists & In-Game Commands'
+            : 'AI 生成 Minecraft 咖啡廳建築藍圖、方塊清單與指令導出',
+          desc: isEn
+            ? 'Input any architectural keyword or theme to instantly generate complete Minecraft cafe blueprints, complete with dimensions, materials list, layout steps, and copyable /fill and /setblock command block syntax.'
+            : '輸入喜愛的主題或關鍵字（如「森林木屋」、「地獄黑石現代風」），AI 立即為您生成完整的建築藍圖、方塊用量清單，並一鍵複製遊戲內指令（/fill, /setblock /structure block），助您在遊戲中完美還原！'
+        },
+        {
+          category: 'balance',
+          categoryLabel: isEn ? '⚡ Performance & Save' : '⚡ 效能優化與流暢存檔',
+          tagColor: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/40',
+          title: isEn
+            ? 'RWD Mobile Optimization, Low-Power Particle Canvas & Cloud Auto-Save'
+            : '跨裝置 RWD 完美適配、Canvas 低功耗優化與無縫自動儲存',
+          desc: isEn
+            ? 'Full responsive adaptation across smartphones, tablets, and desktops. Optimized Canvas rendering prevents CPU overheating and battery drain. State auto-saves seamlessly to LocalStorage and Cloud sync.'
+            : '全方位優化行動體驗：在手機、平板與桌機上均有流暢排版，Canvas 與音效系統具備記憶體回收與低功耗限制，防止裝置發燙；進度雙軌即時寫入 LocalStorage 與雲端存檔，重整頁面絕不遺失。'
+        }
+      ]
+    },
+    {
+      version: '26.3.00',
+      isLatest: false,
+      date: isEn
+        ? '26.3.00 Strata Progression Rebalance, 1% Offline Rate & Redstone Overhaul'
+        : '26.3.00 地層解鎖階梯式重構・1%離線採礦平衡・第1層加入紅石・鐵匠鋪圖表預設收合',
+      badge: isEn
+        ? '26.3.00 Strata Scale • 1% Offline Rate • Layer 1 Redstone'
+        : '26.3.00 地層進階數值 • 1%離線速率 • 第1層紅石 • 鐵匠鋪圖表收合',
+      badgeColor: 'bg-gradient-to-r from-red-600 via-amber-500 to-emerald-500 text-white shadow-xl animate-pulse font-black',
+      summary: isEn
+        ? 'Milestone Release 26.3.00: Rebalanced offline AFK mining to 1% of normal online rate for healthy idle economy. Overhauled strata unlock progression: Layer 2 requires 25,000 blocks in Layer 1, Layer 3 requires 50,000 in Layer 2, Layer 4 requires 75,000 in Layer 3, and so on. Added Redstone Ore directly to Layer 1 block roster. Defaulted the Redstone Blacksmith production analytics chart to collapsed. Removed Lv.2 block placement quest.'
+        : '重磅里程碑版本 26.3.00：將離線採礦設定為普通在線時的 1% 達到長期掛機經濟平衡。全面實裝地層階梯式解鎖條件：第 2 地層需第 1 地層挖滿 25,000 格，第 3 地層需第 2 地層挖滿 50,000 格，第 4 地層需第 3 地層挖滿 75,000 格，以此類推。將紅石礦石正式加入第 1 地層方塊列表中！紅石鐵匠鋪的每日產量趨勢圖表區預設為收合狀態。確認移除 Lv.2 放置任務，晉升更順暢！',
+      highlights: [
+        {
+          category: 'balance',
+          categoryLabel: isEn ? '⚖️ 1% Offline Mining' : '⚖️ 1% 離線採礦平衡',
+          tagColor: 'bg-emerald-900/60 text-emerald-300 border-emerald-500/40',
+          title: isEn
+            ? 'Offline AFK Mining Rate Set to Exactly 1% of Normal'
+            : '離線採礦速率正式調整為普通在線時的 1%',
+          desc: isEn
+            ? 'Iron Golem offline excavation yield is now calibrated to 1% of ordinary online speed, preserving player engagement while delivering valuable returning bonuses.'
+            : '鐵魁儡在玩家離開時的離線挖掘產量現在精確設定為普通在線時的 1%，並在離線收穫彈窗清楚標示速率，保持長期掛機數值的平衡與耐玩性。'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '⛏️ Strata Progression' : '⛏️ 地層階梯解鎖條件',
+          tagColor: 'bg-amber-900/60 text-amber-300 border-amber-500/40',
+          title: isEn
+            ? 'Stratum 2 Needs 25k in Layer 1, Stratum 3 Needs 50k in Layer 2, etc.'
+            : '第 2 地層需 1 層挖滿 25,000 格，第 3 地層需 2 層挖滿 50,000 格，以此類推',
+          desc: isEn
+            ? 'Every deeper layer now requires mastering the previous strata (Layer 2: 25k, Layer 3: 50k, Layer 4: 75k, Layer 5: 100k, ..., Layer N: (N-1)*25,000). Dynamic unlock toasts trigger when meeting the requirement.'
+            : '深入地脈需循序漸進：第 2 地層需第 1 地層累計開採滿 25,000 格、第 3 地層需第 2 地層滿 50,000 格、第 4 地層需第 3 地層滿 75,000 格，以此類推（每層增加 25,000 格）。挖掘達標時將動態跳出成就音效與解鎖提示！'
+        },
+        {
+          category: 'balance',
+          categoryLabel: isEn ? '🔴 Layer 1 Redstone' : '🔴 第 1 層加入紅石',
+          tagColor: 'bg-rose-900/60 text-rose-300 border-rose-500/40',
+          title: isEn
+            ? 'Added Redstone Ore into Stratum 1 Block Roster'
+            : '將紅石礦石加入第 1 地層的方塊列表中',
+          desc: isEn
+            ? 'Redstone Ore is now directly obtainable from Layer 1 (Surface Soil & Sedimentary Veins), allowing early-game miners to start gathering redstone power immediately.'
+            : '第 1 地層（地表泥岩與淺層沉積礦脈）現已正式包含紅石礦石，新手與前期玩家可立即開採珍貴紅石能源，加速鐵匠鋪升級與鍛造！'
+        },
+        {
+          category: 'feature',
+          categoryLabel: isEn ? '📊 Blacksmith UI' : '📊 鐵匠鋪圖表收合',
+          tagColor: 'bg-cyan-900/60 text-cyan-300 border-cyan-500/40',
+          title: isEn
+            ? 'Redstone Blacksmith Analytics Chart Collapsed by Default'
+            : '紅石鐵匠鋪每日產量圖表區預設為收合',
+          desc: isEn
+            ? 'The auto-miner production analytics trend chart is now collapsed by default upon opening the Blacksmith modal, keeping the interface clean while allowing one-click expansion whenever needed.'
+            : '開啟紅石鐵匠鋪時，自動採礦魔像每日產量趨勢圖表預設為收合狀態，保持介面簡潔清晰，點擊「產量趨勢圖表」按鈕即可隨時展開檢視。'
+        },
+        {
+          category: 'fix',
+          categoryLabel: isEn ? '🛡️ Quest Tuning' : '🛡️ 移除 Lv.2 放置任務',
+          tagColor: 'bg-purple-900/60 text-purple-300 border-purple-500/40',
+          title: isEn
+            ? 'Removed Lv.2 Block Placement Promotion Quest'
+            : '確認移除 Lv.2 放置任務，轉為採礦目標',
+          desc: isEn
+            ? 'Replaced the cumbersome placement quest at level 2 with standard quarry mining objectives, providing a smooth progression experience for early-game miners.'
+            : '移除了等級 2 原本的建築區放置方塊任務，改為更直覺流暢的開採方塊晉升目標，免除放置限制。'
+        }
+      ]
+    },
+    {
+      version: '26.2.80',
+      isLatest: false,
       date: isEn
         ? '26.2.80 Welcome Onboarding, Iron Golem Offline Harvest & 34 Strata Mega Expansion'
         : '26.2.80 首次進入歡迎導引・鐵魁儡不在時離線開採報告・34大地層擴充與地層合併',
@@ -1027,7 +1192,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
     return true;
   };
 
-  const currentAppVersion = logs[0]?.version || '26.2.80';
+  const currentAppVersion = logs[0]?.version || '26.3.00';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">

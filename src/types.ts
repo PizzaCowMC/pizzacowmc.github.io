@@ -388,7 +388,7 @@ export interface CafeState {
   branch2Reputation?: number;
 }
 
-export type OverworldZone = 'overworld' | 'cafe' | 'quarry' | 'elevator' | 'building';
+export type OverworldZone = 'overworld' | 'cafe' | 'quarry' | 'elevator' | 'building' | 'hotel';
 
 export interface MapPosition {
   x: number; // 0 to 100 %
